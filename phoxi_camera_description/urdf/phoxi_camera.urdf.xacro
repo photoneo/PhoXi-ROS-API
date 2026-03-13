@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<robot name="phoxi_camera" xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <xacro:arg name="model" default="PhoXi_3D_Scanner-M-gen3"/>
+    <xacro:property name="model" value="$(arg model)"/>
+
+    <xacro:include filename="$(find phoxi_camera_description)/urdf/models/${model}.xacro" />
+
+    <link name="base_link"/>
+
+    <link name="phoxi_camera_sensor">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="${visual_mesh}" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="Gray"><color rgba="0.8 0.8 0.8 1"/></material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="${collision_mesh}" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>
+        <inertial>
+          <mass value="0.5" />
+          <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001" />
+        </inertial>
+    </link>
+
+    <joint name="base_to_camera_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="phoxi_camera_sensor"/>
+        <origin xyz="0 0 0.5" rpy="0 0 0" />
+    </joint>
+
+</robot>

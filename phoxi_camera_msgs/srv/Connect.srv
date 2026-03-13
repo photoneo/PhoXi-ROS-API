@@ -1,0 +1,4 @@
+string sn       # sensor serial number
+---
+bool success    # if connected successfully
+string message  # error message, if necessary

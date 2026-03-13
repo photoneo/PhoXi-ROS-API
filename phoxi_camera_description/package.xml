@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="3">
+    <name>phoxi_camera_description</name>
+    <version>2.0.0</version>
+    <description>URDF and visual/collision models for PhoXi 3D cameras.</description>
+    <author>Zebra Technologies Slovakia s.r.o</author>
+    <maintainer email="support@photoneo.com">Photoneo</maintainer>
+    <license>MIT</license>
+
+    <buildtool_depend>ament_cmake</buildtool_depend>
+
+    <exec_depend>joint_state_publisher_gui</exec_depend>
+    <exec_depend>robot_state_publisher</exec_depend>
+    <exec_depend>rviz2</exec_depend>
+    <exec_depend>xacro</exec_depend>
+
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+</package>

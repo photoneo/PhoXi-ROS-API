@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+    <!-- Properties for MotionCam 3D Color L -->
+    <xacro:property name="visual_mesh" value="package://phoxi_camera_description/meshes/visual/MotionCam-3D-Color-L.stl" />
+    <xacro:property name="collision_mesh" value="package://phoxi_camera_description/meshes/collision/MotionCam-3D-Color-L-col.stl" />
+</robot>

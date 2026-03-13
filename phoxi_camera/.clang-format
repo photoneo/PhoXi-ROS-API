@@ -1,0 +1,25 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+
+AccessModifierOffset: -2
+AlignAfterOpenBracket: Align
+BraceWrapping:
+  AfterClass: true
+  AfterFunction: false
+  AfterNamespace: true
+  AfterStruct: true
+  AfterEnum: true
+BreakBeforeBraces: Custom
+ColumnLimit: 100
+ConstructorInitializerIndentWidth: 0
+ContinuationIndentWidth: 4
+DerivePointerAlignment: false
+IndentWidth: 4
+PointerAlignment: Left
+ReflowComments: true
+SpacesBeforeTrailingComments: 2
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: 1
+...

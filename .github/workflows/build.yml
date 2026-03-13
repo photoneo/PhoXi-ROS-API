@@ -1,0 +1,154 @@
+name: build.yml
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.ros_distro }})
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ROS 2 Humble (Ubuntu 22.04)
+          - ros_distro: humble
+            PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu22-STABLE.run
+            PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu22-STABLE.tar.gz
+          
+          # ROS 2 Jazzy (Ubuntu 24.04)
+          - ros_distro: jazzy
+            PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
+            PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
+          
+          # ROS 2 Kilted (Ubuntu 24.04)
+          - ros_distro: kilted
+            PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
+            PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
+          
+          # ROS 2 Rolling (Ubuntu 24.04)
+          - ros_distro: rolling
+            PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
+            PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
+
+    env:
+      PHOXI_CONTROL_PATH: /opt/Photoneo/PhoXiControl-1.16.5
+
+    steps:
+      - name: 'Checkout Repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # https://github.com/actions/checkout/releases/tag/v6.0.2
+        with:
+          path: ${{ github.workspace }}/bps-phoxi-camera
+
+      - name: 'Create Docker Buildx'
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # https://github.com/docker/setup-buildx-action/releases/tag/v4.0.0
+
+      - name: 'Build Docker Image'
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # https://github.com/docker/build-push-action/releases/tag/v7.0.0
+        with:
+          context: bps-phoxi-camera/.github/docker
+          file: bps-phoxi-camera/.github/docker/Dockerfile
+          build-args: |
+            ROS_DISTRO=${{ matrix.ros_distro }}
+            PHOXI_CONTROL_URL=${{ matrix.PHOXI_CONTROL_URL }}
+            PHOXI_CONTROL_INSTALLER=${{ matrix.PHOXI_CONTROL_INSTALLER }}
+            PHOXI_CONTROL_PATH=${{ env.PHOXI_CONTROL_PATH }}
+          tags: phoxi-ros:${{ matrix.ros_distro }}
+          load: true
+          cache-from: type=gha,scope=${{ matrix.ros_distro }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.ros_distro }}
+
+      - name: 'Cache ROS 2 Workspace'
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # https://github.com/actions/cache/releases/tag/v5.0.3
+        with:
+          path: |
+            ros2_ws_cache/build
+            ros2_ws_cache/install
+            ros2_ws_cache/ccache
+          key: ros2-ws-${{ matrix.ros_distro }}-${{ hashFiles('**/package.xml', '**/CMakeLists.txt') }}
+          restore-keys: |
+            ros2-ws-${{ matrix.ros_distro }}-
+
+      - name: 'Start docker container'
+        run: |
+          mkdir -p ros2_ws_cache/{build,install,ccache}
+          docker run --rm -d --shm-size=2g --name phoxi_camera_container \
+            -v ${{ github.workspace }}/bps-phoxi-camera:/ros2_ws/src/bps-phoxi-camera:ro \
+            -v ${{ github.workspace }}/ros2_ws_cache/build:/ros2_ws/build \
+            -v ${{ github.workspace }}/ros2_ws_cache/install:/ros2_ws/install \
+            -v ${{ github.workspace }}/ros2_ws_cache/ccache:/root/.ccache \
+            phoxi-ros:${{ matrix.ros_distro }} \
+            bash -c "
+               # Start dbus
+               mkdir -p /var/run/dbus && dbus-daemon --system --fork
+
+               # Start Avahi
+               avahi-daemon --daemonize --no-chroot
+
+               tail -f /dev/null
+             "
+
+      - name: 'Run linting tools'
+        run: |
+          docker exec phoxi_camera_container /bin/bash -c "
+            set -e
+
+            # Source ROS 2 environment and prepare lint output directory
+            mkdir -p ros2_ws/build/lint_reports
+            cd ros2_ws/src/bps-phoxi-camera/phoxi_camera
+            source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+
+            # Run linters
+            ament_clang_format --config .clang-format --xunit-file /ros2_ws/build/lint_reports/clang_format.xml src/ include/ test/
+            export AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS=1
+            ament_cppcheck --language=c++ --xunit-file /ros2_ws/build/lint_reports/cppcheck.xml src/ include/ test/
+            ament_cpplint src/ include/ test/ 2>&1 | tee /ros2_ws/build/lint_reports/cpplint.log
+          "
+
+      - name: 'Start PhoXi Control'
+        run: |
+          docker exec \
+            -d \
+            -e PHOXI_CONTROL_PATH=${{ env.PHOXI_CONTROL_PATH }} \
+            -e PHOXI_WITHOUT_DISPLAY=ON \
+            phoxi_camera_container \
+            ${{ env.PHOXI_CONTROL_PATH }}/bin/PhoXiControl
+
+      - name: 'Build and Test ROS 2 Workspace'
+        run: |
+          docker exec \
+              -e LD_LIBRARY_PATH=${{ env.PHOXI_CONTROL_PATH }}/API/lib \
+              phoxi_camera_container /bin/bash -c "
+              set -e
+
+              # Source ROS 2 environment
+              source /opt/ros/${{ matrix.ros_distro }}/setup.bash
+
+              # Install dependencies using rosdep
+              apt-get update
+              rosdep update --rosdistro ${{ matrix.ros_distro }}
+              rosdep install --from-paths /ros2_ws/src --ignore-src -r -y
+
+              # Build and test the workspace
+              cd /ros2_ws
+              colcon build --cmake-args -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+              source ./install/local_setup.bash
+              colcon test
+            "
+
+      - name: 'Publish Test Report'
+        uses: mikepenz/action-junit-report@49b2ca06f62aa7ef83ae6769a2179271e160d8e4 # https://github.com/mikepenz/action-junit-report/releases/tag/v6.3.1
+        if: always()
+        with:
+          report_paths: 'ros2_ws_cache/build/*/test_results/*/*.xml'
+          check_name: Test Results (${{ matrix.ros_distro }})
+
+      - name: 'Publish Lint Report'
+        uses: mikepenz/action-junit-report@49b2ca06f62aa7ef83ae6769a2179271e160d8e4 # https://github.com/mikepenz/action-junit-report/releases/tag/v6.3.1
+        if: always()
+        with:
+          report_paths: 'ros2_ws_cache/build/lint_reports/*'
+          check_name: Lint Results (${{ matrix.ros_distro }})

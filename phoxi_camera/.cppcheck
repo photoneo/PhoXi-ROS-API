@@ -1,0 +1,17 @@
+# cppcheck configuration for phoxi_camera
+# Suppress false positives and configure C++ standard
+
+# Use C++17 standard
+--std=c++17
+
+# Enable all checks but suppress specific false positives
+--enable=all
+--suppress=syntaxError
+--suppress=unmatchedSuppression
+
+# Include directories
+-I include/
+-I /opt/ros/jazzy/include/
+
+# Ignore install directory to avoid checking generated files
+-i install/

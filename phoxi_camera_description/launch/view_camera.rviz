@@ -1,0 +1,70 @@
+# ROS2 RViz2 Configuration for PhoXi Camera
+
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+  - Class: rviz_common/Time
+    Name: Time
+
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Name: Grid
+      Plane: XY
+      Reference Frame: <Fixed Frame>
+
+    - Class: rviz_default_plugins/RobotModel
+      Enabled: true
+      Name: RobotModel
+      Description Topic:
+        Depth: 5
+        Durability: Transient Local
+        History: Keep Last
+        Reliability: Reliable
+        Value: /robot_description
+      Visual Enabled: true
+
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Marker Scale: 0.3
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+
+    - Class: rviz_default_plugins/PointCloud2
+      Enabled: true
+      Name: PointCloud2
+      Topic:
+        Value: /phoxi_camera/pointcloud
+        Depth: 5
+      Size (m): 0.01
+      Style: Flat Squares
+
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+    Frame Rate: 30
+
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 1.5
+      Focal Point:
+        X: 0.1
+        Y: 0.1
+        Z: 0.1
+      Name: Current View
+      Pitch: 0.5
+      Yaw: 1.7

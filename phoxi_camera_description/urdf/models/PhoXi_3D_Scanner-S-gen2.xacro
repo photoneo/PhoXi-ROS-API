@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+    <!-- Properties for PhoXi 3D Scanner S gen2 -->
+    <xacro:property name="visual_mesh" value="package://phoxi_camera_description/meshes/visual/PhoXi_3D_Scanner-S-gen2.stl" />
+    <xacro:property name="collision_mesh" value="package://phoxi_camera_description/meshes/collision/PhoXi_3D_Scanner-S-gen2-col.stl" />
+</robot>

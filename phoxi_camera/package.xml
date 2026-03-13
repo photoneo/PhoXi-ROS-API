@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>phoxi_camera</name>
+  <version>2.0.0</version>
+  <description>The phoxi_camera is a package that enables interfacing Photoneo Phoxi Scanner/Camera from ROS2</description>
+
+  <author>Zebra Technologies Slovakia s.r.o</author>
+
+  <maintainer email="support@photoneo.com">Photoneo</maintainer>
+
+  <license>MIT</license>
+
+  <url>http://wiki.ros.org/phoxi_camera</url>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>lifecycle_msgs</depend>
+  <depend>phoxi_camera_msgs</depend>
+  <depend>phoxi_camera_vendor</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_components</depend>
+  <depend>rclcpp_lifecycle</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_gmock</test_depend>
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+  <test_depend>ament_clang_format</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
