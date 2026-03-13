@@ -32,19 +32,19 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options)
 
     // ---- trigger-frame service client ---------------------------------- //
     trigger_client_ = create_client<std_srvs::srv::Trigger>(
-        trigger_service_name_, rclcpp::ServicesQoS(), cb_group_client_);
+        trigger_service_name_, rclcpp::SystemDefaultsQoS().get_rmw_qos_profile(), cb_group_client_);
 
     // ---- start / stop services ----------------------------------------- //
     start_service_ = create_service<std_srvs::srv::Trigger>(
         "~/start",
         std::bind(&CompositionExample::on_start, this, std::placeholders::_1,
                   std::placeholders::_2),
-        rclcpp::ServicesQoS(), cb_group_srv_);
+        rclcpp::SystemDefaultsQoS().get_rmw_qos_profile(), cb_group_srv_);
 
     stop_service_ = create_service<std_srvs::srv::Trigger>(
         "~/stop",
         std::bind(&CompositionExample::on_stop, this, std::placeholders::_1, std::placeholders::_2),
-        rclcpp::ServicesQoS(), cb_group_srv_);
+        rclcpp::SystemDefaultsQoS().get_rmw_qos_profile(), cb_group_srv_);
 
     RCLCPP_INFO(get_logger(), "PhoXiCameraExampleClient ready.");
     RCLCPP_INFO(get_logger(), "  Trigger service : %s", trigger_service_name_.c_str());
