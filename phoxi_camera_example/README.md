@@ -72,7 +72,5 @@ in a larger system.
    ros2 service call /phoxi_camera_composition_example/stop std_srvs/srv/Trigger
    ```
 
-ROS_AUTOMATIC_DISCOVERY_RANGE=
-
 [composable node architecture]: https://docs.ros.org/en/rolling/Tutorials/Intermediate/Composition.html
 [dynamic discovery]: https://docs.ros.org/en/rolling/Tutorials/Advanced/Improved-Dynamic-Discovery.html
