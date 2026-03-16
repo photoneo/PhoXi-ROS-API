@@ -1,6 +1,7 @@
 #include "phoxi_camera_example/composition/composition_example.h"
 
 #include "rclcpp_components/register_node_macro.hpp"
+#include "rclcpp/version.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
 namespace phoxi_camera::composition_example
@@ -30,21 +31,27 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options)
         "/point_cloud", rclcpp::SystemDefaultsQoS(),
         std::bind(&CompositionExample::on_point_cloud, this, std::placeholders::_1), sub_opts);
 
+#if defined(RCLCPP_VERSION_MAJOR) && (RCLCPP_VERSION_MAJOR < 21)
+    const auto service_qos = rclcpp::ServicesQoS().get_rmw_qos_profile();
+#else
+    const auto service_qos = rclcpp::ServicesQoS();
+#endif
+
     // ---- trigger-frame service client ---------------------------------- //
-    trigger_client_ = create_client<std_srvs::srv::Trigger>(
-        trigger_service_name_, rclcpp::ServicesQoS(), cb_group_client_);
+    trigger_client_ = create_client<std_srvs::srv::Trigger>(trigger_service_name_, service_qos,
+                                                             cb_group_client_);
 
     // ---- start / stop services ----------------------------------------- //
     start_service_ = create_service<std_srvs::srv::Trigger>(
         "~/start",
         std::bind(&CompositionExample::on_start, this, std::placeholders::_1,
                   std::placeholders::_2),
-        rclcpp::ServicesQoS(), cb_group_srv_);
+        service_qos, cb_group_srv_);
 
     stop_service_ = create_service<std_srvs::srv::Trigger>(
         "~/stop",
         std::bind(&CompositionExample::on_stop, this, std::placeholders::_1, std::placeholders::_2),
-        rclcpp::ServicesQoS(), cb_group_srv_);
+        service_qos, cb_group_srv_);
 
     RCLCPP_INFO(get_logger(), "PhoXiCameraExampleClient ready.");
     RCLCPP_INFO(get_logger(), "  Trigger service : %s", trigger_service_name_.c_str());
