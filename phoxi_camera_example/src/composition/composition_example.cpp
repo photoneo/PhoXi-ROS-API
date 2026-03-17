@@ -1,7 +1,7 @@
 #include "phoxi_camera_example/composition/composition_example.h"
 
-#include "rclcpp_components/register_node_macro.hpp"
 #include "rclcpp/version.h"
+#include "rclcpp_components/register_node_macro.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
 namespace phoxi_camera::composition_example
@@ -38,8 +38,8 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options)
 #endif
 
     // ---- trigger-frame service client ---------------------------------- //
-    trigger_client_ = create_client<std_srvs::srv::Trigger>(trigger_service_name_, service_qos,
-                                                             cb_group_client_);
+    trigger_client_ =
+        create_client<std_srvs::srv::Trigger>(trigger_service_name_, service_qos, cb_group_client_);
 
     // ---- start / stop services ----------------------------------------- //
     start_service_ = create_service<std_srvs::srv::Trigger>(
