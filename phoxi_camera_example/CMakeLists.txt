@@ -40,17 +40,19 @@ target_link_libraries(phoxi_camera_composition_example_node
 )
 
 add_executable(simple_node_service_caller src/simple_node/simple_node_service_caller.cpp)
-ament_target_dependencies(simple_node_service_caller
-        "lifecycle_msgs"
-        "phoxi_camera_msgs"
-        "rclcpp"
-        "std_srvs"
+target_link_libraries(simple_node_service_caller
+    PUBLIC
+        ${lifecycle_msgs_TARGETS}
+        ${phoxi_camera_msgs_TARGETS}
+        ${std_srvs_TARGETS}
+        rclcpp::rclcpp
 )
 
 add_executable(simple_node_topic_listener src/simple_node/simple_node_topic_listener.cpp)
-ament_target_dependencies(simple_node_topic_listener
-        "rclcpp"
-        "sensor_msgs"
+target_link_libraries(simple_node_topic_listener
+    PUBLIC
+        rclcpp::rclcpp
+        ${sensor_msgs_TARGETS}
 )
 
 install(
