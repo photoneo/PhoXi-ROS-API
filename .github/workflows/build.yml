@@ -41,7 +41,7 @@ jobs:
       - name: 'Checkout Repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # https://github.com/actions/checkout/releases/tag/v6.0.2
         with:
-          path: ${{ github.workspace }}/bps-phoxi-camera
+          path: ${{ github.workspace }}/PhoXi-ROS-API
 
       - name: 'Create Docker Buildx'
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # https://github.com/docker/setup-buildx-action/releases/tag/v4.0.0
@@ -49,8 +49,8 @@ jobs:
       - name: 'Build Docker Image'
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # https://github.com/docker/build-push-action/releases/tag/v7.0.0
         with:
-          context: bps-phoxi-camera/.github/docker
-          file: bps-phoxi-camera/.github/docker/Dockerfile
+          context: PhoXi-ROS-API/.github/docker
+          file: PhoXi-ROS-API/.github/docker/Dockerfile
           build-args: |
             ROS_DISTRO=${{ matrix.ros_distro }}
             PHOXI_CONTROL_URL=${{ matrix.PHOXI_CONTROL_URL }}
@@ -76,7 +76,7 @@ jobs:
         run: |
           mkdir -p ros2_ws_cache/{build,install,ccache}
           docker run --rm -d --shm-size=2g --name phoxi_camera_container \
-            -v ${{ github.workspace }}/bps-phoxi-camera:/ros2_ws/src/bps-phoxi-camera:ro \
+            -v ${{ github.workspace }}/PhoXi-ROS-API:/ros2_ws/src/PhoXi-ROS-API:ro \
             -v ${{ github.workspace }}/ros2_ws_cache/build:/ros2_ws/build \
             -v ${{ github.workspace }}/ros2_ws_cache/install:/ros2_ws/install \
             -v ${{ github.workspace }}/ros2_ws_cache/ccache:/root/.ccache \
@@ -98,7 +98,7 @@ jobs:
 
             # Source ROS 2 environment and prepare lint output directory
             mkdir -p ros2_ws/build/lint_reports
-            cd ros2_ws/src/bps-phoxi-camera/phoxi_camera
+            cd ros2_ws/src/PhoXi-ROS-API/phoxi_camera
             source /opt/ros/${{ matrix.ros_distro }}/setup.bash
 
             # Run linters
