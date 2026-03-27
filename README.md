@@ -165,6 +165,7 @@ docker exec \
         /bin/bash -c "
             source /opt/ros/jazzy/setup.bash \
                 && cd /workspace \
+                && apt update \
                 && rosdep update --rosdistro jazzy \
                 && rosdep install --from-paths src --ignore-src -r -y \
                 && colcon build
