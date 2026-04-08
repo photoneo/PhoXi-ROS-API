@@ -38,7 +38,6 @@ void PhoXiInterface::connectCamera(std::string HWIdentification, GetFrameCb&& ge
         throw PhoXiDeviceNotFound("Device not found");
     }
     disconnectCamera();
-    phoXiDevice.Reset();  // This is needed before assign new instance
     if (!(phoXiDevice = phoXiFactory.CreateAndConnect(*it, CONNECTION_TIMEOUT_MS))) {
         disconnectCamera();
         throw UnableToStartAcquisition("Device was not able to connect. Disconnected.");
@@ -113,6 +112,12 @@ int PhoXiInterface::triggerImage(bool waitForGrab) {
                 throw UnableToTriggerFrame("Communication Error.");
             case -4:
                 throw UnableToTriggerFrame("WaitForGrabbingEnd is not supported.");
+            case -5:
+                throw UnableToTriggerFrame("Timeout.");
+            case -6:
+                throw UnableToTriggerFrame("Device is not connected.");
+            case -7:
+                throw UnableToTriggerFrame("Device is not acquiring.");
             default:
                 throw UnableToTriggerFrame("Unknown error.");
         }
@@ -122,9 +127,7 @@ int PhoXiInterface::triggerImage(bool waitForGrab) {
 
 void PhoXiInterface::setTriggerMode(pho::api::PhoXiTriggerMode mode, bool startAcquisition) {
     if (!((mode == pho::api::PhoXiTriggerMode::Software) ||
-          (mode == pho::api::PhoXiTriggerMode::Hardware) ||
-          (mode == pho::api::PhoXiTriggerMode::Freerun) ||
-          (mode == pho::api::PhoXiTriggerMode::NoValue))) {
+          (mode == pho::api::PhoXiTriggerMode::Freerun))) {
         throw InvalidTriggerMode("Invalid trigger mode " + std::to_string(mode) + ".");
     }
     this->isOk();
