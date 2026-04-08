@@ -1,5 +1,7 @@
 #include "phoxi_camera/RosInterface.h"
 
+#include <chrono>
+
 #include "lifecycle_msgs/msg/state.hpp"
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/RosConversions.h"
@@ -129,8 +131,22 @@ void RosInterface::connect_cb(
         try {
             std::unique_ptr<sensor_msgs::msg::PointCloud2> msg = phoXiFrameToRosMsg(pframe);
 
-            msg->header.stamp = this->get_clock()->now();
             msg->header.frame_id = frame_id_;
+            std::chrono::nanoseconds stamp{0};
+
+            if (pframe->Info.FrameStartTime.IsValid()) {
+                stamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    pframe->Info.FrameStartTime.Time.time_since_epoch());
+            } else if (pframe->Info.FrameTimestamp > 0.) {
+                stamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::duration<double, std::milli>(pframe->Info.FrameTimestamp));
+            }
+            if (stamp.count() > 0) {
+                msg->header.stamp.sec = stamp.count() / 1000000000;
+                msg->header.stamp.nanosec = stamp.count() % 1000000000;
+            } else {
+                msg->header.stamp = this->get_clock()->now();
+            }
 
             if (point_cloud_pub_->is_activated()) {
                 point_cloud_pub_->publish(std::move(msg));

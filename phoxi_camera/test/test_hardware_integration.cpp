@@ -108,7 +108,9 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
     ASSERT_TRUE(message_received)
         << "Node reported successful trigger, but no point cloud message was received!";
     EXPECT_GT(received_msg->data.size(), 0) << "Received point cloud is empty!";
-    EXPECT_FALSE(received_msg->header.frame_id.empty()) << "Frame ID is empty!";
+    EXPECT_NE(received_msg->header.frame_id, "") << "Frame ID is empty!";
+    EXPECT_TRUE(received_msg->header.stamp.sec > 0 || received_msg->header.stamp.nanosec > 0)
+        << "Timestamp is not set!";
 
     RCLCPP_INFO(test_client_node_->get_logger(), "Deactivating and cleaning up...");
     ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE));
