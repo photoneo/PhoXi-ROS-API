@@ -7,6 +7,7 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
@@ -42,6 +43,8 @@ class CompositionExample : public rclcpp::Node
     // ------------------------------------------------------------------ //
     void on_point_cloud(sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
 
+    void on_color_camera_image(sensor_msgs::msg::Image::ConstSharedPtr msg);
+
     void on_start(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
                   std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
@@ -57,6 +60,7 @@ class CompositionExample : public rclcpp::Node
     //  ROS interfaces                                                     //
     // ------------------------------------------------------------------ //
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr color_camera_image_sub_;
     rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr trigger_client_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr stop_service_;

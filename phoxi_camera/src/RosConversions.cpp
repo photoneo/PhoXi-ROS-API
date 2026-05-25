@@ -137,4 +137,36 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const pho::api
     return msg;
 }
 
+std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const pho::api::PFrame& pFrame) {
+    if (!pFrame) {
+        throw std::invalid_argument("pFrame is NULL");
+    }
+    if (pFrame->ColorCameraImage.Empty()) {
+        throw std::invalid_argument("ColorCameraImage is empty");
+    }
+
+    auto msg = std::make_unique<sensor_msgs::msg::Image>();
+
+    const auto& img = pFrame->ColorCameraImage;
+    msg->height = static_cast<uint32_t>(img.Size.Height);
+    msg->width = static_cast<uint32_t>(img.Size.Width);
+    msg->encoding = "rgb16";
+    msg->is_bigendian = false;
+    msg->step = msg->width * 3 * sizeof(uint16_t);
+    msg->data.resize(msg->height * msg->step);
+
+    uint8_t* dataPtr = msg->data.data();
+    for (uint32_t r = 0; r < msg->height; ++r) {
+        for (uint32_t c = 0; c < msg->width; ++c) {
+            const auto& pixel = img.At(r, c);
+            uint8_t* dst = dataPtr + r * msg->step + c * 3 * sizeof(uint16_t);
+            std::memcpy(dst + 0 * sizeof(uint16_t), &pixel.r, sizeof(uint16_t));
+            std::memcpy(dst + 1 * sizeof(uint16_t), &pixel.g, sizeof(uint16_t));
+            std::memcpy(dst + 2 * sizeof(uint16_t), &pixel.b, sizeof(uint16_t));
+        }
+    }
+
+    return msg;
+}
+
 }  // namespace phoxi_camera

@@ -31,6 +31,11 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options)
         "/point_cloud", rclcpp::SystemDefaultsQoS(),
         std::bind(&CompositionExample::on_point_cloud, this, std::placeholders::_1), sub_opts);
 
+    color_camera_image_sub_ = create_subscription<sensor_msgs::msg::Image>(
+        "/color_camera_image", rclcpp::SystemDefaultsQoS(),
+        std::bind(&CompositionExample::on_color_camera_image, this, std::placeholders::_1),
+        sub_opts);
+
 #if defined(RCLCPP_VERSION_MAJOR) && (RCLCPP_VERSION_MAJOR < 21)
     const auto service_qos = rclcpp::ServicesQoS().get_rmw_qos_profile();
 #else
@@ -114,6 +119,17 @@ void CompositionExample::on_point_cloud(sensor_msgs::msg::PointCloud2::ConstShar
     if (running_) {
         trigger_next_frame();
     }
+}
+
+// -------------------------------------------------------------------------- //
+//  Color-camera-image callback                                               //
+// -------------------------------------------------------------------------- //
+
+void CompositionExample::on_color_camera_image(sensor_msgs::msg::Image::ConstSharedPtr msg) {
+    RCLCPP_INFO(get_logger(),
+                "[ColorCameraImage]  %ux%u  encoding=%s  stamp=%d.%09u",
+                msg->width, msg->height, msg->encoding.c_str(),
+                msg->header.stamp.sec, msg->header.stamp.nanosec);
 }
 
 // -------------------------------------------------------------------------- //

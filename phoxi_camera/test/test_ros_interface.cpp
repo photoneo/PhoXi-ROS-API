@@ -8,6 +8,7 @@
 #include "phoxi_camera/PhoXiInterface.h"
 #include "phoxi_camera/RosInterface.h"
 #include "phoxi_camera_msgs/srv/connect.hpp"
+#include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
@@ -152,6 +153,72 @@ TEST_F(RosInterfaceTest, TriggerFrame) {
 
     ASSERT_EQ(executor_.spin_until_future_complete(future), rclcpp::FutureReturnCode::SUCCESS);
     EXPECT_TRUE(future.get()->success);
+
+    EXPECT_CALL(*mock_phoxi_interface_, disconnectCamera()).Times(1);
+}
+
+TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
+    ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
+    ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
+
+    phoxi_camera::PhoXiInterface::GetFrameCb captured_cb;
+    EXPECT_CALL(*mock_phoxi_interface_, connectCamera("test-sn", _, _, _))
+        .WillOnce([&captured_cb](std::string, phoxi_camera::PhoXiInterface::GetFrameCb&& cb,
+                                  pho::api::PhoXiTriggerMode, bool) {
+            captured_cb = std::move(cb);
+        });
+
+    auto connect_client =
+        test_client_node_->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    ASSERT_TRUE(connect_client->wait_for_service(std::chrono::seconds(2)));
+    auto connect_req = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
+    connect_req->sn = "test-sn";
+    auto connect_future = connect_client->async_send_request(connect_req);
+    ASSERT_EQ(executor_.spin_until_future_complete(connect_future), rclcpp::FutureReturnCode::SUCCESS);
+    ASSERT_TRUE(connect_future.get()->success);
+    ASSERT_TRUE(captured_cb);
+
+    std::promise<sensor_msgs::msg::Image::SharedPtr> img_promise;
+    auto img_future = img_promise.get_future().share();
+    auto sub = test_client_node_->create_subscription<sensor_msgs::msg::Image>(
+        "color_camera_image", rclcpp::SystemDefaultsQoS(),
+        [&img_promise](sensor_msgs::msg::Image::SharedPtr msg) {
+            img_promise.set_value(msg);
+        });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+
+    auto pframe = std::make_shared<pho::api::Frame>();
+    pframe->ColorCameraImage.Resize(pho::api::PhoXiSize(2, 1));
+    pframe->ColorCameraImage[0][0] = {1000, 2000, 3000};
+    pframe->ColorCameraImage[0][1] = {4000, 5000, 6000};
+
+    captured_cb(pframe);
+
+    ASSERT_EQ(executor_.spin_until_future_complete(img_future, std::chrono::seconds(2)),
+              rclcpp::FutureReturnCode::SUCCESS);
+
+    auto received = img_future.get();
+    ASSERT_NE(received, nullptr);
+    EXPECT_EQ(received->encoding, "rgb16");
+    EXPECT_EQ(received->width, 2u);
+    EXPECT_EQ(received->height, 1u);
+    EXPECT_EQ(received->step, 2u * 3u * sizeof(uint16_t));
+
+    uint16_t r0, g0, b0, r1, g1, b1;
+    std::memcpy(&r0, received->data.data() + 0 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&g0, received->data.data() + 1 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&b0, received->data.data() + 2 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&r1, received->data.data() + 3 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&g1, received->data.data() + 4 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&b1, received->data.data() + 5 * sizeof(uint16_t), sizeof(uint16_t));
+
+    EXPECT_EQ(r0, 1000u);
+    EXPECT_EQ(g0, 2000u);
+    EXPECT_EQ(b0, 3000u);
+    EXPECT_EQ(r1, 4000u);
+    EXPECT_EQ(g1, 5000u);
+    EXPECT_EQ(b1, 6000u);
 
     EXPECT_CALL(*mock_phoxi_interface_, disconnectCamera()).Times(1);
 }

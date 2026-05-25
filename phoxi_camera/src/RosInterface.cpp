@@ -36,6 +36,8 @@ RosInterface::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
 
     point_cloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
         "point_cloud", rclcpp::SystemDefaultsQoS());
+    color_camera_image_pub_ = this->create_publisher<sensor_msgs::msg::Image>(
+        "color_camera_image", rclcpp::SystemDefaultsQoS());
 
     connect_service_ = this->create_service<phoxi_camera_msgs::srv::Connect>(
         "~/connect",
@@ -56,6 +58,7 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn RosInt
     RCLCPP_INFO(this->get_logger(), "Activating PhoXi Camera node...");
 
     point_cloud_pub_->on_activate();
+    color_camera_image_pub_->on_activate();
 
     RCLCPP_INFO(this->get_logger(), "Activation complete.");
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
@@ -66,6 +69,7 @@ RosInterface::on_deactivate(const rclcpp_lifecycle::State& /*previous_state*/) {
     RCLCPP_INFO(this->get_logger(), "Deactivating PhoXi Camera node...");
 
     point_cloud_pub_->on_deactivate();
+    color_camera_image_pub_->on_deactivate();
 
     if (phoxi_interface_) {
         phoxi_interface_->disconnectCamera();
@@ -81,6 +85,7 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn RosInt
 
     phoxi_interface_.reset();
     point_cloud_pub_.reset();
+    color_camera_image_pub_.reset();
     connect_service_.reset();
     disconnect_service_.reset();
     trigger_frame_service_.reset();
@@ -95,6 +100,7 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn RosInt
 
     phoxi_interface_.reset();
     point_cloud_pub_.reset();
+    color_camera_image_pub_.reset();
     connect_service_.reset();
     disconnect_service_.reset();
     trigger_frame_service_.reset();
@@ -150,6 +156,21 @@ void RosInterface::connect_cb(
 
             if (point_cloud_pub_->is_activated()) {
                 point_cloud_pub_->publish(std::move(msg));
+            }
+
+            if (!pframe->ColorCameraImage.Empty()) {
+                std::unique_ptr<sensor_msgs::msg::Image> color_img_msg =
+                    colorCameraImageToRosMsg(pframe);
+                color_img_msg->header.frame_id = frame_id_;
+                if (stamp.count() > 0) {
+                    color_img_msg->header.stamp.sec = stamp.count() / 1000000000;
+                    color_img_msg->header.stamp.nanosec = stamp.count() % 1000000000;
+                } else {
+                    color_img_msg->header.stamp = this->get_clock()->now();
+                }
+                if (color_camera_image_pub_->is_activated()) {
+                    color_camera_image_pub_->publish(std::move(color_img_msg));
+                }
             }
 
             RCLCPP_INFO(this->get_logger(), "Frame published successfully.");

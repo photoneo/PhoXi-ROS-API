@@ -185,6 +185,60 @@ TEST_F(ConversionTest, GrayscaleFrame) {
     EXPECT_FLOAT_EQ(iter_intensity[0], 0.75f);
 }
 
+TEST_F(ConversionTest, ColorCameraImageNullFrame) {
+    pho::api::PFrame null_frame;
+    EXPECT_THROW(phoxi_camera::colorCameraImageToRosMsg(null_frame), std::invalid_argument);
+}
+
+TEST_F(ConversionTest, ColorCameraImageEmptyData) {
+    pho::api::PFrame pframe = std::make_shared<pho::api::Frame>();
+    EXPECT_THROW(phoxi_camera::colorCameraImageToRosMsg(pframe), std::invalid_argument);
+}
+
+TEST_F(ConversionTest, ColorCameraImageMetadata) {
+    pho::api::PFrame pframe = std::make_shared<pho::api::Frame>();
+    const uint32_t width = 3;
+    const uint32_t height = 2;
+    pframe->ColorCameraImage.Resize(pho::api::PhoXiSize(width, height));
+
+    auto msg = phoxi_camera::colorCameraImageToRosMsg(pframe);
+
+    ASSERT_NE(msg, nullptr);
+    EXPECT_EQ(msg->width, width);
+    EXPECT_EQ(msg->height, height);
+    EXPECT_EQ(msg->encoding, "rgb16");
+    EXPECT_FALSE(msg->is_bigendian);
+    EXPECT_EQ(msg->step, width * 3 * sizeof(uint16_t));
+    EXPECT_EQ(msg->data.size(), height * msg->step);
+}
+
+TEST_F(ConversionTest, ColorCameraImagePixelValues) {
+    pho::api::PFrame pframe = std::make_shared<pho::api::Frame>();
+    pframe->ColorCameraImage.Resize(pho::api::PhoXiSize(2, 1));
+    pframe->ColorCameraImage[0][0] = {1000, 2000, 3000};
+    pframe->ColorCameraImage[0][1] = {4000, 5000, 6000};
+
+    auto msg = phoxi_camera::colorCameraImageToRosMsg(pframe);
+
+    ASSERT_NE(msg, nullptr);
+    ASSERT_EQ(msg->data.size(), 2 * 3 * sizeof(uint16_t));
+
+    uint16_t r0, g0, b0, r1, g1, b1;
+    std::memcpy(&r0, msg->data.data() + 0 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&g0, msg->data.data() + 1 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&b0, msg->data.data() + 2 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&r1, msg->data.data() + 3 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&g1, msg->data.data() + 4 * sizeof(uint16_t), sizeof(uint16_t));
+    std::memcpy(&b1, msg->data.data() + 5 * sizeof(uint16_t), sizeof(uint16_t));
+
+    EXPECT_EQ(r0, 1000u);
+    EXPECT_EQ(g0, 2000u);
+    EXPECT_EQ(b0, 3000u);
+    EXPECT_EQ(r1, 4000u);
+    EXPECT_EQ(g1, 5000u);
+    EXPECT_EQ(b1, 6000u);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

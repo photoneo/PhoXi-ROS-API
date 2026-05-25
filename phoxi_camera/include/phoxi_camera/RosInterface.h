@@ -8,6 +8,7 @@
 #include "phoxi_camera_msgs/srv/connect.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
@@ -43,6 +44,7 @@ class RosInterface : public rclcpp_lifecycle::LifecycleNode
                           std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_pub_;
+    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr color_camera_image_pub_;
 
     rclcpp::Service<phoxi_camera_msgs::srv::Connect>::SharedPtr connect_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr disconnect_service_;
