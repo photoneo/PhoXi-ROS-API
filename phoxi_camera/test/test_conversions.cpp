@@ -24,9 +24,7 @@ uint32_t getFieldOffset(const sensor_msgs::msg::PointCloud2& msg, const std::str
     throw std::runtime_error("Field '" + field_name + "' not found in PointCloud2 message");
 }
 
-class ConversionTest : public ::testing::Test
-{
-};
+class ConversionTest : public ::testing::Test {};
 
 TEST_F(ConversionTest, FullFrameConversion) {
     pho::api::PFrame pframe = std::make_shared<pho::api::Frame>();

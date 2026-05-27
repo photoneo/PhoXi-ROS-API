@@ -1,4 +1,4 @@
 phoxi_camera:
   ros__parameters:
-    sensor_sn: "" # serial number of PhoXi device
+    device_id: "" # hardware identification of PhoXi device (serial number or network ID)
     frame_id: "phoxi_camera_sensor" # coordinate frame ID for published point cloud

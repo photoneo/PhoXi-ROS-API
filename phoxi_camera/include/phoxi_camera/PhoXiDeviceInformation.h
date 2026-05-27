@@ -5,31 +5,19 @@
 
 #include "PhoXi.h"
 
-namespace phoxi_camera
-{
+namespace phoxi_camera {
 class PhoXiInterface;
 
-class PhoXiDeviceInformation
-{
-  public:
+class PhoXiDeviceInformation {
+public:
     friend PhoXiInterface;
-    enum PhoXiConnectionStatus
-    {
-        Undefined = 0,
-        Ready = 1,
-        Occupied = 2,
-        Connected = 3
-    };
+    enum PhoXiConnectionStatus { Undefined = 0, Ready = 1, Occupied = 2, Connected = 3 };
 
     operator std::string() const { return hwIdentification; }
 
-    bool operator==(const PhoXiDeviceInformation& other) {
-        return hwIdentification == other.hwIdentification;
-    }
+    bool operator==(const PhoXiDeviceInformation& other) { return hwIdentification == other.hwIdentification; }
 
-    bool operator==(const std::string& hwIdentification) {
-        return this->hwIdentification == hwIdentification;
-    }
+    bool operator==(const std::string& hwIdentification) { return this->hwIdentification == hwIdentification; }
 
     std::string name;
     pho::api::PhoXiDeviceType type;

@@ -28,7 +28,10 @@ target_link_libraries(${PROJECT_NAME}_PhoXi_Interface
         pthread
 )
 
-add_library(${PROJECT_NAME}_Ros_Interface SHARED src/RosInterface.cpp src/RosConversions.cpp)
+add_library(${PROJECT_NAME}_Ros_Interface SHARED
+        src/PhoXiCamera.cpp
+        src/RosConversions.cpp)
+
 target_link_libraries(${PROJECT_NAME}_Ros_Interface
     PUBLIC
         ${PROJECT_NAME}_PhoXi_Interface
@@ -43,7 +46,7 @@ target_link_libraries(${PROJECT_NAME}_Ros_Interface
 )
 
 # Register RosInterface as a composable-node plugin.
-rclcpp_components_register_nodes(${PROJECT_NAME}_Ros_Interface "phoxi_camera::RosInterface")
+rclcpp_components_register_nodes(${PROJECT_NAME}_Ros_Interface "phoxi_camera::PhoXiCamera")
 
 add_executable(${PROJECT_NAME}_node src/phoxi_camera_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node

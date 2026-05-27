@@ -1,0 +1,4 @@
+bool wait_grabbing_end
+---
+bool success
+string message

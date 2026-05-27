@@ -16,11 +16,9 @@ using namespace std::chrono_literals;
  * @return True on success, false on failure.
  */
 bool change_lifecycle_state(std::shared_ptr<rclcpp::Node> node, uint8_t transition) {
-    auto client =
-        node->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
+    auto client = node->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
     if (!client->wait_for_service(3s)) {
-        RCLCPP_ERROR(node->get_logger(),
-                     "Lifecycle service '/phoxi_camera/change_state' not available.");
+        RCLCPP_ERROR(node->get_logger(), "Lifecycle service '/phoxi_camera/change_state' not available.");
         return false;
     }
 
@@ -30,8 +28,7 @@ bool change_lifecycle_state(std::shared_ptr<rclcpp::Node> node, uint8_t transiti
     auto future = client->async_send_request(request);
     auto result = future.get();
     if (!result || !result->success) {
-        RCLCPP_ERROR(node->get_logger(), "Failed to trigger transition %u",
-                     static_cast<unsigned int>(transition));
+        RCLCPP_ERROR(node->get_logger(), "Failed to trigger transition %u", static_cast<unsigned int>(transition));
         return false;
     }
     return true;
@@ -56,12 +53,9 @@ void run_workflow(std::shared_ptr<rclcpp::Node> node) {
     RCLCPP_INFO(node->get_logger(), "Activation successful.");
 
     // --- 3. Create clients and wait for services ---
-    auto connect_client =
-        node->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
-    auto trigger_client =
-        node->create_client<std_srvs::srv::Trigger>("/phoxi_camera/trigger_frame");
-    auto disconnect_client =
-        node->create_client<std_srvs::srv::Trigger>("/phoxi_camera/disconnect");
+    auto connect_client = node->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    auto trigger_client = node->create_client<std_srvs::srv::Trigger>("/phoxi_camera/trigger_frame");
+    auto disconnect_client = node->create_client<std_srvs::srv::Trigger>("/phoxi_camera/disconnect");
 
     if (!connect_client->wait_for_service(5s)) {
         RCLCPP_ERROR(node->get_logger(), "Connect service did not appear after activation.");

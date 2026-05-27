@@ -5,12 +5,12 @@
 namespace phoxi_camera
 {
 std::vector<PhoXiDeviceInformation> PhoXiInterface::deviceList() {
-    if (!phoXiFactory.isPhoXiControlRunning()) {
-        phoXiDevice.Reset();
+    if (!mPhoXiFactory.isPhoXiControlRunning()) {
+        mPhoXiDevice.Reset();
         throw PhoXiControlNotRunning("PhoXi Control is not running");
     }
     std::vector<PhoXiDeviceInformation> deviceInfo;
-    auto dl = phoXiFactory.GetDeviceList();
+    auto dl = mPhoXiFactory.GetDeviceList();
     toPhoXiCameraDeviceInforamtion(dl, deviceInfo);
     return deviceInfo;
 }
@@ -24,86 +24,82 @@ std::vector<std::string> PhoXiInterface::cameraList() {
     return hwIdentificationList;
 }
 
-void PhoXiInterface::connectCamera(std::string HWIdentification, GetFrameCb&& getFrameCallback,
-                                   pho::api::PhoXiTriggerMode mode, bool startAcquisition) {
-    if (this->isConnected()) {
-        if (phoXiDevice->HardwareIdentification == HWIdentification) {
-            this->setTriggerMode(mode, startAcquisition);
+void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCb&& getFrameCallback) {
+    if (isConnected()) {
+        if (mPhoXiDevice->HardwareIdentification == deviceId) {
+            setTriggerMode(pho::api::PhoXiTriggerMode::Software);
+            mPhoXiDevice->EnableAsyncGetFrame(std::move(getFrameCallback));
             return;
         }
     }
-    std::vector<std::string> cl = cameraList();
-    auto it = std::find(cl.begin(), cl.end(), HWIdentification);
-    if (it == cl.end()) {
-        throw PhoXiDeviceNotFound("Device not found");
-    }
-    disconnectCamera();
-    if (!(phoXiDevice = phoXiFactory.CreateAndConnect(*it, CONNECTION_TIMEOUT_MS))) {
-        disconnectCamera();
+
+    mPhoXiDevice = mPhoXiFactory.CreateAndConnect(deviceId, CONNECTION_TIMEOUT_MS);
+    if (!mPhoXiDevice) {
         throw UnableToStartAcquisition("Device was not able to connect. Disconnected.");
     }
-    this->setTriggerMode(mode, startAcquisition);
-    phoXiDevice->EnableAsyncGetFrame(std::move(getFrameCallback));
+    
+    setTriggerMode(pho::api::PhoXiTriggerMode::Software);
+    mPhoXiDevice->EnableAsyncGetFrame(std::move(getFrameCallback));
 }
 
 void PhoXiInterface::disconnectCamera() {
-    if (phoXiDevice && phoXiDevice->isConnected()) {
-        phoXiDevice->Disconnect(true, true);
+    if (mPhoXiDevice) {
+        mPhoXiDevice->Disconnect(true, true);
     }
-    phoXiDevice.Reset();  // Device instance is not usable after disconnect, call destructor
+    mPhoXiDevice.Reset();
 }
 
-void PhoXiInterface::triggerFrame() {
-    this->isOk();
-
-    int id;
+void PhoXiInterface::triggerFrame(bool waitGrabbingEnd) {
+    isOk();
     try {
-        id = this->triggerImage(true);
-    } catch (UnableToTriggerFrame& e) {
+        triggerImage(waitGrabbingEnd);
+    } catch (UnableToTriggerFrame&) {
         throw;
     }
-
-    return;
 }
 
 void PhoXiInterface::isOk() {
-    if (!phoXiDevice || !phoXiDevice->isConnected()) {
+    if (!mPhoXiDevice || !mPhoXiDevice->isConnected()) {
         throw PhoXiDeviceNotConnected("No device connected");
     }
 }
 
-bool PhoXiInterface::isConnected() { return (phoXiDevice && phoXiDevice->isConnected()); }
+bool PhoXiInterface::isConnected() {
+    return (mPhoXiDevice && mPhoXiDevice->isConnected());
+}
 
-bool PhoXiInterface::isAcquiring() { return (phoXiDevice && phoXiDevice->isAcquiring()); }
+bool PhoXiInterface::isAcquiring() {
+    return (mPhoXiDevice && mPhoXiDevice->isAcquiring());
+}
 
 void PhoXiInterface::startAcquisition() {
-    this->isOk();
-    if (phoXiDevice->isAcquiring()) {
+    isOk();
+    if (mPhoXiDevice->isAcquiring()) {
         return;
     }
-    phoXiDevice->StartAcquisition();
-    if (!phoXiDevice->isAcquiring()) {
+    mPhoXiDevice->StartAcquisition();
+    if (!mPhoXiDevice->isAcquiring()) {
         throw UnableToStartAcquisition("Unable to start acquisition.");
     }
 }
 
 void PhoXiInterface::stopAcquisition() {
-    this->isOk();
-    if (!phoXiDevice->isAcquiring()) {
+    isOk();
+    if (!mPhoXiDevice->isAcquiring()) {
         return;
     }
-    phoXiDevice->StopAcquisition();
-    if (phoXiDevice->isAcquiring()) {
+    mPhoXiDevice->StopAcquisition();
+    if (mPhoXiDevice->isAcquiring()) {
         throw UnableToStopAcquisition("Unable to stop acquisition.");
     }
 }
 
 int PhoXiInterface::triggerImage(bool waitForGrab) {
-    this->setTriggerMode(pho::api::PhoXiTriggerMode::Software, true);
-    int frame_id = phoXiDevice->TriggerFrame(true, waitForGrab);
+    setTriggerMode(pho::api::PhoXiTriggerMode::Software);
+    int frameId = mPhoXiDevice->TriggerFrame(true, waitForGrab);
 
-    if (frame_id < 0) {
-        switch (frame_id) {
+    if (frameId < 0) {
+        switch (frameId) {
             case -1:
                 throw UnableToTriggerFrame("Trigger not accepted.");
             case -2:
@@ -122,33 +118,25 @@ int PhoXiInterface::triggerImage(bool waitForGrab) {
                 throw UnableToTriggerFrame("Unknown error.");
         }
     }
-    return frame_id;
+    return frameId;
 }
 
-void PhoXiInterface::setTriggerMode(pho::api::PhoXiTriggerMode mode, bool startAcquisition) {
+void PhoXiInterface::setTriggerMode(pho::api::PhoXiTriggerMode mode) {
     if (!((mode == pho::api::PhoXiTriggerMode::Software) ||
           (mode == pho::api::PhoXiTriggerMode::Freerun))) {
         throw InvalidTriggerMode("Invalid trigger mode " + std::to_string(mode) + ".");
     }
-    this->isOk();
-    if (mode == phoXiDevice->TriggerMode.GetValue()) {
-        if (startAcquisition) {
-            this->startAcquisition();
-        } else {
-            this->stopAcquisition();
-        }
+    isOk();
+    if (mode == mPhoXiDevice->TriggerMode.GetValue()) {
         return;
     }
-    this->stopAcquisition();
-    phoXiDevice->TriggerMode = mode;
-    if (startAcquisition) {
-        this->startAcquisition();
-    }
+    stopAcquisition();
+    mPhoXiDevice->TriggerMode = mode;
 }
 
 pho::api::PhoXiTriggerMode PhoXiInterface::getTriggerMode() {
-    this->isOk();
-    return phoXiDevice->TriggerMode;
+    isOk();
+    return mPhoXiDevice->TriggerMode;
 }
 
 }  // namespace phoxi_camera

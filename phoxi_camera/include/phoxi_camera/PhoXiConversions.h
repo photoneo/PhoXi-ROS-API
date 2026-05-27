@@ -6,9 +6,7 @@
 #include "PhoXi.h"
 #include "phoxi_camera/PhoXiDeviceInformation.h"
 
-void toPhoXiCameraDeviceInforamtion(
-    const pho::api::PhoXiDeviceInformation& phoXiDeviceInformation,
-    phoxi_camera::PhoXiDeviceInformation& phoXiCameraDeviceInformation) {
+void toPhoXiCameraDeviceInforamtion(const pho::api::PhoXiDeviceInformation& phoXiDeviceInformation, phoxi_camera::PhoXiDeviceInformation& phoXiCameraDeviceInformation) {
     phoXiCameraDeviceInformation.name = phoXiDeviceInformation.Name;
     phoXiCameraDeviceInformation.type = phoXiDeviceInformation.Type;
     phoXiCameraDeviceInformation.hwIdentification = phoXiDeviceInformation.HWIdentification;
@@ -18,19 +16,15 @@ void toPhoXiCameraDeviceInforamtion(
     }
     if (phoXiDeviceInformation.Status.Ready) {
         if (phoXiDeviceInformation.Status.Attached) {
-            phoXiCameraDeviceInformation.status =
-                phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Connected;
+            phoXiCameraDeviceInformation.status = phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Connected;
         } else {
-            phoXiCameraDeviceInformation.status =
-                phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Ready;
+            phoXiCameraDeviceInformation.status = phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Ready;
         }
     } else {
         if (phoXiDeviceInformation.Status.Attached) {
-            phoXiCameraDeviceInformation.status =
-                phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Undefined;
+            phoXiCameraDeviceInformation.status = phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Undefined;
         } else {
-            phoXiCameraDeviceInformation.status =
-                phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Occupied;
+            phoXiCameraDeviceInformation.status = phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Occupied;
         }
     }
 
@@ -57,8 +51,7 @@ void toPhoXiCameraDeviceInforamtion(
 }
 
 void toPhoXiCameraDeviceInforamtion(
-    const std::vector<pho::api::PhoXiDeviceInformation>& phoXiDeviceInformation,
-    std::vector<phoxi_camera::PhoXiDeviceInformation>& phoXiCameraDeviceInformation) {
+        const std::vector<pho::api::PhoXiDeviceInformation>& phoXiDeviceInformation, std::vector<phoxi_camera::PhoXiDeviceInformation>& phoXiCameraDeviceInformation) {
     phoXiCameraDeviceInformation.clear();
     phoXiCameraDeviceInformation.resize(phoXiDeviceInformation.size());
     for (int i = 0; i < phoXiDeviceInformation.size(); ++i) {

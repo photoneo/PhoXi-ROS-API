@@ -9,11 +9,6 @@
 #include "phoxi_camera/PhoXiDeviceInformation.h"
 #include "phoxi_camera/PhoXiException.h"
 
-// * PhoXiInterface
-/**
- * Wrapper to PhoXi Device api to make interface easier
- *
- */
 namespace phoxi_camera
 {
 class PhoXiInterface
@@ -21,10 +16,8 @@ class PhoXiInterface
   public:
     using GetFrameCb = std::function<void(pho::api::PFrame)>;
 
-    /**
-     * Default constructor.
-     */
     PhoXiInterface() = default;
+    virtual ~PhoXiInterface() = default;
 
     /**
      * Return all PhoXi Devices ids connected on network with all information about devices.
@@ -36,7 +29,6 @@ class PhoXiInterface
     /**
      * Return all PhoXi Devices ids connected on network.
      *
-     * \note returned id can be passed to connectCamera method
      * \throw PhoXiControlNotRunning when PhoXi Control is not running
      */
     std::vector<std::string> cameraList();
@@ -44,18 +36,15 @@ class PhoXiInterface
     /**
      * Connect to camera.
      *
-     * \param HWIdentification - identification number
+     * \param deviceId - identification number
      * \param getFrameCallback - asynchronous notifications on arriving frames
      * \param mode - trigger mode to set after connection
      * \param startAcquisition if true Acquisition will be started
      * \throw PhoXiControlNotRunning when PhoXi Control is not running
-     * \throw PhoXiDeviceNotFound when PhoXi Device with HWIdentification is not available on
-     * network \throw UnableToStartAcquisition when connection failed
+     * \throw PhoXiDeviceNotFound when PhoXi Device with HWIdentification is not available
+     * \throw UnableToStartAcquisition when connection failed
      */
-    virtual void connectCamera(
-        std::string HWIdentification, GetFrameCb&& getFrameCallback,
-        pho::api::PhoXiTriggerMode mode = pho::api::PhoXiTriggerMode::Software,
-        bool startAcquisition = true);
+    virtual void connectCamera(const std::string& deviceId, GetFrameCb&& getFrameCallback);
 
     /**
      * Disconnect from camera if connected to any.
@@ -63,11 +52,13 @@ class PhoXiInterface
     virtual void disconnectCamera();
 
     /**
-     * Trigger new image and return PFrame.
+     * Trigger new image.
      *
+     * \param waitGrabbingEnd if true waits for the grabbing to complete before returning
      * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw UnableToTriggerFrame when triggering fails
      */
-    virtual void triggerFrame();
+    virtual void triggerFrame(bool waitGrabbingEnd = false);
 
     /**
      * Test if connection to PhoXi Device is working
@@ -79,12 +70,12 @@ class PhoXiInterface
     /**
      * Test if connection to PhoXi Device is working
      */
-    bool isConnected();
+    virtual bool isConnected();
 
     /**
      * Test if PhoXi Device is Acquiring
      */
-    bool isAcquiring();
+    virtual bool isAcquiring();
 
     /**
      * Start acquisition
@@ -92,23 +83,22 @@ class PhoXiInterface
      * \throw PhoXiDeviceNotConnected when no device is connected
      * \throw UnableToStartAcquisition if acquisition was not started
      */
-    void startAcquisition();
+    virtual void startAcquisition();
 
     /**
      * Stop acquisition
      *
      * \throw PhoXiDeviceNotConnected when no device is connected
-     * \throw UnableToStartAcquisition if acquisition was not stopped
+     * \throw UnableToStopAcquisition if acquisition was not stopped
      */
-    void stopAcquisition();
+    virtual void stopAcquisition();
 
     /**
      * Trigger new Image
      *
-     * \return @return positive id on success, negative number on failure (-1 Trigger not
-     * accepted,
-     * -2 Device is not running, -3 Communication Error, -4 WaitForGrabbingEnd is not supported)
-     * \note id can be passed to getPFrame method
+     * \return positive id on success, negative number on failure
+     * (-1 Trigger not accepted, -2 Device is not running, -3 Communication Error,
+     *  -4 WaitForGrabbingEnd is not supported)
      */
     int triggerImage(bool waitForGrab = false);
 
@@ -117,13 +107,10 @@ class PhoXiInterface
      *
      * \param mode new trigger mode
      * \param startAcquisition if true Acquisition will be started
-     * \note if mode is Freerun new PFrames will be triggered immediately after acquisition is
-     * started
-     *
      * \throw PhoXiDeviceNotConnected when no device is connected
      * \throw InvalidTriggerMode when invalid trigger mode is passed
      */
-    void setTriggerMode(pho::api::PhoXiTriggerMode mode, bool startAcquisition = false);
+    void setTriggerMode(pho::api::PhoXiTriggerMode mode);
 
     /**
      * Get trigger mode
@@ -132,10 +119,10 @@ class PhoXiInterface
      */
     pho::api::PhoXiTriggerMode getTriggerMode();
 
-    pho::api::PPhoXi phoXiDevice;
+    pho::api::PPhoXi mPhoXiDevice;
 
   protected:
-    pho::api::PhoXiFactory phoXiFactory;
+    pho::api::PhoXiFactory mPhoXiFactory;
 
   private:
     const int CONNECTION_TIMEOUT_MS = 60000;

@@ -11,8 +11,7 @@
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
-namespace phoxi_camera::composition_example
-{
+namespace phoxi_camera::composition_example {
 
 /**
  * CompositionExample – composable node that drives a maximum-rate
@@ -32,12 +31,11 @@ namespace phoxi_camera::composition_example
  *   trigger_service_name (string, default "/phoxi_camera/trigger_frame")
  *     Full name of the trigger-frame service on the camera driver node.
  */
-class CompositionExample : public rclcpp::Node
-{
-  public:
+class CompositionExample : public rclcpp::Node {
+public:
     explicit CompositionExample(const rclcpp::NodeOptions& options);
 
-  private:
+private:
     // ------------------------------------------------------------------ //
     //  Callbacks                                                          //
     // ------------------------------------------------------------------ //
@@ -45,11 +43,9 @@ class CompositionExample : public rclcpp::Node
 
     void on_color_camera_image(sensor_msgs::msg::Image::ConstSharedPtr msg);
 
-    void on_start(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-                  std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+    void on_start(const std::shared_ptr<std_srvs::srv::Trigger::Request> request, std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
-    void on_stop(const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-                 std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+    void on_stop(const std::shared_ptr<std_srvs::srv::Trigger::Request> request, std::shared_ptr<std_srvs::srv::Trigger::Response> response);
 
     // ------------------------------------------------------------------ //
     //  Helpers                                                            //
