@@ -72,7 +72,7 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
         const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) const;
     void reset_active_profile_cb(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
         const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) const;
-    void on_frame_cb(const pho::api::PFrame& frame);
+    void on_frame_cb(const PhoXiFrame& frame);
 
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointCloudPub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointsPub;

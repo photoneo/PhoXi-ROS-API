@@ -1,20 +1,23 @@
 #ifndef PHOXI_CAMERA_PHOXIINTERFACE_H
 #define PHOXI_CAMERA_PHOXIINTERFACE_H
 
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "PhoXi.h"
 #include "phoxi_camera/PhoXiDeviceInformation.h"
 #include "phoxi_camera/PhoXiException.h"
+#include "phoxi_camera/PhoXiFrame.h"
 
 namespace phoxi_camera
 {
 class PhoXiInterface
 {
   public:
-    using GetFrameCb = std::function<void(pho::api::PFrame)>;
+    using GetFrameCb = std::function<void(const PhoXiFrame&)>;
 
     PhoXiInterface() = default;
     virtual ~PhoXiInterface() = default;
@@ -38,8 +41,6 @@ class PhoXiInterface
      *
      * \param deviceId - identification number
      * \param getFrameCallback - asynchronous notifications on arriving frames
-     * \param mode - trigger mode to set after connection
-     * \param startAcquisition if true Acquisition will be started
      * \throw PhoXiControlNotRunning when PhoXi Control is not running
      * \throw PhoXiDeviceNotFound when PhoXi Device with HWIdentification is not available
      * \throw UnableToStartAcquisition when connection failed
@@ -213,7 +214,12 @@ class PhoXiInterface
     pho::api::PhoXiFactory mPhoXiFactory;
 
   private:
+    static void frameAcceptor(const phoxi_frame_record_t* records, void* userData);
+
     const int CONNECTION_TIMEOUT_MS = 60000;
+    std::string mDeviceId;
+    mutable std::mutex mFrameCallbackMutex;
+    GetFrameCb mFrameCallback;
 };
 }  // namespace phoxi_camera
 

@@ -1,34 +1,21 @@
 #include "phoxi_camera/RosConversions.h"
 
+#include <algorithm>
+#include <cassert>
+#include <cstring>
+
 namespace phoxi_camera
 {
 
-// Write `val` into `base[offset]` and advance `offset` by sizeof(underlying type).
-// Plain scalar overload (float, uint32_t, …) — type is already trivially copyable.
+// Write `val` into `base[offset]` and advance `offset` by sizeof(T).
 template<typename T>
-inline void packField(uint8_t* base, uint32_t& offset, const T& val) {
+void packField(uint8_t* base, uint32_t& offset, const T& val) {
     std::memcpy(base + offset, &val, sizeof(T));
     offset += sizeof(T);
 }
 
-// MatType<T> overload — extracts the underlying T via the conversion operator before memcpy.
-template<typename T>
-inline void packField(uint8_t* base, uint32_t& offset, const pho::api::MatType<T>& val) {
-    const T underlying = static_cast<const T&>(val);
-    std::memcpy(base + offset, &underlying, sizeof(T));
-    offset += sizeof(T);
-}
-
-// Scalar<T> overload — Scalar inherits MatType<T> but template deduction doesn't look
-// through inheritance, so it would otherwise fall back to the primary template.
-template<typename T>
-inline void packField(uint8_t* base, uint32_t& offset, const pho::api::Scalar<T>& val) {
-    const T underlying = static_cast<const T&>(val);
-    std::memcpy(base + offset, &underlying, sizeof(T));
-    offset += sizeof(T);
-}
 void addField(const std::string& name, int datatype, uint32_t size, uint32_t& offset,
-              std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg) {
+    const std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg) {
     sensor_msgs::msg::PointField field;
     field.name = name;
     field.offset = offset;
@@ -38,118 +25,117 @@ void addField(const std::string& name, int datatype, uint32_t size, uint32_t& of
     offset += size;
 }
 
-std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const pho::api::PFrame& pFrame) {
+std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const PhoXiFrame& frame) {
     auto msg = std::make_unique<sensor_msgs::msg::PointCloud2>();
-    const auto res = pFrame->GetResolution();
+    if (!frame.pointCloud) {
+        return msg;
+    }
 
-    msg->height = res.Height;
-    msg->width = res.Width;
+    const int height = frame.pointCloud->height;
+    const int width = frame.pointCloud->width;
+    const auto* points = static_cast<const float(*)[3]>(frame.pointCloud->data);
+    const auto* normals = frame.normalMap ? static_cast<const float(*)[3]>(frame.normalMap->data) : nullptr;
+    const auto* rgbTexture = frame.textureRgb ? static_cast<const uint16_t(*)[3]>(frame.textureRgb->data) : nullptr;
+    const auto* texture = (!rgbTexture && frame.texture) ? static_cast<const float*>(frame.texture->data) : nullptr;
+    const auto* confidence = frame.confidenceMap ? static_cast<const float*>(frame.confidenceMap->data) : nullptr;
+    const auto* depth = frame.depthMap ? static_cast<const float*>(frame.depthMap->data) : nullptr;
+    const auto* event = frame.eventMap ? static_cast<const float*>(frame.eventMap->data) : nullptr;
+
+    msg->height = static_cast<uint32_t>(height);
+    msg->width = static_cast<uint32_t>(width);
     msg->is_bigendian = false;
     msg->is_dense = false;
 
-    const bool hasPoints = !pFrame->PointCloud.Empty();
-    const bool hasNormals = !pFrame->NormalMap.Empty();
-    const bool hasRgb = !pFrame->TextureRGB.Empty();
-    const bool hasIntensity = !hasRgb && !pFrame->Texture.Empty();
-    const bool hasConfidence = !pFrame->ConfidenceMap.Empty();
-    const bool hasDepth = !pFrame->DepthMap.Empty();
-    const bool hasEvent = !pFrame->EventMap.Empty();
-
     uint32_t currentOffset = 0;
-
+    const uint32_t xOff = currentOffset;
     addField("x", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
+
+    const uint32_t yOff = currentOffset;
     addField("y", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
+
+    const uint32_t zOff = currentOffset;
     addField("z", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
-    if (hasNormals) {
+
+    uint32_t normalXOff = 0, normalYOff = 0, normalZOff = 0;
+    if (normals) {
+        normalXOff = currentOffset;
         addField("normal_x", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
+        normalYOff = currentOffset;
         addField("normal_y", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
+        normalZOff = currentOffset;
         addField("normal_z", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
     }
-    if (hasRgb) {
+
+    uint32_t rgbOff = 0, intensityOff = 0;
+    if (rgbTexture) {
+        rgbOff = currentOffset;
         addField("rgb", sensor_msgs::msg::PointField::UINT32, 4, currentOffset, msg);
-    } else if (hasIntensity) {
+    } else if (texture) {
+        intensityOff = currentOffset;
         addField("intensity", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
     }
-    if (hasConfidence) {
+
+    uint32_t confidenceOff = 0;
+    if (confidence) {
+        confidenceOff = currentOffset;
         addField("confidence", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
     }
-    if (hasDepth) {
+
+    uint32_t depthOff = 0;
+    if (depth) {
+        depthOff = currentOffset;
         addField("depth", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
     }
-    if (hasEvent) {
+
+    uint32_t eventOff = 0;
+    if (event) {
+        eventOff = currentOffset;
         addField("event", sensor_msgs::msg::PointField::FLOAT32, 4, currentOffset, msg);
     }
 
     msg->point_step = currentOffset;
     msg->row_step = msg->width * msg->point_step;
-    msg->data.resize(msg->height * msg->row_step);
-
-    std::map<std::string, uint32_t> offsets;
-    for (const auto& field : msg->fields) {
-        offsets[field.name] = field.offset;
-    }
-    const uint32_t xOff = offsets.count("x") ? offsets.at("x") : 0;
-    const uint32_t yOff = offsets.count("y") ? offsets.at("y") : 0;
-    const uint32_t zOff = offsets.count("z") ? offsets.at("z") : 0;
-    const uint32_t normalXOff = offsets.count("normal_x") ? offsets.at("normal_x") : 0;
-    const uint32_t normalYOff = offsets.count("normal_y") ? offsets.at("normal_y") : 0;
-    const uint32_t normalZOff = offsets.count("normal_z") ? offsets.at("normal_z") : 0;
-    const uint32_t rgbOff = offsets.count("rgb") ? offsets.at("rgb") : 0;
-    const uint32_t intensityOff = offsets.count("intensity") ? offsets.at("intensity") : 0;
-    const uint32_t confidenceOff = offsets.count("confidence") ? offsets.at("confidence") : 0;
-    const uint32_t depthOff = offsets.count("depth") ? offsets.at("depth") : 0;
-    const uint32_t eventOff = offsets.count("event") ? offsets.at("event") : 0;
+    msg->data.resize(static_cast<size_t>(msg->height) * msg->row_step);
 
     uint8_t* dataPtr = msg->data.data();
+    for (int r = 0; r < height; ++r) {
+        for (int c = 0; c < width; ++c) {
+            const int idx = r * width + c;
+            uint8_t* pointStart = dataPtr + r * msg->row_step + c * msg->point_step;
 
-    for (int r = 0; r < pFrame->GetResolution().Height; ++r) {
-        for (int c = 0; c < pFrame->GetResolution().Width; ++c) {
-            uint8_t* pointStart = dataPtr + (r * msg->row_step) + (c * msg->point_step);
-
-            // Adapter: write val at a named (non-sequential) field offset.
-            auto pack = [&](uint32_t fieldOff, const auto& val) {
-                packField(pointStart, fieldOff, val);
+            auto pack = [&](uint32_t off, const auto& val) {
+                std::memcpy(pointStart + off, &val, sizeof(val));
             };
 
-            if (hasPoints) {
-                auto point = pFrame->PointCloud.At(r, c);
-                point.x /= 1000.;
-                point.y /= 1000.;
-                point.z /= 1000.;
-                pack(xOff, point.x);
-                pack(yOff, point.y);
-                pack(zOff, point.z);
+            pack(xOff, points[idx][0] / 1000.f);
+            pack(yOff, points[idx][1] / 1000.f);
+            pack(zOff, points[idx][2] / 1000.f);
+
+            if (normals) {
+                pack(normalXOff, normals[idx][0]);
+                pack(normalYOff, normals[idx][1]);
+                pack(normalZOff, normals[idx][2]);
             }
 
-            if (hasNormals) {
-                const auto& normal = pFrame->NormalMap.At(r, c);
-                pack(normalXOff, normal.x);
-                pack(normalYOff, normal.y);
-                pack(normalZOff, normal.z);
+            if (rgbTexture) {
+                constexpr float RGB_SCALE = 255.0f / 1023.0f;
+                const auto r8 = static_cast<uint8_t>(rgbTexture[idx][0] * RGB_SCALE);
+                const auto g8 = static_cast<uint8_t>(rgbTexture[idx][1] * RGB_SCALE);
+                const auto b8 = static_cast<uint8_t>(rgbTexture[idx][2] * RGB_SCALE);
+                const uint32_t rgb = (uint32_t{r8} << 16) | (uint32_t{g8} << 8) | uint32_t{b8};
+                pack(rgbOff, rgb);
+            } else if (texture) {
+                pack(intensityOff, texture[idx]);
             }
 
-            if (hasRgb) {
-                const auto& color16 = pFrame->TextureRGB.At(r, c);
-                const auto r8 = static_cast<uint8_t>((static_cast<float>(color16.r) / 1023.0f) * 255.0f);
-                const auto g8 = static_cast<uint8_t>((static_cast<float>(color16.g) / 1023.0f) * 255.0f);
-                const auto b8 = static_cast<uint8_t>((static_cast<float>(color16.b) / 1023.0f) * 255.0f);
-                uint32_t rgbPacked = (static_cast<uint32_t>(r8) << 16) |
-                                     (static_cast<uint32_t>(g8) << 8) | (static_cast<uint32_t>(b8));
-                pack(rgbOff, rgbPacked);
-            } else if (hasIntensity) {
-                pack(intensityOff, pFrame->Texture.At(r, c));
+            if (confidence) {
+                pack(confidenceOff, confidence[idx]);
             }
-
-            if (hasConfidence) {
-                pack(confidenceOff, pFrame->ConfidenceMap.At(r, c));
+            if (depth) {
+                pack(depthOff, depth[idx]);
             }
-
-            if (hasDepth) {
-                pack(depthOff, pFrame->DepthMap.At(r, c));
-            }
-
-            if (hasEvent) {
-                pack(eventOff, pFrame->EventMap.At(r, c));
+            if (event) {
+                pack(eventOff, event[idx]);
             }
         }
     }
@@ -157,15 +143,22 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const pho::api
     return msg;
 }
 
-std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const pho::api::PFrame& pFrame) {
-    const auto resolution = pFrame->GetResolution();
-
-    const bool hasRgb = !pFrame->TextureRGB.Empty();
-    const bool hasIntensity = !hasRgb && !pFrame->Texture.Empty();
-
+std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const PhoXiFrame& frame) {
     auto msg = std::make_unique<sensor_msgs::msg::PointCloud2>();
-    msg->height = resolution.Height;
-    msg->width = resolution.Width;
+
+    if (!frame.pointCloud) {
+        return msg;
+    }
+
+    const int height = frame.pointCloud->height;
+    const int width = frame.pointCloud->width;
+
+    const auto* points = static_cast<const float(*)[3]>(frame.pointCloud->data);
+    const auto* rgbTexture = frame.textureRgb ? static_cast<const uint16_t(*)[3]>(frame.textureRgb->data) : nullptr;
+    const auto* texture = (!rgbTexture && frame.texture) ? static_cast<const float*>(frame.texture->data) : nullptr;
+
+    msg->height = static_cast<uint32_t>(height);
+    msg->width = static_cast<uint32_t>(width);
     msg->is_bigendian = false;
     msg->is_dense = false;
 
@@ -173,9 +166,9 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const pho::api::PF
     addField("x", sensor_msgs::msg::PointField::FLOAT32, 4, offset, msg);
     addField("y", sensor_msgs::msg::PointField::FLOAT32, 4, offset, msg);
     addField("z", sensor_msgs::msg::PointField::FLOAT32, 4, offset, msg);
-    if (hasRgb) {
+    if (rgbTexture) {
         addField("rgb", sensor_msgs::msg::PointField::UINT32, 4, offset, msg);
-    } else if (hasIntensity) {
+    } else if (texture) {
         addField("intensity", sensor_msgs::msg::PointField::FLOAT32, 4, offset, msg);
     }
 
@@ -184,28 +177,24 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const pho::api::PF
     msg->data.resize(msg->height * msg->row_step, 0);
 
     uint8_t* dataPtr = msg->data.data();
-    for (int r = 0; r < resolution.Height; ++r) {
-        for (int c = 0; c < resolution.Width; ++c) {
+    for (int r = 0; r < height; ++r) {
+        for (int c = 0; c < width; ++c) {
+            const int idx = r * width + c;
             uint8_t* p = dataPtr + r * msg->row_step + c * msg->point_step;
-
-            auto pt = pFrame->PointCloud.At(r, c);
-            pt.x /= 1000.f;
-            pt.y /= 1000.f;
-            pt.z /= 1000.f;
             uint32_t off = 0;
-            packField(p, off, pt.x);
-            packField(p, off, pt.y);
-            packField(p, off, pt.z);
+            packField(p, off, points[idx][0] / 1000.f);
+            packField(p, off, points[idx][1] / 1000.f);
+            packField(p, off, points[idx][2] / 1000.f);
 
-            if (hasRgb) {
-                const auto& color = pFrame->TextureRGB.At(r, c);
-                const auto r8 = static_cast<uint8_t>((static_cast<float>(color.r) / 1023.0f) * 255.0f);
-                const auto g8 = static_cast<uint8_t>((static_cast<float>(color.g) / 1023.0f) * 255.0f);
-                const auto b8 = static_cast<uint8_t>((static_cast<float>(color.b) / 1023.0f) * 255.0f);
-                uint32_t packed = (static_cast<uint32_t>(r8) << 16) | (static_cast<uint32_t>(g8) << 8) | static_cast<uint32_t>(b8);
-                packField(p, off, packed);
-            } else if (hasIntensity) {
-                packField(p, off, pFrame->Texture.At(r, c));
+            if (rgbTexture) {
+                constexpr float RGB_SCALE = 255.0f / 1023.0f;
+                const auto r8 = static_cast<uint8_t>(rgbTexture[idx][0] * RGB_SCALE);
+                const auto g8 = static_cast<uint8_t>(rgbTexture[idx][1] * RGB_SCALE);
+                const auto b8 = static_cast<uint8_t>(rgbTexture[idx][2] * RGB_SCALE);
+                const uint32_t rgb = (uint32_t{r8} << 16) | (uint32_t{g8} << 8) | uint32_t{b8};
+                packField(p, off, rgb);
+            } else if (texture) {
+                packField(p, off, texture[idx]);
             }
         }
     }
@@ -213,95 +202,70 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const pho::api::PF
     return msg;
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> rgb16MatToRosMsg(const pho::api::TextureRGB16& img) {
+std::unique_ptr<sensor_msgs::msg::Image> normalMapToRosMsg(const phoxi_frame_record_t& record) {
+    assert(record.data);
     auto msg = std::make_unique<sensor_msgs::msg::Image>();
-    msg->height = static_cast<uint32_t>(img.Size.Height);
-    msg->width = static_cast<uint32_t>(img.Size.Width);
-    msg->encoding = "rgb16";
-    msg->is_bigendian = false;
-    msg->step = msg->width * 3 * sizeof(uint16_t);
-    msg->data.resize(msg->height * msg->step);
-
-    uint8_t* dataPtr = msg->data.data();
-    for (int r = 0; r < img.Size.Height; ++r) {
-        for (int c = 0; c < img.Size.Width; ++c) {
-            const auto& pixel = img.At(r, c);
-            uint8_t* dst = dataPtr + r * msg->step + c * 3 * sizeof(uint16_t);
-            uint32_t off = 0;
-            packField(dst, off, pixel.r);
-            packField(dst, off, pixel.g);
-            packField(dst, off, pixel.b);
-        }
-    }
-    return msg;
-}
-
-template <typename ScalarMat>
-std::unique_ptr<sensor_msgs::msg::Image> scalarMapToRosMsg(const ScalarMat& mat) {
-    auto msg = std::make_unique<sensor_msgs::msg::Image>();
-    msg->height = static_cast<uint32_t>(mat.Size.Height);
-    msg->width = static_cast<uint32_t>(mat.Size.Width);
-    msg->encoding = "32FC1";
-    msg->is_bigendian = false;
-    msg->step = msg->width * static_cast<uint32_t>(sizeof(float));
-    msg->data.resize(msg->height * msg->step);
-
-    uint8_t* dataPtr = msg->data.data();
-    for (int r = 0; r < mat.Size.Height; ++r) {
-        for (int c = 0; c < mat.Size.Width; ++c) {
-            uint32_t off = 0;
-            packField(dataPtr + r * msg->step + c * sizeof(float), off, mat.At(r, c));
-        }
-    }
-    return msg;
-}
-
-std::unique_ptr<sensor_msgs::msg::Image> normalMapToRosMsg(const pho::api::PFrame& pFrame) {
-    const auto& mat = pFrame->NormalMap;
-    auto msg = std::make_unique<sensor_msgs::msg::Image>();
-    msg->height = static_cast<uint32_t>(mat.Size.Height);
-    msg->width = static_cast<uint32_t>(mat.Size.Width);
+    msg->height = static_cast<uint32_t>(record.height);
+    msg->width = static_cast<uint32_t>(record.width);
     msg->encoding = "32FC3";
     msg->is_bigendian = false;
     msg->step = msg->width * 3 * static_cast<uint32_t>(sizeof(float));
-    msg->data.resize(msg->height * msg->step);
-
-    uint8_t* dataPtr = msg->data.data();
-    for (int r = 0; r < mat.Size.Height; ++r) {
-        for (int c = 0; c < mat.Size.Width; ++c) {
-            const auto& n = mat.At(r, c);
-            uint8_t* dst = dataPtr + r * msg->step + c * 3 * sizeof(float);
-            uint32_t off = 0;
-            packField(dst, off, n.x);
-            packField(dst, off, n.y);
-            packField(dst, off, n.z);
-        }
-    }
+    msg->data.resize(static_cast<size_t>(msg->height) * msg->step);
+    std::memcpy(msg->data.data(), record.data,
+                std::min(record.data_size, static_cast<size_t>(msg->height) * msg->step));
     return msg;
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> depthMapToRosMsg(const pho::api::PFrame& pFrame) {
-    return scalarMapToRosMsg(pFrame->DepthMap);
+static std::unique_ptr<sensor_msgs::msg::Image> scalarMapToRosMsg(const phoxi_frame_record_t& record) {
+    assert(record.data);
+    auto msg = std::make_unique<sensor_msgs::msg::Image>();
+    msg->height = static_cast<uint32_t>(record.height);
+    msg->width = static_cast<uint32_t>(record.width);
+    msg->encoding = "32FC1";
+    msg->is_bigendian = false;
+    msg->step = msg->width * static_cast<uint32_t>(sizeof(float));
+    msg->data.resize(static_cast<size_t>(msg->height) * msg->step);
+    std::memcpy(msg->data.data(), record.data,
+                std::min(record.data_size, static_cast<size_t>(msg->height) * msg->step));
+    return msg;
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> confidenceMapToRosMsg(const pho::api::PFrame& pFrame) {
-    return scalarMapToRosMsg(pFrame->ConfidenceMap);
+static std::unique_ptr<sensor_msgs::msg::Image> rgb16RecordToRosMsg(const phoxi_frame_record_t& record) {
+    assert(record.data);
+    auto msg = std::make_unique<sensor_msgs::msg::Image>();
+    msg->height = static_cast<uint32_t>(record.height);
+    msg->width = static_cast<uint32_t>(record.width);
+    msg->encoding = "rgb16";
+    msg->is_bigendian = false;
+    msg->step = msg->width * 3 * static_cast<uint32_t>(sizeof(uint16_t));
+    msg->data.resize(static_cast<size_t>(msg->height) * msg->step);
+    std::memcpy(msg->data.data(), record.data,
+                std::min(record.data_size, static_cast<size_t>(msg->height) * msg->step));
+    return msg;
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> eventMapToRosMsg(const pho::api::PFrame& pFrame) {
-    return scalarMapToRosMsg(pFrame->EventMap);
+std::unique_ptr<sensor_msgs::msg::Image> depthMapToRosMsg(const phoxi_frame_record_t& record) {
+    return scalarMapToRosMsg(record);
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> textureToRosMsg(const pho::api::PFrame& pFrame) {
-    return scalarMapToRosMsg(pFrame->Texture);
+std::unique_ptr<sensor_msgs::msg::Image> confidenceMapToRosMsg(const phoxi_frame_record_t& record) {
+    return scalarMapToRosMsg(record);
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const pho::api::PFrame& pFrame) {
-    return rgb16MatToRosMsg(pFrame->TextureRGB);
+std::unique_ptr<sensor_msgs::msg::Image> eventMapToRosMsg(const phoxi_frame_record_t& record) {
+    return scalarMapToRosMsg(record);
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const pho::api::PFrame& pFrame) {
-    return rgb16MatToRosMsg(pFrame->ColorCameraImage);
+std::unique_ptr<sensor_msgs::msg::Image> textureToRosMsg(const phoxi_frame_record_t& record) {
+    return scalarMapToRosMsg(record);
 }
 
+std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_record_t& record) {
+    return rgb16RecordToRosMsg(record);
 }
+
+std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record) {
+    return rgb16RecordToRosMsg(record);
+}
+
+}  // namespace phoxi_camera

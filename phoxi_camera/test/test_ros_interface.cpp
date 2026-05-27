@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -5,6 +6,7 @@
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "phoxi_camera/PhoXiException.h"
+#include "phoxi_camera/PhoXiFrame.h"
 #include "phoxi_camera/PhoXiInterface.h"
 #include "phoxi_camera/PhoXiCamera.h"
 #include "phoxi_camera_msgs/srv/connect.hpp"
@@ -152,7 +154,7 @@ class RosInterfaceTest : public ::testing::Test
     typename MsgT::SharedPtr injectAndReceive(
         const PhoXiInterface::GetFrameCb& frame_cb,
         const std::string& topic,
-        pho::api::PFrame frame) {
+        const PhoXiFrame& frame) {
         std::promise<typename MsgT::SharedPtr> promise;
         auto future = promise.get_future().share();
         bool received = false;
@@ -335,12 +337,13 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
     ASSERT_TRUE(connect_future.get()->success);
     ASSERT_TRUE(captured_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->ColorCameraImage.Resize(pho::api::PhoXiSize(2, 1));
-    pframe->ColorCameraImage[0][0] = {1000, 2000, 3000};
-    pframe->ColorCameraImage[0][1] = {4000, 5000, 6000};
+    uint16_t colorData[2][3] = {{1000, 2000, 3000}, {4000, 5000, 6000}};
+    phoxi_frame_record_t colorRec = {PHOXI_FRAME_TYPE_COLORCAMERAIMAGE, PHOXI_FRAME_FORMAT_RGB_16,
+                                      2, 1, sizeof(colorData), colorData};
+    PhoXiFrame frame;
+    frame.colorCamera = &colorRec;
 
-    auto received = injectAndReceive<sensor_msgs::msg::Image>(captured_cb, "color_camera_image", pframe);
+    auto received = injectAndReceive<sensor_msgs::msg::Image>(captured_cb, "color_camera_image", frame);
     ASSERT_NE(received, nullptr);
     EXPECT_EQ(received->encoding, "rgb16");
     EXPECT_EQ(received->width, 2u);
@@ -362,19 +365,29 @@ TEST_F(RosInterfaceTest, PointCloudPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->PointCloud.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->PointCloud[0][0] = {1000.0f, 2000.0f, 3000.0f};
-    pframe->NormalMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->NormalMap[0][0] = {0.1f, 0.2f, 0.9f};
-    pframe->TextureRGB.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->TextureRGB[0][0] = {1023, 511, 0};
-    pframe->ConfidenceMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->ConfidenceMap[0][0] = 0.75f;
-    pframe->DepthMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->DepthMap[0][0] = 500.0f;
+    float pts[1][3] = {{1000.0f, 2000.0f, 3000.0f}};
+    float nrm[1][3] = {{0.1f, 0.2f, 0.9f}};
+    uint16_t rgb[1][3] = {{1023, 511, 0}};
+    float confData[1] = {0.75f};
+    float depthData[1] = {500.0f};
+    phoxi_frame_record_t pcRec   = {PHOXI_FRAME_TYPE_POINTCLOUD,    PHOXI_FRAME_FORMAT_POINT3_32F,
+                                     1, 1, sizeof(pts),       pts};
+    phoxi_frame_record_t nmRec   = {PHOXI_FRAME_TYPE_NORMALMAP,     PHOXI_FRAME_FORMAT_POINT3_32F,
+                                     1, 1, sizeof(nrm),       nrm};
+    phoxi_frame_record_t rgbRec  = {PHOXI_FRAME_TYPE_TEXTURE,       PHOXI_FRAME_FORMAT_RGB_16,
+                                     1, 1, sizeof(rgb),       rgb};
+    phoxi_frame_record_t confRec = {PHOXI_FRAME_TYPE_CONFIDENCEMAP, PHOXI_FRAME_FORMAT_FLOAT_32F,
+                                     1, 1, sizeof(confData),  confData};
+    phoxi_frame_record_t depRec  = {PHOXI_FRAME_TYPE_DEPTHMAP,      PHOXI_FRAME_FORMAT_FLOAT_32F,
+                                     1, 1, sizeof(depthData), depthData};
+    PhoXiFrame frame;
+    frame.pointCloud    = &pcRec;
+    frame.normalMap     = &nmRec;
+    frame.textureRgb    = &rgbRec;
+    frame.confidenceMap = &confRec;
+    frame.depthMap      = &depRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frame_cb, "point_cloud", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frame_cb, "point_cloud", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1u);
     EXPECT_EQ(msg->height, 1u);
@@ -390,17 +403,17 @@ TEST_F(RosInterfaceTest, PointCloudPublished) {
     };
 
     const uint8_t* d = msg->data.data();
-    float x, y, z, nx, ny, nz, conf, depth;
+    float x, y, z, nx, ny, nz, pcConf, pcDepth;
     uint32_t rgb_packed;
-    std::memcpy(&x,         d + field_offset("x"),          sizeof(float));
-    std::memcpy(&y,         d + field_offset("y"),          sizeof(float));
-    std::memcpy(&z,         d + field_offset("z"),          sizeof(float));
-    std::memcpy(&nx,        d + field_offset("normal_x"),   sizeof(float));
-    std::memcpy(&ny,        d + field_offset("normal_y"),   sizeof(float));
-    std::memcpy(&nz,        d + field_offset("normal_z"),   sizeof(float));
-    std::memcpy(&rgb_packed,d + field_offset("rgb"),        sizeof(uint32_t));
-    std::memcpy(&conf,      d + field_offset("confidence"), sizeof(float));
-    std::memcpy(&depth,     d + field_offset("depth"),      sizeof(float));
+    std::memcpy(&x,       d + field_offset("x"),          sizeof(float));
+    std::memcpy(&y,       d + field_offset("y"),          sizeof(float));
+    std::memcpy(&z,       d + field_offset("z"),          sizeof(float));
+    std::memcpy(&nx,      d + field_offset("normal_x"),   sizeof(float));
+    std::memcpy(&ny,      d + field_offset("normal_y"),   sizeof(float));
+    std::memcpy(&nz,      d + field_offset("normal_z"),   sizeof(float));
+    std::memcpy(&rgb_packed, d + field_offset("rgb"),     sizeof(uint32_t));
+    std::memcpy(&pcConf,  d + field_offset("confidence"), sizeof(float));
+    std::memcpy(&pcDepth, d + field_offset("depth"),      sizeof(float));
 
     EXPECT_FLOAT_EQ(x, 1.0f);   // 1000 mm ÷ 1000
     EXPECT_FLOAT_EQ(y, 2.0f);
@@ -411,19 +424,21 @@ TEST_F(RosInterfaceTest, PointCloudPublished) {
     EXPECT_EQ((rgb_packed >> 16) & 0xFF, 255u);   // 1023/1023 * 255
     EXPECT_EQ((rgb_packed >>  8) & 0xFF, static_cast<uint8_t>((511.0f / 1023.0f) * 255.0f));
     EXPECT_EQ( rgb_packed        & 0xFF, 0u);
-    EXPECT_FLOAT_EQ(conf,  0.75f);
-    EXPECT_FLOAT_EQ(depth, 500.0f);
+    EXPECT_FLOAT_EQ(pcConf,  0.75f);
+    EXPECT_FLOAT_EQ(pcDepth, 500.0f);
 }
 
 TEST_F(RosInterfaceTest, PointsPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->PointCloud.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->PointCloud[0][0] = {500.0f, 600.0f, 700.0f};
+    float pts[1][3] = {{500.0f, 600.0f, 700.0f}};
+    phoxi_frame_record_t pcRec = {PHOXI_FRAME_TYPE_POINTCLOUD, PHOXI_FRAME_FORMAT_POINT3_32F,
+                                   1, 1, sizeof(pts), pts};
+    PhoXiFrame frame;
+    frame.pointCloud = &pcRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frame_cb, "points", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frame_cb, "points", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1u);
     EXPECT_EQ(msg->height, 1u);
@@ -448,7 +463,7 @@ TEST_F(RosInterfaceTest, PointsNotPublishedWhenPointCloudEmpty) {
         [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
-    frame_cb(std::make_shared<pho::api::Frame>());  // empty frame — no PointCloud
+    frame_cb(PhoXiFrame{});  // empty frame — no PointCloud
     executor_.spin_some(std::chrono::milliseconds(100));
 
     EXPECT_FALSE(received);
@@ -458,11 +473,13 @@ TEST_F(RosInterfaceTest, NormalMapPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->NormalMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->NormalMap[0][0] = {0.1f, 0.2f, 0.9f};
+    float normals[1][3] = {{0.1f, 0.2f, 0.9f}};
+    phoxi_frame_record_t nmRec = {PHOXI_FRAME_TYPE_NORMALMAP, PHOXI_FRAME_FORMAT_POINT3_32F,
+                                   1, 1, sizeof(normals), normals};
+    PhoXiFrame frame;
+    frame.normalMap = &nmRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "normal_map", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "normal_map", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC3");
     EXPECT_EQ(msg->width, 1u);
@@ -482,11 +499,13 @@ TEST_F(RosInterfaceTest, DepthMapPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->DepthMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->DepthMap[0][0] = 1234.5f;
+    float depth[1] = {1234.5f};
+    phoxi_frame_record_t depRec = {PHOXI_FRAME_TYPE_DEPTHMAP, PHOXI_FRAME_FORMAT_FLOAT_32F,
+                                    1, 1, sizeof(depth), depth};
+    PhoXiFrame frame;
+    frame.depthMap = &depRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "depth", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "depth", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
     EXPECT_EQ(msg->width, 1u);
@@ -502,11 +521,13 @@ TEST_F(RosInterfaceTest, ConfidenceMapPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->ConfidenceMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->ConfidenceMap[0][0] = 0.85f;
+    float conf[1] = {0.85f};
+    phoxi_frame_record_t confRec = {PHOXI_FRAME_TYPE_CONFIDENCEMAP, PHOXI_FRAME_FORMAT_FLOAT_32F,
+                                     1, 1, sizeof(conf), conf};
+    PhoXiFrame frame;
+    frame.confidenceMap = &confRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "confidence", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "confidence", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -519,11 +540,13 @@ TEST_F(RosInterfaceTest, EventMapPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->EventMap.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->EventMap[0][0] = 0.42f;
+    float ev[1] = {0.42f};
+    phoxi_frame_record_t evRec = {PHOXI_FRAME_TYPE_EVENTMAP, PHOXI_FRAME_FORMAT_FLOAT_32F,
+                                   1, 1, sizeof(ev), ev};
+    PhoXiFrame frame;
+    frame.eventMap = &evRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "event_map", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "event_map", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -536,11 +559,13 @@ TEST_F(RosInterfaceTest, TexturePublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->Texture.Resize(pho::api::PhoXiSize(1, 1));
-    pframe->Texture[0][0] = 0.75f;
+    float tex[1] = {0.75f};
+    phoxi_frame_record_t texRec = {PHOXI_FRAME_TYPE_TEXTURE, PHOXI_FRAME_FORMAT_FLOAT_32F,
+                                    1, 1, sizeof(tex), tex};
+    PhoXiFrame frame;
+    frame.texture = &texRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -553,12 +578,13 @@ TEST_F(RosInterfaceTest, TextureRgbPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
-    auto pframe = std::make_shared<pho::api::Frame>();
-    pframe->TextureRGB.Resize(pho::api::PhoXiSize(2, 1));
-    pframe->TextureRGB[0][0] = {100, 200, 300};
-    pframe->TextureRGB[0][1] = {400, 500, 600};
+    uint16_t rgb[2][3] = {{100, 200, 300}, {400, 500, 600}};
+    phoxi_frame_record_t rgbRec = {PHOXI_FRAME_TYPE_TEXTURE, PHOXI_FRAME_FORMAT_RGB_16,
+                                    2, 1, sizeof(rgb), rgb};
+    PhoXiFrame frame;
+    frame.textureRgb = &rgbRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture_rgb", pframe);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture_rgb", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "rgb16");
     EXPECT_EQ(msg->width, 2u);

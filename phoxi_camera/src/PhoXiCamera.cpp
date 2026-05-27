@@ -539,82 +539,69 @@ void PhoXiCamera::reset_active_profile_cb(
     }
 }
 
-void PhoXiCamera::on_frame_cb(const pho::api::PFrame& frame) {
-    if (!frame) {
-        RCLCPP_WARN(get_logger(), "Received null frame, skipping.");
-        return;
-    }
+void PhoXiCamera::on_frame_cb(const PhoXiFrame& frame)
+{
     std::lock_guard<std::mutex> lock(mFrameMutex);
     try {
-        std::chrono::nanoseconds stamp{0};
-        if (frame->Info.FrameStartTime.IsValid()) {
-            stamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                frame->Info.FrameStartTime.Time.time_since_epoch());
-        } else if (frame->Info.FrameTimestamp > 0.) {
-            stamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                std::chrono::duration<double, std::milli>(frame->Info.FrameTimestamp));
-        }
-        const rclcpp::Time rosStamp = (stamp.count() > 0)
-            ? rclcpp::Time(stamp.count(), get_clock()->get_clock_type())
-            : get_clock()->now();
+        const rclcpp::Time rosStamp = get_clock()->now();
 
         auto setHeader = [&](sensor_msgs::msg::Image& img) {
             img.header.frame_id = mFrameId;
             img.header.stamp = rosStamp;
         };
 
-        auto pc_msg = phoXiFrameToRosMsg(frame);
-        pc_msg->header.frame_id = mFrameId;
-        pc_msg->header.stamp = rosStamp;
-        if (mPointCloudPub->is_activated()) {
-            mPointCloudPub->publish(std::move(pc_msg));
+        if (frame.pointCloud && mPointCloudPub->is_activated()) {
+            auto msg = phoXiFrameToRosMsg(frame);
+            msg->header.frame_id = mFrameId;
+            msg->header.stamp = rosStamp;
+            mPointCloudPub->publish(std::move(msg));
         }
 
-        if (!frame->PointCloud.Empty() && mPointsPub->is_activated()) {
-            auto pts_msg = pointsToRosMsg(frame);
-            pts_msg->header.frame_id = mFrameId;
-            pts_msg->header.stamp = rosStamp;
-            mPointsPub->publish(std::move(pts_msg));
+        if (frame.pointCloud && mPointsPub->is_activated()) {
+            auto msg = pointsToRosMsg(frame);
+            msg->header.frame_id = mFrameId;
+            msg->header.stamp = rosStamp;
+            mPointsPub->publish(std::move(msg));
         }
 
-        if (!frame->NormalMap.Empty() && mNormalMapPub->is_activated()) {
-            auto img = normalMapToRosMsg(frame);
+        if (frame.normalMap && mNormalMapPub->is_activated()) {
+            auto img = normalMapToRosMsg(*frame.normalMap);
             setHeader(*img);
             mNormalMapPub->publish(std::move(img));
         }
 
-        if (!frame->DepthMap.Empty() && mDepthMapPub->is_activated()) {
-            auto img = depthMapToRosMsg(frame);
+        if (frame.depthMap && mDepthMapPub->is_activated()) {
+            auto img = depthMapToRosMsg(*frame.depthMap);
             setHeader(*img);
             mDepthMapPub->publish(std::move(img));
         }
 
-        if (!frame->ConfidenceMap.Empty() && mConfidenceMapPub->is_activated()) {
-            auto img = confidenceMapToRosMsg(frame);
+        if (frame.confidenceMap && mConfidenceMapPub->is_activated()) {
+            auto img = confidenceMapToRosMsg(*frame.confidenceMap);
             setHeader(*img);
             mConfidenceMapPub->publish(std::move(img));
         }
 
-        if (!frame->EventMap.Empty() && mEventMapPub->is_activated()) {
-            auto img = eventMapToRosMsg(frame);
+        if (frame.eventMap && mEventMapPub->is_activated()) {
+            auto img = eventMapToRosMsg(*frame.eventMap);
             setHeader(*img);
             mEventMapPub->publish(std::move(img));
         }
 
-        if (!frame->Texture.Empty() && mTexturePub->is_activated()) {
-            auto img = textureToRosMsg(frame);
+        if (frame.texture && mTexturePub->is_activated()) {
+            auto img = textureToRosMsg(*frame.texture);
             setHeader(*img);
             mTexturePub->publish(std::move(img));
         }
 
-        if (!frame->TextureRGB.Empty() && mTextureRgbPub->is_activated()) {
-            auto img = textureRgbToRosMsg(frame);
+        if (frame.textureRgb && mTextureRgbPub->is_activated()) {
+            auto img = textureRgbToRosMsg(*frame.textureRgb);
             setHeader(*img);
             mTextureRgbPub->publish(std::move(img));
         }
 
-        if (!frame->ColorCameraImage.Empty() && mColorCameraImagePub->is_activated()) {
-            auto img = colorCameraImageToRosMsg(frame);
+        if (frame.colorCamera && mColorCameraImagePub->is_activated()) {
+            auto img = colorCameraImageToRosMsg(*frame.colorCamera);
             setHeader(*img);
             mColorCameraImagePub->publish(std::move(img));
         }
