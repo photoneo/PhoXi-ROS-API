@@ -139,4 +139,105 @@ pho::api::PhoXiTriggerMode PhoXiInterface::getTriggerMode() {
     return mPhoXiDevice->TriggerMode;
 }
 
+std::vector<pho::api::PhoXiProfileDescriptor> PhoXiInterface::getProfileList() {
+    isOk();
+    std::vector<pho::api::PhoXiProfileDescriptor> list = mPhoXiDevice->Profiles;
+    if (!mPhoXiDevice->Profiles.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to get profile list: " +
+                                      mPhoXiDevice->Profiles.GetLastErrorMessage());
+    }
+    return list;
+}
+
+std::string PhoXiInterface::getActiveProfile() {
+    isOk();
+    std::string name = mPhoXiDevice->ActiveProfile;
+    if (!mPhoXiDevice->ActiveProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to get active profile: " +
+                                      mPhoXiDevice->ActiveProfile.GetLastErrorMessage());
+    }
+    return name;
+}
+
+void PhoXiInterface::setActiveProfile(const std::string& name) {
+    isOk();
+    mPhoXiDevice->ActiveProfile = name;
+    if (!mPhoXiDevice->ActiveProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to set active profile: " +
+                                      mPhoXiDevice->ActiveProfile.GetLastErrorMessage());
+    }
+}
+
+std::string PhoXiInterface::getStartupProfile() {
+    isOk();
+    std::string name = mPhoXiDevice->StartupProfile;
+    if (!mPhoXiDevice->StartupProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to get startup profile: " +
+                                      mPhoXiDevice->StartupProfile.GetLastErrorMessage());
+    }
+    return name;
+}
+
+void PhoXiInterface::setStartupProfile(const std::string& name) {
+    isOk();
+    mPhoXiDevice->StartupProfile = name;
+    if (!mPhoXiDevice->StartupProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to set startup profile: " +
+                                      mPhoXiDevice->StartupProfile.GetLastErrorMessage());
+    }
+}
+
+void PhoXiInterface::createProfile(const std::string& name) {
+    isOk();
+    mPhoXiDevice->CreateProfile = name;
+    if (!mPhoXiDevice->CreateProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to create profile: " +
+                                      mPhoXiDevice->CreateProfile.GetLastErrorMessage());
+    }
+}
+
+void PhoXiInterface::deleteProfile(const std::string& name) {
+    isOk();
+    mPhoXiDevice->DeleteProfile = name;
+    if (!mPhoXiDevice->DeleteProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to delete profile: " +
+                                      mPhoXiDevice->DeleteProfile.GetLastErrorMessage());
+    }
+}
+
+void PhoXiInterface::updateProfile(const std::string& name) {
+    isOk();
+    mPhoXiDevice->UpdateProfile = name;
+    if (!mPhoXiDevice->UpdateProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to update profile: " +
+                                      mPhoXiDevice->UpdateProfile.GetLastErrorMessage());
+    }
+}
+
+pho::api::PhoXiProfileContent PhoXiInterface::exportProfile() {
+    isOk();
+    pho::api::PhoXiProfileContent content = mPhoXiDevice->ExportProfile;
+    if (!mPhoXiDevice->ExportProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to export profile: " +
+                                      mPhoXiDevice->ExportProfile.GetLastErrorMessage());
+    }
+    return content;
+}
+
+void PhoXiInterface::importProfile(const pho::api::PhoXiProfileContent& content) {
+    isOk();
+    mPhoXiDevice->ImportProfile = content;
+    if (!mPhoXiDevice->ImportProfile.isLastOperationSuccessful()) {
+        throw PhoXiInterfaceException("Failed to import profile: " +
+                                      mPhoXiDevice->ImportProfile.GetLastErrorMessage());
+    }
+}
+
+void PhoXiInterface::resetActiveProfile() {
+    isOk();
+    if (!mPhoXiDevice->ResetActivePreset()) {
+        throw PhoXiInterfaceException("Failed to reset active profile.");
+    }
+}
+
 }  // namespace phoxi_camera

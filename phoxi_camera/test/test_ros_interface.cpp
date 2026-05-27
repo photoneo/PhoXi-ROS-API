@@ -8,6 +8,16 @@
 #include "phoxi_camera/PhoXiInterface.h"
 #include "phoxi_camera/PhoXiCamera.h"
 #include "phoxi_camera_msgs/srv/connect.hpp"
+#include "phoxi_camera_msgs/srv/create_profile.hpp"
+#include "phoxi_camera_msgs/srv/delete_profile.hpp"
+#include "phoxi_camera_msgs/srv/export_profile.hpp"
+#include "phoxi_camera_msgs/srv/get_active_profile.hpp"
+#include "phoxi_camera_msgs/srv/get_profile_list.hpp"
+#include "phoxi_camera_msgs/srv/get_startup_profile.hpp"
+#include "phoxi_camera_msgs/srv/import_profile.hpp"
+#include "phoxi_camera_msgs/srv/set_active_profile.hpp"
+#include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
+#include "phoxi_camera_msgs/srv/update_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -32,6 +42,17 @@ class MockPhoXiInterface : public PhoXiInterface
     MOCK_METHOD(void, stopAcquisition, (), (override));
     MOCK_METHOD(bool, isConnected, (), (override));
     MOCK_METHOD(bool, isAcquiring, (), (override));
+    MOCK_METHOD(std::vector<pho::api::PhoXiProfileDescriptor>, getProfileList, (), (override));
+    MOCK_METHOD(std::string, getActiveProfile, (), (override));
+    MOCK_METHOD(void, setActiveProfile, (const std::string& name), (override));
+    MOCK_METHOD(std::string, getStartupProfile, (), (override));
+    MOCK_METHOD(void, setStartupProfile, (const std::string& name), (override));
+    MOCK_METHOD(void, createProfile, (const std::string& name), (override));
+    MOCK_METHOD(void, deleteProfile, (const std::string& name), (override));
+    MOCK_METHOD(void, updateProfile, (const std::string& name), (override));
+    MOCK_METHOD(pho::api::PhoXiProfileContent, exportProfile, (), (override));
+    MOCK_METHOD(void, importProfile, (const pho::api::PhoXiProfileContent& content), (override));
+    MOCK_METHOD(void, resetActiveProfile, (), (override));
 };
 
 class TestableRosInterface : public PhoXiCamera
@@ -553,6 +574,215 @@ TEST_F(RosInterfaceTest, TextureRgbPublished) {
     std::memcpy(&b1, msg->data.data() + 5 * sizeof(uint16_t), sizeof(uint16_t));
     EXPECT_EQ(r0, 100u); EXPECT_EQ(g0, 200u); EXPECT_EQ(b0, 300u);
     EXPECT_EQ(r1, 400u); EXPECT_EQ(g1, 500u); EXPECT_EQ(b1, 600u);
+}
+
+// ── Profile services ────────────────────────────────────────────────────────
+
+TEST_F(RosInterfaceTest, ProfileServicesUnavailableWhenUnconfigured) {
+    // Services are only created during on_configure, so they must not be discoverable before that.
+    auto client = test_client_node_->create_client<phoxi_camera_msgs::srv::GetProfileList>(
+        "/phoxi_camera/profiles/list");
+    EXPECT_FALSE(client->wait_for_service(std::chrono::milliseconds(500)));
+}
+
+TEST_F(RosInterfaceTest, GetProfileListReturnsProfiles) {
+    ASSERT_TRUE(configureOnly());
+
+    pho::api::PhoXiProfileDescriptor userProfile;
+    userProfile.Name = "MyProfile";
+    userProfile.IsFactory = false;
+    pho::api::PhoXiProfileDescriptor factoryProfile;
+    factoryProfile.Name = "Factory";
+    factoryProfile.IsFactory = true;
+    EXPECT_CALL(*mock_mPhoXiInterface, getProfileList())
+        .WillOnce(Return(std::vector<pho::api::PhoXiProfileDescriptor>{userProfile, factoryProfile}));
+
+    auto response = call_service<phoxi_camera_msgs::srv::GetProfileList>(
+        "/phoxi_camera/profiles/list");
+    ASSERT_NE(response, nullptr);
+    ASSERT_TRUE(response->success);
+    ASSERT_EQ(response->names.size(), 2u);
+    EXPECT_EQ(response->names[0], "MyProfile");
+    EXPECT_FALSE(response->is_factory[0]);
+    EXPECT_EQ(response->names[1], "Factory");
+    EXPECT_TRUE(response->is_factory[1]);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, GetActiveProfileReturnsName) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, getActiveProfile()).WillOnce(Return("MyProfile"));
+
+    auto response = call_service<phoxi_camera_msgs::srv::GetActiveProfile>(
+        "/phoxi_camera/profiles/get_active");
+    ASSERT_NE(response, nullptr);
+    ASSERT_TRUE(response->success);
+    EXPECT_EQ(response->name, "MyProfile");
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, SetActiveProfileCallsInterface) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, setActiveProfile("MyProfile")).Times(1);
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::SetActiveProfile::Request>();
+    request->name = "MyProfile";
+    auto response = call_service<phoxi_camera_msgs::srv::SetActiveProfile>(
+        "/phoxi_camera/profiles/set_active", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, SetActiveProfileReportsSDKError) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, setActiveProfile(_))
+        .WillOnce(Throw(PhoXiInterfaceException("Profile not found")));
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::SetActiveProfile::Request>();
+    request->name = "Missing";
+    auto response = call_service<phoxi_camera_msgs::srv::SetActiveProfile>(
+        "/phoxi_camera/profiles/set_active", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_FALSE(response->success);
+    EXPECT_EQ(response->message, "Profile not found");
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, CreateProfileCallsInterface) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, createProfile("NewProfile")).Times(1);
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::CreateProfile::Request>();
+    request->name = "NewProfile";
+    auto response = call_service<phoxi_camera_msgs::srv::CreateProfile>(
+        "/phoxi_camera/profiles/create", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, DeleteProfileCallsInterface) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, deleteProfile("OldProfile")).Times(1);
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::DeleteProfile::Request>();
+    request->name = "OldProfile";
+    auto response = call_service<phoxi_camera_msgs::srv::DeleteProfile>(
+        "/phoxi_camera/profiles/delete", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, UpdateProfileCallsInterface) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, updateProfile("MyProfile")).Times(1);
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::UpdateProfile::Request>();
+    request->name = "MyProfile";
+    auto response = call_service<phoxi_camera_msgs::srv::UpdateProfile>(
+        "/phoxi_camera/profiles/update", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, GetStartupProfileReturnsName) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, getStartupProfile()).WillOnce(Return("StartupProfile"));
+
+    auto response = call_service<phoxi_camera_msgs::srv::GetStartupProfile>(
+        "/phoxi_camera/profiles/get_startup");
+    ASSERT_NE(response, nullptr);
+    ASSERT_TRUE(response->success);
+    EXPECT_EQ(response->name, "StartupProfile");
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, SetStartupProfileCallsInterface) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, setStartupProfile("MyProfile")).Times(1);
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::SetStartupProfile::Request>();
+    request->name = "MyProfile";
+    auto response = call_service<phoxi_camera_msgs::srv::SetStartupProfile>(
+        "/phoxi_camera/profiles/set_startup", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, ExportProfileReturnsContent) {
+    ASSERT_TRUE(configureOnly());
+
+    pho::api::PhoXiProfileContent content;
+    content.Name = "MyProfile";
+    content.Content = {0x01, 0x02, 0x03};
+    EXPECT_CALL(*mock_mPhoXiInterface, exportProfile()).WillOnce(Return(content));
+
+    auto response = call_service<phoxi_camera_msgs::srv::ExportProfile>(
+        "/phoxi_camera/profiles/export");
+    ASSERT_NE(response, nullptr);
+    ASSERT_TRUE(response->success);
+    EXPECT_EQ(response->name, "MyProfile");
+    ASSERT_EQ(response->content.size(), 3u);
+    EXPECT_EQ(response->content[0], 0x01);
+    EXPECT_EQ(response->content[1], 0x02);
+    EXPECT_EQ(response->content[2], 0x03);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, ImportProfileSendsContent) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, importProfile(_))
+        .WillOnce([](const pho::api::PhoXiProfileContent& c) {
+            EXPECT_EQ(c.Name, "ImportedProfile");
+            EXPECT_EQ(c.Content.size(), 2u);
+            EXPECT_EQ(c.Content[0], 0xAB);
+            EXPECT_EQ(c.Content[1], 0xCD);
+        });
+
+    auto request = std::make_shared<phoxi_camera_msgs::srv::ImportProfile::Request>();
+    request->name = "ImportedProfile";
+    request->content = {0xAB, 0xCD};
+    auto response = call_service<phoxi_camera_msgs::srv::ImportProfile>(
+        "/phoxi_camera/profiles/import", request);
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
+}
+
+TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {
+    ASSERT_TRUE(configureOnly());
+
+    EXPECT_CALL(*mock_mPhoXiInterface, resetActiveProfile()).Times(1);
+
+    auto response = call_service<std_srvs::srv::Trigger>("/phoxi_camera/profiles/reset");
+    ASSERT_NE(response, nullptr);
+    EXPECT_TRUE(response->success);
+
+    ASSERT_TRUE(cleanupWithDisconnect());
 }
 
 int main(int argc, char** argv) {

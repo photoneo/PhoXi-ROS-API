@@ -99,6 +99,39 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     mTriggerFrameService = create_service<phoxi_camera_msgs::srv::TriggerFrame>(
         "~/trigger_frame",
         std::bind(&PhoXiCamera::trigger_frame_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mGetProfileListService = create_service<phoxi_camera_msgs::srv::GetProfileList>(
+        "~/profiles/list",
+        std::bind(&PhoXiCamera::get_profile_list_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mGetActiveProfileService = create_service<phoxi_camera_msgs::srv::GetActiveProfile>(
+        "~/profiles/get_active",
+        std::bind(&PhoXiCamera::get_active_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mSetActiveProfileService = create_service<phoxi_camera_msgs::srv::SetActiveProfile>(
+        "~/profiles/set_active",
+        std::bind(&PhoXiCamera::set_active_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mCreateProfileService = create_service<phoxi_camera_msgs::srv::CreateProfile>(
+        "~/profiles/create",
+        std::bind(&PhoXiCamera::create_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mDeleteProfileService = create_service<phoxi_camera_msgs::srv::DeleteProfile>(
+        "~/profiles/delete",
+        std::bind(&PhoXiCamera::delete_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mUpdateProfileService = create_service<phoxi_camera_msgs::srv::UpdateProfile>(
+        "~/profiles/update",
+        std::bind(&PhoXiCamera::update_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mGetStartupProfileService = create_service<phoxi_camera_msgs::srv::GetStartupProfile>(
+        "~/profiles/get_startup",
+        std::bind(&PhoXiCamera::get_startup_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mSetStartupProfileService = create_service<phoxi_camera_msgs::srv::SetStartupProfile>(
+        "~/profiles/set_startup",
+        std::bind(&PhoXiCamera::set_startup_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mExportProfileService = create_service<phoxi_camera_msgs::srv::ExportProfile>(
+        "~/profiles/export",
+        std::bind(&PhoXiCamera::export_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mImportProfileService = create_service<phoxi_camera_msgs::srv::ImportProfile>(
+        "~/profiles/import",
+        std::bind(&PhoXiCamera::import_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
+    mResetActiveProfileService = create_service<std_srvs::srv::Trigger>(
+        "~/profiles/reset",
+        std::bind(&PhoXiCamera::reset_active_profile_cb, this, std::placeholders::_1, std::placeholders::_2));
     RCLCPP_INFO(get_logger(), "Configuration complete. Connected to device: %s",
                 mDeviceId.c_str());
     return CallbackReturn::SUCCESS;
@@ -188,6 +221,17 @@ CallbackReturn PhoXiCamera::on_cleanup(const rclcpp_lifecycle::State& /*previous
     mConnectService.reset();
     mDisconnectService.reset();
     mTriggerFrameService.reset();
+    mGetProfileListService.reset();
+    mGetActiveProfileService.reset();
+    mSetActiveProfileService.reset();
+    mCreateProfileService.reset();
+    mDeleteProfileService.reset();
+    mUpdateProfileService.reset();
+    mGetStartupProfileService.reset();
+    mSetStartupProfileService.reset();
+    mExportProfileService.reset();
+    mImportProfileService.reset();
+    mResetActiveProfileService.reset();
     RCLCPP_INFO(get_logger(), "Cleanup complete.");
     return CallbackReturn::SUCCESS;
 }
@@ -224,6 +268,17 @@ CallbackReturn PhoXiCamera::on_shutdown(const rclcpp_lifecycle::State& /*previou
     mConnectService.reset();
     mDisconnectService.reset();
     mTriggerFrameService.reset();
+    mGetProfileListService.reset();
+    mGetActiveProfileService.reset();
+    mSetActiveProfileService.reset();
+    mCreateProfileService.reset();
+    mDeleteProfileService.reset();
+    mUpdateProfileService.reset();
+    mGetStartupProfileService.reset();
+    mSetStartupProfileService.reset();
+    mExportProfileService.reset();
+    mImportProfileService.reset();
+    mResetActiveProfileService.reset();
     RCLCPP_INFO(get_logger(), "Shutdown complete.");
     return CallbackReturn::SUCCESS;
 }
@@ -319,6 +374,169 @@ void PhoXiCamera::trigger_frame_cb(
         return;
     }
     response->success = true;
+}
+
+void PhoXiCamera::get_profile_list_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& /*request*/,
+    const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Getting profile list.");
+    try {
+        auto profiles = mPhoXiInterface->getProfileList();
+        for (const auto& p : profiles) {
+            response->names.push_back(p.Name);
+            response->is_factory.push_back(p.IsFactory);
+        }
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to get profile list: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::get_active_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& /*request*/,
+    const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Getting active profile.");
+    try {
+        response->name = mPhoXiInterface->getActiveProfile();
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to get active profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::set_active_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
+    const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Setting active profile to '%s'.", request->name.c_str());
+    try {
+        mPhoXiInterface->setActiveProfile(request->name);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to set active profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::create_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request,
+    const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Creating profile '%s'.", request->name.c_str());
+    try {
+        mPhoXiInterface->createProfile(request->name);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to create profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::delete_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request,
+    const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Deleting profile '%s'.", request->name.c_str());
+    try {
+        mPhoXiInterface->deleteProfile(request->name);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to delete profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::update_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request,
+    const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Updating profile '%s'.", request->name.c_str());
+    try {
+        mPhoXiInterface->updateProfile(request->name);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to update profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::get_startup_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& /*request*/,
+    const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Getting startup profile.");
+    try {
+        response->name = mPhoXiInterface->getStartupProfile();
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to get startup profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::set_startup_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
+    const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Setting startup profile to '%s'.", request->name.c_str());
+    try {
+        mPhoXiInterface->setStartupProfile(request->name);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to set startup profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::export_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& /*request*/,
+    const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Exporting active profile.");
+    try {
+        auto content = mPhoXiInterface->exportProfile();
+        response->name = content.Name;
+        response->content.assign(content.Content.begin(), content.Content.end());
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to export profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::import_profile_cb(
+    const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request,
+    const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Importing profile '%s'.", request->name.c_str());
+    try {
+        pho::api::PhoXiProfileContent content;
+        content.Name = request->name;
+        content.Content.assign(request->content.begin(), request->content.end());
+        mPhoXiInterface->importProfile(content);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to import profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::reset_active_profile_cb(
+    const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
+    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) const {
+    RCLCPP_INFO(get_logger(), "Resetting active profile to factory defaults.");
+    try {
+        mPhoXiInterface->resetActiveProfile();
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Failed to reset active profile: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
 }
 
 void PhoXiCamera::on_frame_cb(const pho::api::PFrame& frame) {

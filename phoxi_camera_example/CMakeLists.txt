@@ -55,6 +55,27 @@ target_link_libraries(simple_node_topic_listener
         ${sensor_msgs_TARGETS}
 )
 
+add_executable(list_profiles src/profiles/list_profiles.cpp)
+target_link_libraries(list_profiles
+    PUBLIC
+        rclcpp::rclcpp
+        ${phoxi_camera_msgs_TARGETS}
+)
+
+add_executable(manage_profiles src/profiles/manage_profiles.cpp)
+target_link_libraries(manage_profiles
+    PUBLIC
+        rclcpp::rclcpp
+        ${phoxi_camera_msgs_TARGETS}
+)
+
+add_executable(export_import_profiles src/profiles/export_import_profiles.cpp)
+target_link_libraries(export_import_profiles
+    PUBLIC
+        rclcpp::rclcpp
+        ${phoxi_camera_msgs_TARGETS}
+)
+
 install(
     TARGETS
         phoxi_camera_composition_example
@@ -69,6 +90,9 @@ install(
         phoxi_camera_composition_example_node
         simple_node_service_caller
         simple_node_topic_listener
+        list_profiles
+        manage_profiles
+        export_import_profiles
     DESTINATION
         lib/${PROJECT_NAME}
 )

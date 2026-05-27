@@ -113,6 +113,94 @@ class PhoXiInterface
     void setTriggerMode(pho::api::PhoXiTriggerMode mode);
 
     /**
+     * Get the list of saved profiles.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual std::vector<pho::api::PhoXiProfileDescriptor> getProfileList();
+
+    /**
+     * Get the name of the currently active profile.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual std::string getActiveProfile();
+
+    /**
+     * Activate a profile by name.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void setActiveProfile(const std::string& name);
+
+    /**
+     * Get the name of the startup profile.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual std::string getStartupProfile();
+
+    /**
+     * Set the startup profile by name.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void setStartupProfile(const std::string& name);
+
+    /**
+     * Save the current device settings as a new profile.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void createProfile(const std::string& name);
+
+    /**
+     * Delete a profile by name.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void deleteProfile(const std::string& name);
+
+    /**
+     * Overwrite a profile with the current device settings.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void updateProfile(const std::string& name);
+
+    /**
+     * Export the active profile as binary content.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual pho::api::PhoXiProfileContent exportProfile();
+
+    /**
+     * Import a profile from binary content.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void importProfile(const pho::api::PhoXiProfileContent& content);
+
+    /**
+     * Reset the active profile to factory defaults.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void resetActiveProfile();
+
+    /**
      * Get trigger mode
      *
      * \throw PhoXiDeviceNotConnected when no device is connected
