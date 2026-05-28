@@ -2,3 +2,4 @@ phoxi_camera:
   ros__parameters:
     device_id: "" # hardware identification of PhoXi device (serial number or network ID)
     frame_id: "phoxi_camera_sensor" # coordinate frame ID for published point cloud
+    publish_combined: false # true: publish only point_cloud (XYZ + all fields); false: publish individual topics (points, normal, depth, confidence, event, intensity, texture, color_camera_image)

@@ -44,6 +44,10 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
 
   private:
     void drainFrameCallback();
+    void declareParameters();
+    void activatePublishers();
+    void deactivatePublishers();
+
     void connect_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
         const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
     void disconnect_cb(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
@@ -100,6 +104,7 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     std::mutex mFrameMutex;
     std::string mDeviceId;
     std::string mFrameId;
+    bool mPublishCombined = false;
 };
 
 }  // namespace phoxi_camera

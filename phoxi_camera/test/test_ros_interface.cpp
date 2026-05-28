@@ -362,6 +362,7 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
 }
 
 TEST_F(RosInterfaceTest, PointCloudPublished) {
+    lc_node_->set_parameter(rclcpp::Parameter("publish_combined", true));
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
@@ -464,6 +465,53 @@ TEST_F(RosInterfaceTest, PointsNotPublishedWhenPointCloudEmpty) {
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frame_cb(PhoXiFrame{});  // empty frame — no PointCloud
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    EXPECT_FALSE(received);
+}
+
+TEST_F(RosInterfaceTest, PointCloudNotPublishedWhenNotCombined) {
+    // publish_combined = false (default): point_cloud topic must not receive any message
+    auto frame_cb = configureActivateCapture();
+    ASSERT_TRUE(frame_cb);
+
+    float pts[1][3] = {{1000.0f, 0.0f, 0.0f}};
+    phoxi_frame_record_t pcRec = {PHOXI_FRAME_TYPE_POINTCLOUD, PHOXI_FRAME_FORMAT_POINT3_32F,
+                                   1, 1, sizeof(pts), pts};
+    PhoXiFrame frame;
+    frame.pointCloud = &pcRec;
+
+    bool received = false;
+    auto sub = test_client_node_->create_subscription<sensor_msgs::msg::PointCloud2>(
+        "point_cloud", rclcpp::SystemDefaultsQoS(),
+        [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+    frame_cb(frame);
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    EXPECT_FALSE(received);
+}
+
+TEST_F(RosInterfaceTest, IndividualTopicsNotPublishedWhenCombined) {
+    // publish_combined = true: individual topics (e.g. points) must not receive any message
+    lc_node_->set_parameter(rclcpp::Parameter("publish_combined", true));
+    auto frame_cb = configureActivateCapture();
+    ASSERT_TRUE(frame_cb);
+
+    float pts[1][3] = {{1000.0f, 0.0f, 0.0f}};
+    phoxi_frame_record_t pcRec = {PHOXI_FRAME_TYPE_POINTCLOUD, PHOXI_FRAME_FORMAT_POINT3_32F,
+                                   1, 1, sizeof(pts), pts};
+    PhoXiFrame frame;
+    frame.pointCloud = &pcRec;
+
+    bool received = false;
+    auto sub = test_client_node_->create_subscription<sensor_msgs::msg::PointCloud2>(
+        "points", rclcpp::SystemDefaultsQoS(),
+        [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+    frame_cb(frame);
     executor_.spin_some(std::chrono::milliseconds(100));
 
     EXPECT_FALSE(received);

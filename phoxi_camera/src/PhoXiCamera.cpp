@@ -11,18 +11,23 @@ namespace phoxi_camera
 {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
+void PhoXiCamera::declareParameters()
+{
+    declare_parameter<std::string>("device_id", "");
+    declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
+    declare_parameter<bool>("publish_combined", false);
+}
+
 PhoXiCamera::PhoXiCamera(const std::string& deviceId, const rclcpp::NodeOptions& options)
     : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mDeviceId(deviceId) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node for device: %s", mDeviceId.c_str());
-    declare_parameter<std::string>("device_id", mDeviceId);
-    declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
+    declareParameters();
 }
 
 PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options)
     : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node.");
-    declare_parameter<std::string>("device_id", "");
-    declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
+    declareParameters();
     get_parameter("device_id", mDeviceId);
 }
 
@@ -44,6 +49,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
 
     get_parameter("device_id", mDeviceId);
     get_parameter("frame_id", mFrameId);
+    get_parameter("publish_combined", mPublishCombined);
 
     if (mDeviceId.empty()) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: 'device_id' parameter is empty.");
@@ -141,29 +147,13 @@ CallbackReturn PhoXiCamera::on_activate(
     const rclcpp_lifecycle::State& /*previous_state*/) {
     RCLCPP_INFO(get_logger(), "Activating PhoXi Camera node...");
 
-    mPointCloudPub->on_activate();
-    mPointsPub->on_activate();
-    mNormalMapPub->on_activate();
-    mDepthMapPub->on_activate();
-    mConfidenceMapPub->on_activate();
-    mEventMapPub->on_activate();
-    mTexturePub->on_activate();
-    mTextureRgbPub->on_activate();
-    mColorCameraImagePub->on_activate();
+    activatePublishers();
 
     try {
         mPhoXiInterface->startAcquisition();
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Activation failed: %s", e.what());
-        mPointCloudPub->on_deactivate();
-        mPointsPub->on_deactivate();
-        mNormalMapPub->on_deactivate();
-        mDepthMapPub->on_deactivate();
-        mConfidenceMapPub->on_deactivate();
-        mEventMapPub->on_deactivate();
-        mTexturePub->on_deactivate();
-        mTextureRgbPub->on_deactivate();
-        mColorCameraImagePub->on_deactivate();
+        deactivatePublishers();
         return CallbackReturn::FAILURE;
     }
 
@@ -182,15 +172,7 @@ CallbackReturn PhoXiCamera::on_deactivate(const rclcpp_lifecycle::State& /*previ
     }
     { std::lock_guard<std::mutex> lock(mFrameMutex); }  // drain any in-flight callback
 
-    mPointCloudPub->on_deactivate();
-    mPointsPub->on_deactivate();
-    mNormalMapPub->on_deactivate();
-    mDepthMapPub->on_deactivate();
-    mConfidenceMapPub->on_deactivate();
-    mEventMapPub->on_deactivate();
-    mTexturePub->on_deactivate();
-    mTextureRgbPub->on_deactivate();
-    mColorCameraImagePub->on_deactivate();
+    deactivatePublishers();
 
     RCLCPP_INFO(get_logger(), "Deactivation complete.");
     return CallbackReturn::SUCCESS;
@@ -536,6 +518,36 @@ void PhoXiCamera::reset_active_profile_cb(
         RCLCPP_ERROR(get_logger(), "Failed to reset active profile: %s", e.what());
         response->success = false;
         response->message = e.what();
+    }
+}
+
+void PhoXiCamera::activatePublishers() {
+    if (mPublishCombined) {
+        mPointCloudPub->on_activate();
+    } else {
+        mPointsPub->on_activate();
+        mNormalMapPub->on_activate();
+        mDepthMapPub->on_activate();
+        mConfidenceMapPub->on_activate();
+        mEventMapPub->on_activate();
+        mTexturePub->on_activate();
+        mTextureRgbPub->on_activate();
+        mColorCameraImagePub->on_activate();
+    }
+}
+
+void PhoXiCamera::deactivatePublishers() {
+    if (mPublishCombined) {
+        mPointCloudPub->on_deactivate();
+    } else {
+        mPointsPub->on_deactivate();
+        mNormalMapPub->on_deactivate();
+        mDepthMapPub->on_deactivate();
+        mConfidenceMapPub->on_deactivate();
+        mEventMapPub->on_deactivate();
+        mTexturePub->on_deactivate();
+        mTextureRgbPub->on_deactivate();
+        mColorCameraImagePub->on_deactivate();
     }
 }
 
