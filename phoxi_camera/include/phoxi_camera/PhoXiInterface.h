@@ -17,7 +17,7 @@ namespace phoxi_camera
 class PhoXiInterface
 {
   public:
-    using GetFrameCb = std::function<void(const PhoXiFrame&)>;
+    using GetFrameCallback = std::function<void(const PhoXiFrame&)>;
 
     PhoXiInterface() = default;
     virtual ~PhoXiInterface() = default;
@@ -45,7 +45,7 @@ class PhoXiInterface
      * \throw PhoXiDeviceNotFound when PhoXi Device with HWIdentification is not available
      * \throw UnableToStartAcquisition when connection failed
      */
-    virtual void connectCamera(const std::string& deviceId, GetFrameCb&& getFrameCallback);
+    virtual void connectCamera(const std::string& deviceId, GetFrameCallback&& getFrameCallback);
 
     /**
      * Disconnect from camera if connected to any.
@@ -59,14 +59,14 @@ class PhoXiInterface
      * \throw PhoXiDeviceNotConnected when no device is connected
      * \throw UnableToTriggerFrame when triggering fails
      */
-    virtual void triggerFrame(bool waitGrabbingEnd = false);
+    virtual void triggerFrame(bool waitGrabbingEnd);
 
     /**
      * Test if connection to PhoXi Device is working
      *
      * \throw PhoXiDeviceNotConnected when no device is connected
      */
-    void isOk();
+    void isOk() const;
 
     /**
      * Test if connection to PhoXi Device is working
@@ -102,6 +102,13 @@ class PhoXiInterface
      *  -4 WaitForGrabbingEnd is not supported)
      */
     int triggerImage(bool waitForGrab = false);
+
+    /**
+     * Get trigger mode
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     */
+    pho::api::PhoXiTriggerMode getTriggerMode() const;
 
     /**
      * Set trigger mode
@@ -201,13 +208,6 @@ class PhoXiInterface
      */
     virtual void resetActiveProfile();
 
-    /**
-     * Get trigger mode
-     *
-     * \throw PhoXiDeviceNotConnected when no device is connected
-     */
-    pho::api::PhoXiTriggerMode getTriggerMode();
-
     pho::api::PPhoXi mPhoXiDevice;
 
   protected:
@@ -219,7 +219,7 @@ class PhoXiInterface
     const int CONNECTION_TIMEOUT_MS = 60000;
     std::string mDeviceId;
     mutable std::mutex mFrameCallbackMutex;
-    GetFrameCb mFrameCallback;
+    GetFrameCallback mFrameCallback;
 };
 }  // namespace phoxi_camera
 

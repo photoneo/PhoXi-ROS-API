@@ -29,7 +29,7 @@ namespace phoxi_camera
 class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
 {
   public:
-    explicit PhoXiCamera(const std::string& deviceId, const rclcpp::NodeOptions& options);
+    explicit PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options);
     explicit PhoXiCamera(const rclcpp::NodeOptions& options);
     ~PhoXiCamera() override;
 
@@ -47,36 +47,38 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     void declareParameters();
     void activatePublishers();
     void deactivatePublishers();
+    void cleanupResources();
 
-    void connect_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
+    void onFrameCallback(const PhoXiFrame& frame);
+
+    void connectCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
         const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
-    void disconnect_cb(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) const;
-    void trigger_frame_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response) const;
-    void get_profile_list_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response) const;
-    void get_active_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response) const;
-    void set_active_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response) const;
-    void create_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response) const;
-    void delete_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response) const;
-    void update_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response) const;
-    void get_startup_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response) const;
-    void set_startup_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response) const;
-    void export_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response) const;
-    void import_profile_cb(const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) const;
-    void reset_active_profile_cb(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) const;
-    void on_frame_cb(const PhoXiFrame& frame);
+    void disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
+        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void triggerFrameCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response);
+    void getProfileListCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response);
+    void getActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response);
+    void setActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response);
+    void createProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response);
+    void deleteProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response);
+    void updateProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response);
+    void getStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response);
+    void setStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response);
+    void exportProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response);
+    void importProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response);
+    void resetActiveProfileCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
+        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
 
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointCloudPub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointsPub;

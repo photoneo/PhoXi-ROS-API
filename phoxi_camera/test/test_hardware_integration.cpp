@@ -15,25 +15,25 @@ using namespace phoxi_camera;
 class HardwareIntegrationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        sensor_sn_ = "InstalledExamples-basic-example";
+        sensorSn = "InstalledExamples-basic-example";
 
         rclcpp::NodeOptions options;
-        options.append_parameter_override("sensor_sn", sensor_sn_);
+        options.append_parameter_override("sensor_sn", sensorSn);
 
-        ros_interface_ = std::make_shared<phoxi_camera::PhoXiCamera>(options);
+        rosInterface = std::make_shared<phoxi_camera::PhoXiCamera>(options);
 
-        test_client_node_ = std::make_shared<rclcpp::Node>("test_client_node");
+        testClientNode = std::make_shared<rclcpp::Node>("test_client_node");
 
-        executor_.add_node(ros_interface_->get_node_base_interface());
-        executor_.add_node(test_client_node_);
+        executor_.add_node(rosInterface->get_node_base_interface());
+        executor_.add_node(testClientNode);
     }
 
     void TearDown() override {}
 
-    bool change_lc_state(uint8_t transition, const std::chrono::seconds& timeout = std::chrono::seconds(10)) {
-        auto client = test_client_node_->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
+    bool changeLcState(uint8_t transition, const std::chrono::seconds& timeout = std::chrono::seconds(10)) {
+        auto client = testClientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
         if (!client->wait_for_service(std::chrono::seconds(5))) {
-            RCLCPP_ERROR(test_client_node_->get_logger(), "change_state service not available!");
+            RCLCPP_ERROR(testClientNode->get_logger(), "change_state service not available!");
             return false;
         }
         auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
@@ -43,58 +43,58 @@ protected:
     }
 
     rclcpp::executors::SingleThreadedExecutor executor_;
-    std::shared_ptr<phoxi_camera::PhoXiCamera> ros_interface_;
-    std::shared_ptr<rclcpp::Node> test_client_node_;
-    std::string sensor_sn_;
+    std::shared_ptr<phoxi_camera::PhoXiCamera> rosInterface;
+    std::shared_ptr<rclcpp::Node> testClientNode;
+    std::string sensorSn;
 };
 
 TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
-    RCLCPP_INFO(test_client_node_->get_logger(), "Configuring node...");
-    ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
-    RCLCPP_INFO(test_client_node_->get_logger(), "Activating node...");
-    ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
+    RCLCPP_INFO(testClientNode->get_logger(), "Configuring node...");
+    ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
+    RCLCPP_INFO(testClientNode->get_logger(), "Activating node...");
+    ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
 
-    RCLCPP_INFO(test_client_node_->get_logger(), "Calling connect service for SN: %s", sensor_sn_.c_str());
-    auto connect_client = test_client_node_->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
-    ASSERT_TRUE(connect_client->wait_for_service(std::chrono::seconds(5)));
+    RCLCPP_INFO(testClientNode->get_logger(), "Calling connect service for SN: %s", sensorSn.c_str());
+    auto connectClient = testClientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    ASSERT_TRUE(connectClient->wait_for_service(std::chrono::seconds(5)));
 
-    auto connect_request = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
+    auto connectRequest = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
 
-    auto connect_future = connect_client->async_send_request(connect_request);
-    ASSERT_EQ(executor_.spin_until_future_complete(connect_future, std::chrono::seconds(20)), rclcpp::FutureReturnCode::SUCCESS) << "Connect service call timed out!";
-    ASSERT_TRUE(connect_future.get()->success) << "Failed to connect to the real camera! Check PhoXi Control and network. Message: " << connect_future.get()->message;
+    auto connectFuture = connectClient->async_send_request(connectRequest);
+    ASSERT_EQ(executor_.spin_until_future_complete(connectFuture, std::chrono::seconds(20)), rclcpp::FutureReturnCode::SUCCESS) << "Connect service call timed out!";
+    ASSERT_TRUE(connectFuture.get()->success) << "Failed to connect to the real camera! Check PhoXi Control and network. Message: " << connectFuture.get()->message;
 
-    RCLCPP_INFO(test_client_node_->get_logger(), "Subscribing to /point_cloud and triggering frame...");
-    bool message_received = false;
-    sensor_msgs::msg::PointCloud2::SharedPtr received_msg;
-    auto sub = test_client_node_->create_subscription<sensor_msgs::msg::PointCloud2>("/point_cloud", 1, [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-        RCLCPP_INFO(test_client_node_->get_logger(), "SUCCESS: Received a point cloud message!");
-        message_received = true;
-        received_msg = msg;
+    RCLCPP_INFO(testClientNode->get_logger(), "Subscribing to /point_cloud and triggering frame...");
+    bool messageReceived = false;
+    sensor_msgs::msg::PointCloud2::SharedPtr receivedMsg;
+    auto sub = testClientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/point_cloud", 1, [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+        RCLCPP_INFO(testClientNode->get_logger(), "SUCCESS: Received a point cloud message!");
+        messageReceived = true;
+        receivedMsg = msg;
     });
 
-    auto trigger_client = test_client_node_->create_client<std_srvs::srv::Trigger>("/phoxi_camera/trigger_frame");
-    ASSERT_TRUE(trigger_client->wait_for_service(std::chrono::seconds(5)));
+    auto triggerClient = testClientNode->create_client<std_srvs::srv::Trigger>("/phoxi_camera/trigger_frame");
+    ASSERT_TRUE(triggerClient->wait_for_service(std::chrono::seconds(5)));
 
-    auto trigger_request = std::make_shared<std_srvs::srv::Trigger::Request>();
-    auto trigger_future = trigger_client->async_send_request(trigger_request);
+    auto triggerRequest = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto triggerFuture = triggerClient->async_send_request(triggerRequest);
 
-    ASSERT_EQ(executor_.spin_until_future_complete(trigger_future, std::chrono::seconds(15)), rclcpp::FutureReturnCode::SUCCESS) << "Trigger service call timed out!";
-    ASSERT_TRUE(trigger_future.get()->success);
+    ASSERT_EQ(executor_.spin_until_future_complete(triggerFuture, std::chrono::seconds(15)), rclcpp::FutureReturnCode::SUCCESS) << "Trigger service call timed out!";
+    ASSERT_TRUE(triggerFuture.get()->success);
 
-    auto start_time = std::chrono::steady_clock::now();
-    while (!message_received && (std::chrono::steady_clock::now() - start_time) < std::chrono::seconds(2)) {
+    auto startTime = std::chrono::steady_clock::now();
+    while (!messageReceived && (std::chrono::steady_clock::now() - startTime) < std::chrono::seconds(2)) {
         executor_.spin_some(std::chrono::milliseconds(10));
     }
 
-    ASSERT_TRUE(message_received) << "Node reported successful trigger, but no point cloud message was received!";
-    EXPECT_GT(received_msg->data.size(), 0) << "Received point cloud is empty!";
-    EXPECT_NE(received_msg->header.frame_id, "") << "Frame ID is empty!";
-    EXPECT_TRUE(received_msg->header.stamp.sec > 0 || received_msg->header.stamp.nanosec > 0) << "Timestamp is not set!";
+    ASSERT_TRUE(messageReceived) << "Node reported successful trigger, but no point cloud message was received!";
+    EXPECT_GT(receivedMsg->data.size(), 0) << "Received point cloud is empty!";
+    EXPECT_NE(receivedMsg->header.frame_id, "") << "Frame ID is empty!";
+    EXPECT_TRUE(receivedMsg->header.stamp.sec > 0 || receivedMsg->header.stamp.nanosec > 0) << "Timestamp is not set!";
 
-    RCLCPP_INFO(test_client_node_->get_logger(), "Deactivating and cleaning up...");
-    ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE));
-    ASSERT_TRUE(change_lc_state(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP));
+    RCLCPP_INFO(testClientNode->get_logger(), "Deactivating and cleaning up...");
+    ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE));
+    ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP));
 }
 
 int main(int argc, char** argv) {

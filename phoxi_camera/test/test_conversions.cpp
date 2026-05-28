@@ -9,22 +9,22 @@
 #include "phoxi_camera/RosConversions.h"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
-bool fieldExists(const sensor_msgs::msg::PointCloud2& msg, const std::string& field_name) {
+bool fieldExists(const sensor_msgs::msg::PointCloud2& msg, const std::string& fieldName) {
     for (const auto& field : msg.fields) {
-        if (field.name == field_name) {
+        if (field.name == fieldName) {
             return true;
         }
     }
     return false;
 }
 
-uint32_t getFieldOffset(const sensor_msgs::msg::PointCloud2& msg, const std::string& field_name) {
+uint32_t getFieldOffset(const sensor_msgs::msg::PointCloud2& msg, const std::string& fieldName) {
     for (const auto& field : msg.fields) {
-        if (field.name == field_name) {
+        if (field.name == fieldName) {
             return field.offset;
         }
     }
-    throw std::runtime_error("Field '" + field_name + "' not found in PointCloud2 message");
+    throw std::runtime_error("Field '" + fieldName + "' not found in PointCloud2 message");
 }
 
 class ConversionTest : public ::testing::Test {};
@@ -70,34 +70,34 @@ TEST_F(ConversionTest, FullFrameConversion) {
     ASSERT_TRUE(fieldExists(*msg, "depth"));
     ASSERT_FALSE(fieldExists(*msg, "intensity"));
 
-    const uint8_t* data_ptr = msg->data.data();
-    const uint32_t point_step = msg->point_step;
+    const uint8_t* dataPtr = msg->data.data();
+    const uint32_t pointStep = msg->point_step;
 
-    uint32_t x_off    = getFieldOffset(*msg, "x");
-    uint32_t y_off    = getFieldOffset(*msg, "y");
-    uint32_t z_off    = getFieldOffset(*msg, "z");
-    uint32_t nx_off   = getFieldOffset(*msg, "normal_x");
-    uint32_t ny_off   = getFieldOffset(*msg, "normal_y");
-    uint32_t nz_off   = getFieldOffset(*msg, "normal_z");
-    uint32_t rgb_off  = getFieldOffset(*msg, "rgb");
-    uint32_t conf_off = getFieldOffset(*msg, "confidence");
-    uint32_t dep_off  = getFieldOffset(*msg, "depth");
+    uint32_t xOff    = getFieldOffset(*msg, "x");
+    uint32_t yOff    = getFieldOffset(*msg, "y");
+    uint32_t zOff    = getFieldOffset(*msg, "z");
+    uint32_t nxOff   = getFieldOffset(*msg, "normal_x");
+    uint32_t nyOff   = getFieldOffset(*msg, "normal_y");
+    uint32_t nzOff   = getFieldOffset(*msg, "normal_z");
+    uint32_t rgbOff  = getFieldOffset(*msg, "rgb");
+    uint32_t confOff = getFieldOffset(*msg, "confidence");
+    uint32_t depOff  = getFieldOffset(*msg, "depth");
 
     float x0, y0, z0, nx0, ny0, nz0, conf0, depth0;
-    uint32_t rgb0_packed;
-    std::memcpy(&x0,         data_ptr + 0 * point_step + x_off,    sizeof(float));
-    std::memcpy(&y0,         data_ptr + 0 * point_step + y_off,    sizeof(float));
-    std::memcpy(&z0,         data_ptr + 0 * point_step + z_off,    sizeof(float));
-    std::memcpy(&nx0,        data_ptr + 0 * point_step + nx_off,   sizeof(float));
-    std::memcpy(&ny0,        data_ptr + 0 * point_step + ny_off,   sizeof(float));
-    std::memcpy(&nz0,        data_ptr + 0 * point_step + nz_off,   sizeof(float));
-    std::memcpy(&rgb0_packed,data_ptr + 0 * point_step + rgb_off,  sizeof(uint32_t));
-    std::memcpy(&conf0,      data_ptr + 0 * point_step + conf_off, sizeof(float));
-    std::memcpy(&depth0,     data_ptr + 0 * point_step + dep_off,  sizeof(float));
+    uint32_t rgb0Packed;
+    std::memcpy(&x0,         dataPtr + 0 * pointStep + xOff,    sizeof(float));
+    std::memcpy(&y0,         dataPtr + 0 * pointStep + yOff,    sizeof(float));
+    std::memcpy(&z0,         dataPtr + 0 * pointStep + zOff,    sizeof(float));
+    std::memcpy(&nx0,        dataPtr + 0 * pointStep + nxOff,   sizeof(float));
+    std::memcpy(&ny0,        dataPtr + 0 * pointStep + nyOff,   sizeof(float));
+    std::memcpy(&nz0,        dataPtr + 0 * pointStep + nzOff,   sizeof(float));
+    std::memcpy(&rgb0Packed,dataPtr + 0 * pointStep + rgbOff,  sizeof(uint32_t));
+    std::memcpy(&conf0,      dataPtr + 0 * pointStep + confOff, sizeof(float));
+    std::memcpy(&depth0,     dataPtr + 0 * pointStep + depOff,  sizeof(float));
 
-    uint8_t r0_expected = static_cast<uint8_t>((1023.0f / 1023.0f) * 255.0f);
-    uint8_t g0_expected = static_cast<uint8_t>((511.0f  / 1023.0f) * 255.0f);
-    uint8_t b0_expected = static_cast<uint8_t>((0.0f    / 1023.0f) * 255.0f);
+    uint8_t r0Expected = static_cast<uint8_t>((1023.0f / 1023.0f) * 255.0f);
+    uint8_t g0Expected = static_cast<uint8_t>((511.0f  / 1023.0f) * 255.0f);
+    uint8_t b0Expected = static_cast<uint8_t>((0.0f    / 1023.0f) * 255.0f);
 
     EXPECT_FLOAT_EQ(x0,  0.001f);   // 1.0 mm ÷ 1000
     EXPECT_FLOAT_EQ(y0,  0.002f);
@@ -105,25 +105,25 @@ TEST_F(ConversionTest, FullFrameConversion) {
     EXPECT_FLOAT_EQ(nx0, 0.1f);
     EXPECT_FLOAT_EQ(ny0, 0.2f);
     EXPECT_FLOAT_EQ(nz0, 0.3f);
-    EXPECT_EQ((rgb0_packed >> 16) & 0xFF, r0_expected);
-    EXPECT_EQ((rgb0_packed >>  8) & 0xFF, g0_expected);
-    EXPECT_EQ( rgb0_packed        & 0xFF, b0_expected);
+    EXPECT_EQ((rgb0Packed >> 16) & 0xFF, r0Expected);
+    EXPECT_EQ((rgb0Packed >>  8) & 0xFF, g0Expected);
+    EXPECT_EQ( rgb0Packed        & 0xFF, b0Expected);
     EXPECT_FLOAT_EQ(conf0,  0.9f);
     EXPECT_FLOAT_EQ(depth0, 1.1f);
 
     float x1, y1, z1, nx1, ny1, nz1;
-    uint32_t rgb1_packed;
-    std::memcpy(&x1,         data_ptr + 1 * point_step + x_off,   sizeof(float));
-    std::memcpy(&y1,         data_ptr + 1 * point_step + y_off,   sizeof(float));
-    std::memcpy(&z1,         data_ptr + 1 * point_step + z_off,   sizeof(float));
-    std::memcpy(&nx1,        data_ptr + 1 * point_step + nx_off,  sizeof(float));
-    std::memcpy(&ny1,        data_ptr + 1 * point_step + ny_off,  sizeof(float));
-    std::memcpy(&nz1,        data_ptr + 1 * point_step + nz_off,  sizeof(float));
-    std::memcpy(&rgb1_packed,data_ptr + 1 * point_step + rgb_off, sizeof(uint32_t));
+    uint32_t rgb1Packed;
+    std::memcpy(&x1,         dataPtr + 1 * pointStep + xOff,   sizeof(float));
+    std::memcpy(&y1,         dataPtr + 1 * pointStep + yOff,   sizeof(float));
+    std::memcpy(&z1,         dataPtr + 1 * pointStep + zOff,   sizeof(float));
+    std::memcpy(&nx1,        dataPtr + 1 * pointStep + nxOff,  sizeof(float));
+    std::memcpy(&ny1,        dataPtr + 1 * pointStep + nyOff,  sizeof(float));
+    std::memcpy(&nz1,        dataPtr + 1 * pointStep + nzOff,  sizeof(float));
+    std::memcpy(&rgb1Packed,dataPtr + 1 * pointStep + rgbOff, sizeof(uint32_t));
 
-    uint8_t r1_expected = static_cast<uint8_t>((255.0f  / 1023.0f) * 255.0f);
-    uint8_t g1_expected = static_cast<uint8_t>((767.0f  / 1023.0f) * 255.0f);
-    uint8_t b1_expected = static_cast<uint8_t>((1000.0f / 1023.0f) * 255.0f);
+    uint8_t r1Expected = static_cast<uint8_t>((255.0f  / 1023.0f) * 255.0f);
+    uint8_t g1Expected = static_cast<uint8_t>((767.0f  / 1023.0f) * 255.0f);
+    uint8_t b1Expected = static_cast<uint8_t>((1000.0f / 1023.0f) * 255.0f);
 
     EXPECT_FLOAT_EQ(x1,  0.004f);
     EXPECT_FLOAT_EQ(y1,  0.005f);
@@ -131,9 +131,9 @@ TEST_F(ConversionTest, FullFrameConversion) {
     EXPECT_FLOAT_EQ(nx1, 0.4f);
     EXPECT_FLOAT_EQ(ny1, 0.5f);
     EXPECT_FLOAT_EQ(nz1, 0.6f);
-    EXPECT_EQ((rgb1_packed >> 16) & 0xFF, r1_expected);
-    EXPECT_EQ((rgb1_packed >>  8) & 0xFF, g1_expected);
-    EXPECT_EQ( rgb1_packed        & 0xFF, b1_expected);
+    EXPECT_EQ((rgb1Packed >> 16) & 0xFF, r1Expected);
+    EXPECT_EQ((rgb1Packed >>  8) & 0xFF, g1Expected);
+    EXPECT_EQ( rgb1Packed        & 0xFF, b1Expected);
 }
 
 TEST_F(ConversionTest, MinimalFrameXYZOnly) {
@@ -180,8 +180,8 @@ TEST_F(ConversionTest, GrayscaleFrame) {
 
     EXPECT_EQ(msg->point_step, 16u);
 
-    sensor_msgs::PointCloud2Iterator<float> iter_intensity(*msg, "intensity");
-    EXPECT_FLOAT_EQ(iter_intensity[0], 0.75f);
+    sensor_msgs::PointCloud2Iterator<float> iterIntensity(*msg, "intensity");
+    EXPECT_FLOAT_EQ(iterIntensity[0], 0.75f);
 }
 
 TEST_F(ConversionTest, ColorCameraImageMetadata) {
