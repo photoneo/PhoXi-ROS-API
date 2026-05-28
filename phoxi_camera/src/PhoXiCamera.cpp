@@ -65,17 +65,17 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>(
         "points", rclcpp::SystemDefaultsQoS());
     mNormalMapPub = create_publisher<sensor_msgs::msg::Image>(
-        "normal_map", rclcpp::SystemDefaultsQoS());
+        "normals", rclcpp::SystemDefaultsQoS());
     mDepthMapPub = create_publisher<sensor_msgs::msg::Image>(
         "depth", rclcpp::SystemDefaultsQoS());
     mConfidenceMapPub = create_publisher<sensor_msgs::msg::Image>(
         "confidence", rclcpp::SystemDefaultsQoS());
     mEventMapPub = create_publisher<sensor_msgs::msg::Image>(
-        "event_map", rclcpp::SystemDefaultsQoS());
+        "event", rclcpp::SystemDefaultsQoS());
     mTexturePub = create_publisher<sensor_msgs::msg::Image>(
-        "texture", rclcpp::SystemDefaultsQoS());
+        "intensity", rclcpp::SystemDefaultsQoS());
     mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>(
-        "texture_rgb", rclcpp::SystemDefaultsQoS());
+        "texture", rclcpp::SystemDefaultsQoS());
     mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>(
         "color_camera_image", rclcpp::SystemDefaultsQoS());
 

@@ -527,7 +527,7 @@ TEST_F(RosInterfaceTest, NormalMapPublished) {
     PhoXiFrame frame;
     frame.normalMap = &nmRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "normal_map", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "normals", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC3");
     EXPECT_EQ(msg->width, 1u);
@@ -594,7 +594,7 @@ TEST_F(RosInterfaceTest, EventMapPublished) {
     PhoXiFrame frame;
     frame.eventMap = &evRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "event_map", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "event", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -603,7 +603,7 @@ TEST_F(RosInterfaceTest, EventMapPublished) {
     EXPECT_FLOAT_EQ(val, 0.42f);
 }
 
-TEST_F(RosInterfaceTest, TexturePublished) {
+TEST_F(RosInterfaceTest, IntensityPublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
@@ -613,7 +613,7 @@ TEST_F(RosInterfaceTest, TexturePublished) {
     PhoXiFrame frame;
     frame.texture = &texRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "intensity", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -622,7 +622,7 @@ TEST_F(RosInterfaceTest, TexturePublished) {
     EXPECT_FLOAT_EQ(val, 0.75f);
 }
 
-TEST_F(RosInterfaceTest, TextureRgbPublished) {
+TEST_F(RosInterfaceTest, TexturePublished) {
     auto frame_cb = configureActivateCapture();
     ASSERT_TRUE(frame_cb);
 
@@ -632,7 +632,7 @@ TEST_F(RosInterfaceTest, TextureRgbPublished) {
     PhoXiFrame frame;
     frame.textureRgb = &rgbRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture_rgb", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frame_cb, "texture", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "rgb16");
     EXPECT_EQ(msg->width, 2u);
