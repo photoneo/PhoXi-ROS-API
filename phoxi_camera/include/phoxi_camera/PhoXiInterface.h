@@ -217,7 +217,6 @@ class PhoXiInterface
     static void frameAcceptor(const phoxi_frame_record_t* records, void* userData);
 
     const int CONNECTION_TIMEOUT_MS = 60000;
-    std::string mDeviceId;
     mutable std::mutex mFrameCallbackMutex;
     GetFrameCallback mFrameCallback;
 };

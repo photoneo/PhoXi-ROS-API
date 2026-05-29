@@ -34,7 +34,7 @@ void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCallback
     }
 
     if (mPhoXiDevice && isConnected()) {
-        if (mDeviceId != deviceId) {
+        if (mPhoXiDevice->HardwareIdentification.GetStoredValue() != deviceId) {
             throw UnableToConnect("Device still connected, disconnect first.");
         }
         return;
@@ -47,9 +47,7 @@ void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCallback
 
     setTriggerMode(pho::api::PhoXiTriggerMode::Software);
 
-    mDeviceId = deviceId;
-
-    if (phoxi_aframe_enable(mDeviceId.c_str(), &PhoXiInterface::frameAcceptor, this) != PHOXI_OK) {
+    if (phoxi_aframe_enable(deviceId.c_str(), &PhoXiInterface::frameAcceptor, this) != PHOXI_OK) {
         const char* errMsg = nullptr;
         phoxi_error_last(&errMsg);
         disconnectCamera();
@@ -64,12 +62,11 @@ void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCallback
 
 void PhoXiInterface::disconnectCamera() {
     if (mPhoXiDevice) {
-        phoxi_aframe_disable(mDeviceId.c_str());
+        phoxi_aframe_disable(mPhoXiDevice->HardwareIdentification.GetStoredValue().c_str());
         mPhoXiDevice->Disconnect(true, true);
     }
 
     mPhoXiDevice.Reset();
-    mDeviceId.clear();
 
     {
         std::lock_guard<std::mutex> lock(mFrameCallbackMutex);
