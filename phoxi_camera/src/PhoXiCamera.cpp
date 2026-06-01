@@ -1,6 +1,8 @@
 #include "phoxi_camera/PhoXiCamera.h"
 
+#include <array>
 #include <chrono>
+#include <vector>
 
 #include "lifecycle_msgs/msg/state.hpp"
 #include "phoxi_camera/PhoXiException.h"
@@ -10,6 +12,12 @@
 namespace phoxi_camera
 {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
+
+static constexpr std::string_view kFrameSettingsPrefix = "frameSettings/";
+
+static const std::array<std::string_view, 7> kComponents = {
+    "PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"
+};
 
 PhoXiCamera::PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options) :
     rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
@@ -45,7 +53,6 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     get_parameter("device_id", mDeviceId);
     get_parameter("frame_id", mFrameId);
     get_parameter("publish_combined", mPublishCombined);
-
     if (mDeviceId.empty()) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: 'device_id' parameter is empty.");
         return CallbackReturn::FAILURE;
@@ -56,6 +63,23 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
             std::bind(&PhoXiCamera::onFrameCallback, this, std::placeholders::_1));
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
+        return CallbackReturn::FAILURE;
+    }
+
+    try {
+        std::vector<std::pair<std::string, bool>> components;
+        for (const auto& componentName : kComponents) {
+            const auto param = get_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName));
+            if (param.get_type() != rclcpp::PARAMETER_NOT_SET) {
+                components.emplace_back(std::string(componentName), param.as_bool());
+            }
+        }
+        if (!components.empty()) {
+            mPhoXiInterface->setFrameOutputSettings(components);
+        }
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
+        try { mPhoXiInterface->disconnectCamera(); } catch (...) {}
         return CallbackReturn::FAILURE;
     }
 
@@ -206,6 +230,40 @@ void PhoXiCamera::declareParameters()
     declare_parameter<std::string>("device_id", "");
     declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
     declare_parameter<bool>("publish_combined", false);
+    for (const auto& componentName : kComponents) {
+        declare_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName),
+            rclcpp::ParameterValue{});
+    }
+
+    mParamCallbackHandle = add_on_set_parameters_callback(
+        std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
+}
+
+rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(
+    const std::vector<rclcpp::Parameter>& params)
+{
+    std::vector<std::pair<std::string, bool>> components;
+    for (const auto& p : params) {
+        const auto& name = p.get_name();
+        if (name.rfind(kFrameSettingsPrefix, 0) == 0) {
+            components.emplace_back(name.substr(kFrameSettingsPrefix.size()), p.as_bool());
+        }
+    }
+
+    if (!components.empty() && mPhoXiInterface->isConnected()) {
+        try {
+            mPhoXiInterface->setFrameOutputSettings(components);
+        } catch (const PhoXiInterfaceException& e) {
+            rcl_interfaces::msg::SetParametersResult result;
+            result.successful = false;
+            result.reason = e.what();
+            return result;
+        }
+    }
+
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    return result;
 }
 
 void PhoXiCamera::activatePublishers() {
@@ -276,57 +334,61 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame)
             img.header.stamp = rosStamp;
         };
 
-        if (frame.pointCloud && mPointCloudPub->is_activated()) {
+        auto shouldPublish = [](const auto& pub) {
+            return pub->is_activated() && pub->get_subscription_count() > 0;
+        };
+
+        if (frame.pointCloud && shouldPublish(mPointCloudPub)) {
             auto msg = phoXiFrameToRosMsg(frame);
             msg->header.frame_id = mFrameId;
             msg->header.stamp = rosStamp;
             mPointCloudPub->publish(std::move(msg));
         }
 
-        if (frame.pointCloud && mPointsPub->is_activated()) {
+        if (frame.pointCloud && shouldPublish(mPointsPub)) {
             auto msg = pointsToRosMsg(frame);
             msg->header.frame_id = mFrameId;
             msg->header.stamp = rosStamp;
             mPointsPub->publish(std::move(msg));
         }
 
-        if (frame.normalMap && mNormalMapPub->is_activated()) {
+        if (frame.normalMap && shouldPublish(mNormalMapPub)) {
             auto img = normalMapToRosMsg(*frame.normalMap);
             setHeader(*img);
             mNormalMapPub->publish(std::move(img));
         }
 
-        if (frame.depthMap && mDepthMapPub->is_activated()) {
+        if (frame.depthMap && shouldPublish(mDepthMapPub)) {
             auto img = depthMapToRosMsg(*frame.depthMap);
             setHeader(*img);
             mDepthMapPub->publish(std::move(img));
         }
 
-        if (frame.confidenceMap && mConfidenceMapPub->is_activated()) {
+        if (frame.confidenceMap && shouldPublish(mConfidenceMapPub)) {
             auto img = confidenceMapToRosMsg(*frame.confidenceMap);
             setHeader(*img);
             mConfidenceMapPub->publish(std::move(img));
         }
 
-        if (frame.eventMap && mEventMapPub->is_activated()) {
+        if (frame.eventMap && shouldPublish(mEventMapPub)) {
             auto img = eventMapToRosMsg(*frame.eventMap);
             setHeader(*img);
             mEventMapPub->publish(std::move(img));
         }
 
-        if (frame.texture && mTexturePub->is_activated()) {
+        if (frame.texture && shouldPublish(mTexturePub)) {
             auto img = textureToRosMsg(*frame.texture);
             setHeader(*img);
             mTexturePub->publish(std::move(img));
         }
 
-        if (frame.textureRgb && mTextureRgbPub->is_activated()) {
+        if (frame.textureRgb && shouldPublish(mTextureRgbPub)) {
             auto img = textureRgbToRosMsg(*frame.textureRgb);
             setHeader(*img);
             mTextureRgbPub->publish(std::move(img));
         }
 
-        if (frame.colorCamera && mColorCameraImagePub->is_activated()) {
+        if (frame.colorCamera && shouldPublish(mColorCameraImagePub)) {
             auto img = colorCameraImageToRosMsg(*frame.colorCamera);
             setHeader(*img);
             mColorCameraImagePub->publish(std::move(img));

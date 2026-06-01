@@ -1,7 +1,101 @@
 #include "phoxi_camera/PhoXiInterface.h"
 
+#include <string>
+
+#include "phoxi/details/PhoXiConstants.h"
+#include "phoxi/details/jsoncons/json.hpp"
 #include "phoxi_camera/PhoXiConversions.h"
 
+namespace
+{
+pho_jsoncons::json createCommand(const std::string& command, const std::string& operation = "") {
+    pho_jsoncons::json req(pho_jsoncons::json_object_arg);
+    req.insert_or_assign("command", command);
+    if (!operation.empty()) {
+        req.insert_or_assign("operation", operation);
+    }
+    req.insert_or_assign("params", pho_jsoncons::json(pho_jsoncons::json_object_arg));
+    return req;
+}
+
+pho_jsoncons::json createDeviceCommand(const std::string& command, const std::string& deviceId, const std::string& operation = "") {
+    auto req = createCommand(command, operation);
+    req["params"].insert_or_assign("device_id", deviceId);
+    return req;
+}
+
+pho_jsoncons::json executeCommand(const pho_jsoncons::json& request) {
+    std::string reqStr;
+    request.dump(reqStr);
+
+    const std::string commandName = request.contains("command") ? request["command"].as<std::string>() : "unknown";
+    std::string response;
+    const int err = phoxi_command_execute(
+        reqStr.c_str(), reqStr.size(),
+        pho::api::details::InMillis(pho::api::DEFAULT_COMMAND_TIMEOUT),
+        &pho::api::details::CommandStringConverter,
+        &response);
+
+    switch (err) {
+        case PHOXI_COMMAND_OK:
+            break;
+        case PHOXI_COMMAND_TIMEOUT:
+            throw phoxi_camera::PhoXiInterfaceException("'" + commandName + "' command timed out.");
+        default: {
+            std::string errMsg = "'" + commandName + "' command failed";
+            const char* lastError = nullptr;
+            phoxi_error_last(&lastError);
+            if (lastError) {
+                errMsg += ": ";
+                errMsg += lastError;
+            }
+            throw phoxi_camera::PhoXiInterfaceException(errMsg);
+        }
+    }
+
+    if (response.empty()) {
+        throw phoxi_camera::PhoXiInterfaceException("'" + commandName + "' command returned empty response.");
+    }
+
+    try {
+        const auto resp = pho_jsoncons::json::parse(response);
+
+        // Legacy "answer" format
+        if (resp.contains("answer")) {
+            const auto& answer = resp["answer"];
+            const std::string error = answer.contains("error") ? answer["error"].as<std::string>() : "";
+            const std::string message = answer.contains("message") ? answer["message"].as<std::string>() : "";
+            if (!error.empty() && error != "no error") {
+                std::string errMsg = "'" + commandName + "' error: " + error;
+                if (!message.empty()) { errMsg += ", " + message; }
+                throw phoxi_camera::PhoXiInterfaceException(errMsg);
+            }
+            return resp;
+        }
+
+        // Modern "response" format
+        if (resp.contains("response")) {
+            const auto& r = resp["response"];
+            const std::string status = r.contains("status") ? r["status"].as<std::string>() : "";
+            const std::string message = r.contains("message") ? r["message"].as<std::string>() : "";
+            if (status == "ok") {
+                return resp;
+            }
+            std::string errMsg = "'" + commandName + "' error";
+            if (!message.empty()) { errMsg += ": " + message; }
+            throw phoxi_camera::PhoXiInterfaceException(errMsg);
+        }
+
+        throw phoxi_camera::PhoXiInterfaceException("'" + commandName + "' invalid response.");
+    } catch (const phoxi_camera::PhoXiInterfaceException&) {
+        throw;
+    } catch (const std::exception& e) {
+        throw phoxi_camera::PhoXiInterfaceException(
+            "'" + commandName + "' failed to parse response: " + e.what());
+    }
+}
+
+} // namespace
 
 namespace phoxi_camera
 {
@@ -37,6 +131,8 @@ void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCallback
         if (mPhoXiDevice->HardwareIdentification.GetStoredValue() != deviceId) {
             throw UnableToConnect("Device still connected, disconnect first.");
         }
+        std::lock_guard<std::mutex> lock(mFrameCallbackMutex);
+        mFrameCallback = std::move(getFrameCallback);
         return;
     }
 
@@ -265,16 +361,26 @@ void PhoXiInterface::resetActiveProfile() {
     }
 }
 
+void PhoXiInterface::setFrameOutputSettings(const std::vector<std::pair<std::string, bool>>& components) {
+    isOk();
+    const std::string deviceId = mPhoXiDevice->HardwareIdentification.GetStoredValue();
+
+    auto req = createDeviceCommand("frame_settings", deviceId, "set");
+    pho_jsoncons::json componentsJson(pho_jsoncons::json_object_arg);
+    for (const auto& [name, enabled] : components) {
+        componentsJson.insert_or_assign(name, enabled);
+    }
+    req["params"].insert_or_assign("components", std::move(componentsJson));
+
+    executeCommand(req);
+}
+
 void PhoXiInterface::frameAcceptor(const phoxi_frame_record_t* records, void* userData) {
     auto* self = static_cast<PhoXiInterface*>(userData);
 
-    GetFrameCallback callback;
-    {
-        std::lock_guard<std::mutex> lock(self->mFrameCallbackMutex);
-        callback = self->mFrameCallback;
-    }
+    std::lock_guard<std::mutex> lock(self->mFrameCallbackMutex);
 
-    if (!callback || !records || records->type == PHOXI_FRAME_TYPE_EMPTY) {
+    if (!self->mFrameCallback || !records || records->type == PHOXI_FRAME_TYPE_EMPTY) {
         return;
     }
 
@@ -301,7 +407,7 @@ void PhoXiInterface::frameAcceptor(const phoxi_frame_record_t* records, void* us
         }
     }
 
-    callback(frame);
+    self->mFrameCallback(frame);
 }
 
 }  // namespace phoxi_camera

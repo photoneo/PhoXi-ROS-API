@@ -50,6 +50,8 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     void cleanupResources();
 
     void onFrameCallback(const PhoXiFrame& frame);
+    rcl_interfaces::msg::SetParametersResult onParametersChanged(
+        const std::vector<rclcpp::Parameter>& params);
 
     void connectCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
         const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
@@ -103,6 +105,7 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     rclcpp::Service<phoxi_camera_msgs::srv::ExportProfile>::SharedPtr mExportProfileService;
     rclcpp::Service<phoxi_camera_msgs::srv::ImportProfile>::SharedPtr mImportProfileService;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mResetActiveProfileService;
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr mParamCallbackHandle;
     std::mutex mFrameMutex;
     std::string mDeviceId;
     std::string mFrameId;

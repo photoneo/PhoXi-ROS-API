@@ -208,6 +208,16 @@ class PhoXiInterface
      */
     virtual void resetActiveProfile();
 
+    /**
+     * Set which data components the device should include in each frame.
+     * Only the listed components are updated; omitted components retain their current device setting.
+     *
+     * \param components pairs of (component name, enabled), e.g. {{"PointCloud", true}, {"Texture", false}}
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void setFrameOutputSettings(const std::vector<std::pair<std::string, bool>>& components);
+
     pho::api::PPhoXi mPhoXiDevice;
 
   protected:
