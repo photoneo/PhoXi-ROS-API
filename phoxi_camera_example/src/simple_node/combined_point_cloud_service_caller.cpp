@@ -55,15 +55,18 @@ bool setParameters(std::shared_ptr<rclcpp::Node> node,
 }
 
 void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
-    // 1. Set frame output settings before configure so on_configure applies them.
-    RCLCPP_INFO(node->get_logger(), "Setting initial frame output settings.");
+    // 1. Enable combined mode before configure.
+    //    The camera publishes a single dense PointCloud2 on "point_cloud" that
+    //    carries all enabled fields in one message. Individual topics are not
+    //    published in this mode.
+    RCLCPP_INFO(node->get_logger(), "Enabling publish_combined mode.");
     if (!setParameters(node, {
-            rclcpp::Parameter("frameSettings/PointCloud",       true),
-            rclcpp::Parameter("frameSettings/NormalMap",        false),
-            rclcpp::Parameter("frameSettings/DepthMap",         true),
-            rclcpp::Parameter("frameSettings/Texture",          true),
-            rclcpp::Parameter("frameSettings/ConfidenceMap",    false),
-            rclcpp::Parameter("frameSettings/ColorCameraImage", false),
+            rclcpp::Parameter("publish_combined",             true),
+            rclcpp::Parameter("frameSettings/PointCloud",    true),
+            rclcpp::Parameter("frameSettings/NormalMap",     true),
+            rclcpp::Parameter("frameSettings/DepthMap",      true),
+            rclcpp::Parameter("frameSettings/Texture",       true),
+            rclcpp::Parameter("frameSettings/ConfidenceMap", true),
         })) {
         rclcpp::shutdown();
         return;
@@ -81,7 +84,7 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
         return;
     }
 
-    // 3. Trigger a first frame — listener receives PointCloud, DepthMap and Texture.
+    // 3. Trigger a frame — listener receives a single combined PointCloud2.
     auto triggerClient = node->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
     if (!triggerClient->wait_for_service(5s)) {
         RCLCPP_ERROR(node->get_logger(), "Trigger frame service not available.");
@@ -91,18 +94,18 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     auto triggerReq = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
     triggerReq->wait_grabbing_end = true;
 
-    RCLCPP_INFO(node->get_logger(), "Triggering first frame (PointCloud + DepthMap + Texture).");
+    RCLCPP_INFO(node->get_logger(), "Triggering frame.");
     if (auto r = triggerClient->async_send_request(triggerReq).get(); !r || !r->success) {
         RCLCPP_ERROR(node->get_logger(), "Trigger frame failed.");
     }
-    std::this_thread::sleep_for(2s);
+    std::this_thread::sleep_for(3s);
 
     rclcpp::shutdown();
 }
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    auto node = rclcpp::Node::make_shared("service_caller_node");
+    auto node = rclcpp::Node::make_shared("combined_point_cloud_caller_node");
     std::thread workflowThread(runWorkflow, node);
     rclcpp::spin(node);
     workflowThread.join();

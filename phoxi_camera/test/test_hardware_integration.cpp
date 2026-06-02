@@ -5,10 +5,9 @@
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "phoxi_camera/PhoXiCamera.h"
-#include "phoxi_camera_msgs/srv/connect.hpp"
+#include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
-#include "std_srvs/srv/trigger.hpp"
 
 using namespace phoxi_camera;
 
@@ -18,7 +17,8 @@ protected:
         sensorSn = "InstalledExamples-basic-example";
 
         rclcpp::NodeOptions options;
-        options.append_parameter_override("sensor_sn", sensorSn);
+        options.append_parameter_override("device_id", sensorSn);
+        options.append_parameter_override("publish_combined", true);
 
         rosInterface = std::make_shared<phoxi_camera::PhoXiCamera>(options);
 
@@ -54,16 +54,6 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
     RCLCPP_INFO(testClientNode->get_logger(), "Activating node...");
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
 
-    RCLCPP_INFO(testClientNode->get_logger(), "Calling connect service for SN: %s", sensorSn.c_str());
-    auto connectClient = testClientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
-    ASSERT_TRUE(connectClient->wait_for_service(std::chrono::seconds(5)));
-
-    auto connectRequest = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
-
-    auto connectFuture = connectClient->async_send_request(connectRequest);
-    ASSERT_EQ(executor_.spin_until_future_complete(connectFuture, std::chrono::seconds(20)), rclcpp::FutureReturnCode::SUCCESS) << "Connect service call timed out!";
-    ASSERT_TRUE(connectFuture.get()->success) << "Failed to connect to the real camera! Check PhoXi Control and network. Message: " << connectFuture.get()->message;
-
     RCLCPP_INFO(testClientNode->get_logger(), "Subscribing to /point_cloud and triggering frame...");
     bool messageReceived = false;
     sensor_msgs::msg::PointCloud2::SharedPtr receivedMsg;
@@ -73,10 +63,11 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
         receivedMsg = msg;
     });
 
-    auto triggerClient = testClientNode->create_client<std_srvs::srv::Trigger>("/phoxi_camera/trigger_frame");
+    auto triggerClient = testClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
     ASSERT_TRUE(triggerClient->wait_for_service(std::chrono::seconds(5)));
 
-    auto triggerRequest = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto triggerRequest = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
+    triggerRequest->wait_grabbing_end = true;
     auto triggerFuture = triggerClient->async_send_request(triggerRequest);
 
     ASSERT_EQ(executor_.spin_until_future_complete(triggerFuture, std::chrono::seconds(15)), rclcpp::FutureReturnCode::SUCCESS) << "Trigger service call timed out!";

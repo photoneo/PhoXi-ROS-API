@@ -106,6 +106,7 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     rclcpp::Service<phoxi_camera_msgs::srv::ImportProfile>::SharedPtr mImportProfileService;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mResetActiveProfileService;
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr mParamCallbackHandle;
+    rclcpp::PreShutdownCallbackHandle mShutdownCallbackHandle;
     std::mutex mFrameMutex;
     std::string mDeviceId;
     std::string mFrameId;

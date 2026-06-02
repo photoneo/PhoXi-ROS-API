@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "lifecycle_msgs/msg/state.hpp"
+#include "rcl_interfaces/msg/parameter_descriptor.hpp"
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/RosConversions.h"
 #include "rclcpp_components/register_node_macro.hpp"
@@ -36,6 +37,9 @@ PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options) :
 }
 
 PhoXiCamera::~PhoXiCamera() {
+    get_node_base_interface()->get_context()->remove_pre_shutdown_callback(
+        mShutdownCallbackHandle);
+
     try {
         if (mPhoXiInterface->isAcquiring()) {
             mPhoXiInterface->stopAcquisition();
@@ -227,16 +231,22 @@ void PhoXiCamera::drainFrameCallback() {
 
 void PhoXiCamera::declareParameters()
 {
-    declare_parameter<std::string>("device_id", "");
+    declare_parameter<std::string>("device_id", mDeviceId);
     declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
     declare_parameter<bool>("publish_combined", false);
+    rcl_interfaces::msg::ParameterDescriptor dynamicDesc;
+    dynamicDesc.dynamic_typing = true;
     for (const auto& componentName : kComponents) {
         declare_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName),
-            rclcpp::ParameterValue{});
+            rclcpp::ParameterValue{}, dynamicDesc);
     }
 
     mParamCallbackHandle = add_on_set_parameters_callback(
         std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
+
+    mShutdownCallbackHandle =
+        get_node_base_interface()->get_context()->add_pre_shutdown_callback(
+            [this]() { rclcpp_lifecycle::LifecycleNode::shutdown(); });
 }
 
 rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(

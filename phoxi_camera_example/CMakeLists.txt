@@ -4,6 +4,7 @@ project(phoxi_camera_example)
 find_package(ament_cmake REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(phoxi_camera_msgs REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -44,12 +45,30 @@ target_link_libraries(simple_node_service_caller
     PUBLIC
         ${lifecycle_msgs_TARGETS}
         ${phoxi_camera_msgs_TARGETS}
-        ${std_srvs_TARGETS}
+        ${rcl_interfaces_TARGETS}
         rclcpp::rclcpp
 )
 
 add_executable(simple_node_topic_listener src/simple_node/simple_node_topic_listener.cpp)
 target_link_libraries(simple_node_topic_listener
+    PUBLIC
+        rclcpp::rclcpp
+        ${sensor_msgs_TARGETS}
+)
+
+add_executable(combined_point_cloud_service_caller
+        src/simple_node/combined_point_cloud_service_caller.cpp)
+target_link_libraries(combined_point_cloud_service_caller
+    PUBLIC
+        ${lifecycle_msgs_TARGETS}
+        ${phoxi_camera_msgs_TARGETS}
+        ${rcl_interfaces_TARGETS}
+        rclcpp::rclcpp
+)
+
+add_executable(combined_point_cloud_topic_listener
+        src/simple_node/combined_point_cloud_topic_listener.cpp)
+target_link_libraries(combined_point_cloud_topic_listener
     PUBLIC
         rclcpp::rclcpp
         ${sensor_msgs_TARGETS}
@@ -90,6 +109,8 @@ install(
         phoxi_camera_composition_example_node
         simple_node_service_caller
         simple_node_topic_listener
+        combined_point_cloud_service_caller
+        combined_point_cloud_topic_listener
         list_profiles
         manage_profiles
         export_import_profiles
@@ -104,6 +125,11 @@ install(
 
 install(
         DIRECTORY launch
+        DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+        DIRECTORY rviz
         DESTINATION share/${PROJECT_NAME}
 )
 

@@ -113,6 +113,14 @@ if(BUILD_TESTING)
             ${PROJECT_NAME}_Ros_Interface
     )
 
+    ament_add_gmock(${PROJECT_NAME}_frame_settings_test
+            test/test_frame_settings.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_frame_settings_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+
     ament_add_gtest(${PROJECT_NAME}_hardware_integration_test
             test/test_hardware_integration.cpp
             TIMEOUT 200

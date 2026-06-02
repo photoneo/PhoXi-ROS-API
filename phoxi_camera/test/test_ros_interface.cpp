@@ -76,6 +76,7 @@ class RosInterfaceTest : public ::testing::Test
         testing::Mock::AllowLeak(mockInterface);
 
         EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(false));
+        EXPECT_CALL(*mockInterface, isAcquiring()).WillRepeatedly(Return(false));
 
         rclcpp::NodeOptions options;
         lcNode = std::make_shared<TestableRosInterface>(kTestDeviceId, options,
@@ -88,6 +89,9 @@ class RosInterfaceTest : public ::testing::Test
     }
 
     void TearDown() override {
+        testing::Mock::VerifyAndClearExpectations(mockInterface);
+        lcNode->shutdown();
+
         executor_.remove_node(lcNode->get_node_base_interface());
         executor_.remove_node(testClientNode);
 
@@ -340,7 +344,7 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
     ASSERT_TRUE(connectFuture.get()->success);
     ASSERT_TRUE(capturedCb);
 
-    uint16_t colorData[2][3] = {{1000, 2000, 3000}, {4000, 5000, 6000}};
+    uint16_t colorData[2][3] = {{100, 200, 512}, {0, 1023, 700}};
     phoxi_frame_record_t colorRec = {PHOXI_FRAME_TYPE_COLORCAMERAIMAGE, PHOXI_FRAME_FORMAT_RGB_16,
                                       2, 1, sizeof(colorData), colorData};
     PhoXiFrame frame;
@@ -348,20 +352,18 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
 
     auto received = injectAndReceive<sensor_msgs::msg::Image>(capturedCb, "color_camera_image", frame);
     ASSERT_NE(received, nullptr);
-    EXPECT_EQ(received->encoding, "rgb16");
+    EXPECT_EQ(received->encoding, "rgb8");
     EXPECT_EQ(received->width, 2u);
     EXPECT_EQ(received->height, 1u);
-    EXPECT_EQ(received->step, 2u * 3u * sizeof(uint16_t));
+    EXPECT_EQ(received->step, 2u * 3u * sizeof(uint8_t));
 
-    uint16_t r0, g0, b0, r1, g1, b1;
-    std::memcpy(&r0, received->data.data() + 0 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&g0, received->data.data() + 1 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&b0, received->data.data() + 2 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&r1, received->data.data() + 3 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&g1, received->data.data() + 4 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&b1, received->data.data() + 5 * sizeof(uint16_t), sizeof(uint16_t));
-    EXPECT_EQ(r0, 1000u); EXPECT_EQ(g0, 2000u); EXPECT_EQ(b0, 3000u);
-    EXPECT_EQ(r1, 4000u); EXPECT_EQ(g1, 5000u); EXPECT_EQ(b1, 6000u);
+    constexpr float scale = 255.0f / 1023.0f;
+    EXPECT_EQ(received->data[0], static_cast<uint8_t>(100  * scale));
+    EXPECT_EQ(received->data[1], static_cast<uint8_t>(200  * scale));
+    EXPECT_EQ(received->data[2], static_cast<uint8_t>(512  * scale));
+    EXPECT_EQ(received->data[3], static_cast<uint8_t>(0    * scale));
+    EXPECT_EQ(received->data[4], static_cast<uint8_t>(1023 * scale));
+    EXPECT_EQ(received->data[5], static_cast<uint8_t>(700  * scale));
 }
 
 TEST_F(RosInterfaceTest, PointCloudPublished) {
@@ -610,7 +612,7 @@ TEST_F(RosInterfaceTest, IntensityPublished) {
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
-    float tex[1] = {0.75f};
+    float tex[1] = {1023.5f};
     phoxi_frame_record_t texRec = {PHOXI_FRAME_TYPE_TEXTURE, PHOXI_FRAME_FORMAT_FLOAT_32F,
                                     1, 1, sizeof(tex), tex};
     PhoXiFrame frame;
@@ -622,7 +624,7 @@ TEST_F(RosInterfaceTest, IntensityPublished) {
 
     float val;
     std::memcpy(&val, msg->data.data(), sizeof(float));
-    EXPECT_FLOAT_EQ(val, 0.75f);
+    EXPECT_FLOAT_EQ(val, 1023.5f / 2047.0f);
 }
 
 TEST_F(RosInterfaceTest, TexturePublished) {
@@ -637,20 +639,18 @@ TEST_F(RosInterfaceTest, TexturePublished) {
 
     auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "texture", frame);
     ASSERT_NE(msg, nullptr);
-    EXPECT_EQ(msg->encoding, "rgb16");
+    EXPECT_EQ(msg->encoding, "rgb8");
     EXPECT_EQ(msg->width, 2u);
     EXPECT_EQ(msg->height, 1u);
-    EXPECT_EQ(msg->step, 2u * 3u * sizeof(uint16_t));
+    EXPECT_EQ(msg->step, 2u * 3u * sizeof(uint8_t));
 
-    uint16_t r0, g0, b0, r1, g1, b1;
-    std::memcpy(&r0, msg->data.data() + 0 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&g0, msg->data.data() + 1 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&b0, msg->data.data() + 2 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&r1, msg->data.data() + 3 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&g1, msg->data.data() + 4 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&b1, msg->data.data() + 5 * sizeof(uint16_t), sizeof(uint16_t));
-    EXPECT_EQ(r0, 100u); EXPECT_EQ(g0, 200u); EXPECT_EQ(b0, 300u);
-    EXPECT_EQ(r1, 400u); EXPECT_EQ(g1, 500u); EXPECT_EQ(b1, 600u);
+    constexpr float scale = 255.0f / 1023.0f;
+    EXPECT_EQ(msg->data[0], static_cast<uint8_t>(100 * scale));
+    EXPECT_EQ(msg->data[1], static_cast<uint8_t>(200 * scale));
+    EXPECT_EQ(msg->data[2], static_cast<uint8_t>(300 * scale));
+    EXPECT_EQ(msg->data[3], static_cast<uint8_t>(400 * scale));
+    EXPECT_EQ(msg->data[4], static_cast<uint8_t>(500 * scale));
+    EXPECT_EQ(msg->data[5], static_cast<uint8_t>(600 * scale));
 }
 
 // ── Profile services ────────────────────────────────────────────────────────
@@ -864,12 +864,8 @@ TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
-
     rclcpp::init(argc, argv);
-
-    int result = RUN_ALL_TESTS();
-
+    const int result = RUN_ALL_TESTS();
     rclcpp::shutdown();
-
     return result;
 }

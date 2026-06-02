@@ -16,32 +16,23 @@ def generate_launch_description():
         description='Serial number of the PhoXi device.'
     )
 
-    # The PhoXi Camera Driver Node.
-    #
-    # Frame output settings can be configured statically here as parameters.
-    # The camera node picks them up in on_configure and sends them to the device
-    # before acquisition starts — so only the listed components are transferred.
-    #
-    # Alternatively, frame settings can be changed at runtime via:
-    #   ros2 param set /phoxi_camera frameSettings/NormalMap false
-    #
-    # Note: parameter names use '/' as the separator, so they must be written as
-    # flat keys (not nested dicts) in this parameters dict.
+    # publish_combined=true: the camera publishes a single dense PointCloud2 on
+    # the "point_cloud" topic carrying all enabled fields (XYZ + normals +
+    # texture + confidence + depth) in one message.  Individual topics are not
+    # published in this mode.
     phoxi_camera_node = Node(
         package='phoxi_camera',
         executable='phoxi_camera_node',
         name='phoxi_camera',
         output='screen',
         parameters=[{
-            'device_id': LaunchConfiguration('sensor_sn'),
-            # Frame output settings — comment out entries to leave the device
-            # default unchanged, or set to false to disable a component.
-            'frameSettings/PointCloud':       True,
-            'frameSettings/NormalMap':        False,
-            'frameSettings/DepthMap':         True,
-            'frameSettings/Texture':          True,
-            'frameSettings/ConfidenceMap':    False,
-            'frameSettings/ColorCameraImage': False,
+            'device_id':        LaunchConfiguration('sensor_sn'),
+            'publish_combined': True,
+            'frameSettings/PointCloud':    True,
+            'frameSettings/NormalMap':     True,
+            'frameSettings/DepthMap':      True,
+            'frameSettings/Texture':       True,
+            'frameSettings/ConfidenceMap': True,
         }]
     )
 
@@ -49,18 +40,18 @@ def generate_launch_description():
         package='rviz2',
         executable='rviz2',
         name='rviz2',
-        arguments=['-d', os.path.join(example_pkg, 'rviz', 'simple_node.rviz')]
+        arguments=['-d', os.path.join(example_pkg, 'rviz', 'combined_point_cloud.rviz')]
     )
 
-    simple_node_service_caller = Node(
+    combined_service_caller = Node(
         package='phoxi_camera_example',
-        executable='simple_node_service_caller',
+        executable='combined_point_cloud_service_caller',
         output='screen'
     )
 
-    simple_node_topic_listener = Node(
+    combined_topic_listener = Node(
         package='phoxi_camera_example',
-        executable='simple_node_topic_listener',
+        executable='combined_point_cloud_topic_listener',
         output='screen'
     )
 
@@ -83,7 +74,7 @@ def generate_launch_description():
         static_tf_publisher,
         phoxi_camera_node,
         rviz_node,
-        simple_node_service_caller,
-        simple_node_topic_listener,
+        combined_service_caller,
+        combined_topic_listener,
         shutdown_on_exit,
     ])

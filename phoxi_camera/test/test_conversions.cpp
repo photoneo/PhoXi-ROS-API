@@ -162,7 +162,7 @@ TEST_F(ConversionTest, MinimalFrameXYZOnly) {
 
 TEST_F(ConversionTest, GrayscaleFrame) {
     float pts[1][3] = {{0.0f, 0.0f, 0.0f}};
-    float tex[1] = {0.75f};
+    float tex[1] = {1023.5f};
     phoxi_frame_record_t pcRec = {PHOXI_FRAME_TYPE_POINTCLOUD, PHOXI_FRAME_FORMAT_POINT3_32F,
                                    1, 1, sizeof(pts), pts};
     phoxi_frame_record_t texRec = {PHOXI_FRAME_TYPE_TEXTURE, PHOXI_FRAME_FORMAT_FLOAT_32F,
@@ -181,7 +181,7 @@ TEST_F(ConversionTest, GrayscaleFrame) {
     EXPECT_EQ(msg->point_step, 16u);
 
     sensor_msgs::PointCloud2Iterator<float> iterIntensity(*msg, "intensity");
-    EXPECT_FLOAT_EQ(iterIntensity[0], 0.75f);
+    EXPECT_FLOAT_EQ(iterIntensity[0], 1023.5f / 2047.0f);
 }
 
 TEST_F(ConversionTest, ColorCameraImageMetadata) {
@@ -198,14 +198,14 @@ TEST_F(ConversionTest, ColorCameraImageMetadata) {
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width,  width);
     EXPECT_EQ(msg->height, height);
-    EXPECT_EQ(msg->encoding, "rgb16");
+    EXPECT_EQ(msg->encoding, "rgb8");
     EXPECT_FALSE(msg->is_bigendian);
-    EXPECT_EQ(msg->step, width * 3 * sizeof(uint16_t));
+    EXPECT_EQ(msg->step, width * 3 * sizeof(uint8_t));
     EXPECT_EQ(msg->data.size(), height * msg->step);
 }
 
 TEST_F(ConversionTest, ColorCameraImagePixelValues) {
-    uint16_t pixels[2][3] = {{1000, 2000, 3000}, {4000, 5000, 6000}};
+    uint16_t pixels[2][3] = {{100, 200, 512}, {0, 1023, 700}};
     phoxi_frame_record_t record = {
         PHOXI_FRAME_TYPE_COLORCAMERAIMAGE, PHOXI_FRAME_FORMAT_RGB_16,
         2, 1, sizeof(pixels), pixels};
@@ -213,22 +213,15 @@ TEST_F(ConversionTest, ColorCameraImagePixelValues) {
     auto msg = phoxi_camera::colorCameraImageToRosMsg(record);
 
     ASSERT_NE(msg, nullptr);
-    ASSERT_EQ(msg->data.size(), 2u * 3u * sizeof(uint16_t));
+    ASSERT_EQ(msg->data.size(), 2u * 3u * sizeof(uint8_t));
 
-    uint16_t r0, g0, b0, r1, g1, b1;
-    std::memcpy(&r0, msg->data.data() + 0 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&g0, msg->data.data() + 1 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&b0, msg->data.data() + 2 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&r1, msg->data.data() + 3 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&g1, msg->data.data() + 4 * sizeof(uint16_t), sizeof(uint16_t));
-    std::memcpy(&b1, msg->data.data() + 5 * sizeof(uint16_t), sizeof(uint16_t));
-
-    EXPECT_EQ(r0, 1000u);
-    EXPECT_EQ(g0, 2000u);
-    EXPECT_EQ(b0, 3000u);
-    EXPECT_EQ(r1, 4000u);
-    EXPECT_EQ(g1, 5000u);
-    EXPECT_EQ(b1, 6000u);
+    constexpr float scale = 255.0f / 1023.0f;
+    EXPECT_EQ(msg->data[0], static_cast<uint8_t>(100  * scale));
+    EXPECT_EQ(msg->data[1], static_cast<uint8_t>(200  * scale));
+    EXPECT_EQ(msg->data[2], static_cast<uint8_t>(512  * scale));
+    EXPECT_EQ(msg->data[3], static_cast<uint8_t>(0    * scale));
+    EXPECT_EQ(msg->data[4], static_cast<uint8_t>(1023 * scale));
+    EXPECT_EQ(msg->data[5], static_cast<uint8_t>(700  * scale));
 }
 
 int main(int argc, char** argv) {

@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
 
     auto lcNode = std::make_shared<phoxi_camera::PhoXiCamera>(options);
     executor.add_node(lcNode->get_node_base_interface());
+
     executor.spin();
 
     rclcpp::shutdown();
