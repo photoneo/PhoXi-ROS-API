@@ -33,8 +33,22 @@ enum class SettingValueType {
     REPROJECTION_MAP,
 };
 
-using SettingValue = std::variant<bool, int64_t, double, std::string, std::vector<double>, pho::api::PhoXiSize, pho::api::PhoXiSize_64f, pho::api::PhoXi2DROI,
-        pho::api::AxisVolume_64f, pho::api::Point3_64f, std::vector<pho::api::Plane_64f>, pho::api::ProjectionGeometry_64f, pho::api::PhoXiMesh, pho::api::PhoXiReprojectionMap>;
+using SettingValue = std::variant<
+    bool,
+    int64_t,
+    double,
+    std::string,
+    std::vector<double>,
+    pho::api::PhoXiSize,
+    pho::api::PhoXiSize_64f,
+    pho::api::PhoXi2DROI,
+    pho::api::AxisVolume_64f,
+    pho::api::Point3_64f,
+    std::vector<pho::api::Plane_64f>,
+    pho::api::ProjectionGeometry_64f,
+    pho::api::PhoXiMesh,
+    pho::api::PhoXiReprojectionMap
+>;
 
 struct SettingInfo {
     std::string key;
@@ -249,7 +263,7 @@ public:
      * Return the setting descriptors built when connectCamera() succeeded.
      * Empty if the device does not expose a schema or the camera is not connected.
      */
-    const std::vector<SettingInfo>& getSettingInfos() const { return mSettingInfos; }
+    virtual std::vector<SettingInfo> getSettingInfos() const { return mSettingInfos; }
 
     /**
      * Get a single device setting value.

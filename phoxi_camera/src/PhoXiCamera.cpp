@@ -247,7 +247,7 @@ void PhoXiCamera::loadDeviceSettingDescriptors() {
     mSettingDescriptors.clear();
     mParamToDescriptor.clear();
 
-    const auto& schema = mPhoXiInterface->getSettingInfos();
+    const auto schema = mPhoXiInterface->getSettingInfos();
 
     for (const auto& info : schema) {
         const size_t idx = mSettingDescriptors.size();

@@ -11,6 +11,7 @@
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/PhoXiFrame.h"
 #include "phoxi_camera/PhoXiInterface.h"
+#include "camera_test_fixture.h"
 #include "phoxi_camera_msgs/srv/connect.hpp"
 #include "phoxi_camera_msgs/srv/create_profile.hpp"
 #include "phoxi_camera_msgs/srv/delete_profile.hpp"
@@ -32,102 +33,16 @@ using ::testing::_;
 using ::testing::Return;
 using ::testing::Throw;
 
-static constexpr const char* kTestDeviceId = "test-device-id";
-
-using SettingValueMap = std::map<std::string, phoxi_camera::SettingValue>;
-using SettingKeyValueList = std::vector<std::pair<std::string, phoxi_camera::SettingValue>>;
-
-class MockPhoXiInterface : public PhoXiInterface {
-public:
-    MOCK_METHOD(void, connectCamera, (const std::string& deviceId, GetFrameCallback&& getFrameCallback), (override));
-    MOCK_METHOD(void, disconnectCamera, (), (override));
-    MOCK_METHOD(void, triggerFrame, (bool wait_grabbing_end), (override));
-    MOCK_METHOD(void, startAcquisition, (), (override));
-    MOCK_METHOD(void, stopAcquisition, (), (override));
-    MOCK_METHOD(bool, isConnected, (), (override));
-    MOCK_METHOD(bool, isAcquiring, (), (override));
-    MOCK_METHOD(std::vector<pho::api::PhoXiProfileDescriptor>, getProfileList, (), (override));
-    MOCK_METHOD(std::string, getActiveProfile, (), (override));
-    MOCK_METHOD(void, setActiveProfile, (const std::string& name), (override));
-    MOCK_METHOD(std::string, getStartupProfile, (), (override));
-    MOCK_METHOD(void, setStartupProfile, (const std::string& name), (override));
-    MOCK_METHOD(void, createProfile, (const std::string& name), (override));
-    MOCK_METHOD(void, deleteProfile, (const std::string& name), (override));
-    MOCK_METHOD(void, updateProfile, (const std::string& name), (override));
-    MOCK_METHOD(pho::api::PhoXiProfileContent, exportProfile, (), (override));
-    MOCK_METHOD(void, importProfile, (const pho::api::PhoXiProfileContent& content), (override));
-    MOCK_METHOD(void, resetActiveProfile, (), (override));
-    MOCK_METHOD(phoxi_camera::SettingValue, getSetting, (const std::string&), (override));
-    MOCK_METHOD(SettingValueMap, getSettings, (const std::vector<std::string>&), (override));
-    MOCK_METHOD(void, setSetting, (const std::string&, const phoxi_camera::SettingValue&), (override));
-    MOCK_METHOD(void, setSettings, (const SettingKeyValueList&), (override));
-};
-
-class TestableRosInterface : public PhoXiCamera {
-public:
-    TestableRosInterface(const std::string& deviceId, const rclcpp::NodeOptions& options, std::unique_ptr<PhoXiInterface> phoxiInterface) : PhoXiCamera(deviceId, options) {
-        this->mPhoXiInterface = std::move(phoxiInterface);
-    }
-};
-
-class RosInterfaceTest : public ::testing::Test {
+class RosInterfaceTest : public CameraTestFixture {
 protected:
-    void SetUp() override {
-        auto mockPtr = std::make_unique<MockPhoXiInterface>();
-        mockInterface = mockPtr.get();
-        testing::Mock::AllowLeak(mockInterface);
+    void SetUp() override { SetUpBase("test-device-id", "test_client_node"); }
 
-        EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(false));
-        EXPECT_CALL(*mockInterface, isAcquiring()).WillRepeatedly(Return(false));
-        EXPECT_CALL(*mockInterface, getSettings(::testing::_)).WillRepeatedly(Return(SettingValueMap{}));
-
-        rclcpp::NodeOptions options;
-        lcNode = std::make_shared<TestableRosInterface>(kTestDeviceId, options, std::move(mockPtr));
-
-        testClientNode = std::make_shared<rclcpp::Node>("test_client_node");
-
-        executor_.add_node(lcNode->get_node_base_interface());
-        executor_.add_node(testClientNode);
-    }
-
-    void TearDown() override {
-        testing::Mock::VerifyAndClearExpectations(mockInterface);
-        lcNode->shutdown();
-
-        executor_.remove_node(lcNode->get_node_base_interface());
-        executor_.remove_node(testClientNode);
-
-        lcNode.reset();
-        testClientNode.reset();
-    }
-
-    bool changeLcState(uint8_t transition) {
-        auto lcClient = testClientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
-        if (!lcClient->wait_for_service(std::chrono::seconds(2))) {
-            return false;
-        }
-        auto request = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
-        request->transition.id = transition;
-        auto future = lcClient->async_send_request(request);
-        return executor_.spin_until_future_complete(future) == rclcpp::FutureReturnCode::SUCCESS && future.get()->success;
-    }
-
-    // Configure-only: set up connectCamera expectation and run CONFIGURE transition.
-    bool configureOnly() {
-        EXPECT_CALL(*mockInterface, connectCamera(kTestDeviceId, _)).Times(1);
-        return changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
-    }
-
-    // Cleanup with disconnect: set up disconnectCamera expectation and run CLEANUP transition.
-    bool cleanupWithDisconnect() {
-        EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
-        return changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP);
-    }
-
-    // Configure + activate, capturing the frame callback from connectCamera.
     PhoXiInterface::GetFrameCallback configureActivateCapture() {
         PhoXiInterface::GetFrameCallback cb;
-        EXPECT_CALL(*mockInterface, connectCamera(kTestDeviceId, _)).WillOnce([&cb](const std::string&, PhoXiInterface::GetFrameCallback&& captured) { cb = std::move(captured); });
+        EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _))
+            .WillOnce([&cb](const std::string&, PhoXiInterface::GetFrameCallback&& captured) {
+                cb = std::move(captured);
+            });
         if (!changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE))
             return {};
         EXPECT_CALL(*mockInterface, startAcquisition());
@@ -136,10 +51,11 @@ protected:
         return cb;
     }
 
-    // Call a ROS2 service and return its response, or nullptr on timeout/failure.
     template <typename SrvT>
-    typename SrvT::Response::SharedPtr callService(const std::string& serviceName, typename SrvT::Request::SharedPtr request = std::make_shared<typename SrvT::Request>()) {
-        auto client = testClientNode->create_client<SrvT>(serviceName);
+    typename SrvT::Response::SharedPtr callService(
+        const std::string& serviceName,
+        typename SrvT::Request::SharedPtr request = std::make_shared<typename SrvT::Request>()) {
+        auto client = clientNode->create_client<SrvT>(serviceName);
         if (!client->wait_for_service(std::chrono::seconds(2))) {
             return nullptr;
         }
@@ -150,35 +66,32 @@ protected:
         return future.get();
     }
 
-    // Subscribe to a topic, inject a frame, and return the first received message (or nullptr).
-    template <typename MsgT> typename MsgT::SharedPtr injectAndReceive(const PhoXiInterface::GetFrameCallback& frameCb, const std::string& topic, const PhoXiFrame& frame) {
+    template <typename MsgT>
+    typename MsgT::SharedPtr injectAndReceive(
+        const PhoXiInterface::GetFrameCallback& frameCb, const std::string& topic, const PhoXiFrame& frame) {
         std::promise<typename MsgT::SharedPtr> promise;
         auto future = promise.get_future().share();
         bool received = false;
-        auto sub = testClientNode->create_subscription<MsgT>(topic, rclcpp::SystemDefaultsQoS(), [&promise, &received](typename MsgT::SharedPtr msg) {
-            if (!received) {
-                received = true;
-                promise.set_value(msg);
-            }
-        });
+        auto sub = clientNode->create_subscription<MsgT>(
+            topic, rclcpp::SystemDefaultsQoS(), [&promise, &received](typename MsgT::SharedPtr msg) {
+                if (!received) {
+                    received = true;
+                    promise.set_value(msg);
+                }
+            });
         executor_.spin_some(std::chrono::milliseconds(50));
         frameCb(frame);
-        if (executor_.spin_until_future_complete(future, std::chrono::seconds(2)) != rclcpp::FutureReturnCode::SUCCESS) {
+        if (executor_.spin_until_future_complete(future, std::chrono::seconds(2)) !=
+            rclcpp::FutureReturnCode::SUCCESS) {
             return nullptr;
         }
         return future.get();
     }
-
-    rclcpp::executors::SingleThreadedExecutor executor_;
-    MockPhoXiInterface* mockInterface;
-    std::shared_ptr<TestableRosInterface> lcNode;
-    std::shared_ptr<rclcpp::Node> testClientNode;
 };
 
-// ── Lifecycle transitions ────────────────────────────────────────────────────
 
 TEST_F(RosInterfaceTest, LifecycleTransitions) {
-    EXPECT_CALL(*mockInterface, connectCamera(kTestDeviceId, _)).Times(1);
+    EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
     EXPECT_CALL(*mockInterface, startAcquisition()).Times(1);
@@ -192,34 +105,32 @@ TEST_F(RosInterfaceTest, LifecycleTransitions) {
 }
 
 TEST_F(RosInterfaceTest, ConfigureFailsWhenConnectionFails) {
-    EXPECT_CALL(*mockInterface, connectCamera(kTestDeviceId, _)).WillOnce(Throw(PhoXiInterfaceException("Device not found")));
+    EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).WillOnce(Throw(PhoXiInterfaceException("Device not found")));
 
     ASSERT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 }
 
 TEST_F(RosInterfaceTest, ActivateFailsWhenAcquisitionFails) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, startAcquisition()).WillOnce(Throw(UnableToStartAcquisition("Hardware error")));
     ASSERT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
-// ── Connect service ──────────────────────────────────────────────────────────
 
 TEST_F(RosInterfaceTest, ConnectServiceSuccessWhileActive) {
-    EXPECT_CALL(*mockInterface, connectCamera(kTestDeviceId, _)).Times(1);
+    EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
-    // startAcquisition called twice: once in on_activate, once in connectCallback (is_active=true)
     EXPECT_CALL(*mockInterface, startAcquisition()).Times(2);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
 
     EXPECT_CALL(*mockInterface, stopAcquisition()).Times(1);
     EXPECT_CALL(*mockInterface, connectCamera("test-sn-123", _)).Times(1);
 
-    auto client = testClientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    auto client = clientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
     ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(2)));
 
     auto request = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
@@ -231,11 +142,11 @@ TEST_F(RosInterfaceTest, ConnectServiceSuccessWhileActive) {
 }
 
 TEST_F(RosInterfaceTest, ConnectServiceSuccessWhileInactive) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, connectCamera("other-device", _)).Times(1);
 
-    auto client = testClientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    auto client = clientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
     ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(2)));
 
     auto request = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
@@ -245,7 +156,7 @@ TEST_F(RosInterfaceTest, ConnectServiceSuccessWhileInactive) {
     ASSERT_EQ(executor_.spin_until_future_complete(future), rclcpp::FutureReturnCode::SUCCESS);
     EXPECT_TRUE(future.get()->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, ConnectServiceFailure) {
@@ -254,7 +165,7 @@ TEST_F(RosInterfaceTest, ConnectServiceFailure) {
     EXPECT_CALL(*mockInterface, stopAcquisition()).Times(1);
     EXPECT_CALL(*mockInterface, connectCamera(_, _)).WillOnce(Throw(PhoXiInterfaceException("Device not found")));
 
-    auto client = testClientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    auto client = clientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
     ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(2)));
 
     auto request = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
@@ -268,14 +179,13 @@ TEST_F(RosInterfaceTest, ConnectServiceFailure) {
     EXPECT_EQ(response->message, "Device not found");
 }
 
-// ── Trigger frame ────────────────────────────────────────────────────────────
 
 TEST_F(RosInterfaceTest, TriggerFrame) {
     configureActivateCapture();
 
     EXPECT_CALL(*mockInterface, triggerFrame(false)).Times(1);
 
-    auto client = testClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
+    auto client = clientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
     ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(2)));
 
     auto request = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
@@ -291,7 +201,7 @@ TEST_F(RosInterfaceTest, TriggerFrameWithWaitGrabbingEnd) {
 
     EXPECT_CALL(*mockInterface, triggerFrame(true)).Times(1);
 
-    auto client = testClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
+    auto client = clientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
     ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(2)));
 
     auto request = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
@@ -302,13 +212,11 @@ TEST_F(RosInterfaceTest, TriggerFrameWithWaitGrabbingEnd) {
     EXPECT_TRUE(future.get()->success);
 }
 
-// ── Topic publication ────────────────────────────────────────────────────────
 
 TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
-    EXPECT_CALL(*mockInterface, connectCamera(kTestDeviceId, _)).Times(1);
+    EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
-    // startAcquisition called twice: once in on_activate, once in connectCallback (is_active=true)
     EXPECT_CALL(*mockInterface, startAcquisition()).Times(2);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE));
 
@@ -316,7 +224,7 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
     PhoXiInterface::GetFrameCallback capturedCb;
     EXPECT_CALL(*mockInterface, connectCamera("test-sn", _)).WillOnce([&capturedCb](const std::string&, PhoXiInterface::GetFrameCallback&& cb) { capturedCb = std::move(cb); });
 
-    auto connectClient = testClientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
+    auto connectClient = clientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
     ASSERT_TRUE(connectClient->wait_for_service(std::chrono::seconds(2)));
     auto connectReq = std::make_shared<phoxi_camera_msgs::srv::Connect::Request>();
     connectReq->sn = "test-sn";
@@ -372,7 +280,6 @@ TEST_F(RosInterfaceTest, PointCloudPublished) {
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1u);
     EXPECT_EQ(msg->height, 1u);
-    // x y z  +  normal_x/y/z  +  rgb  +  confidence  +  depth
     EXPECT_EQ(msg->point_step, 3 * 4u + 3 * 4u + 4u + 4u + 4u);
 
     auto fieldOffset = [&](const std::string& name) -> uint32_t {
@@ -439,7 +346,7 @@ TEST_F(RosInterfaceTest, PointsNotPublishedWhenPointCloudEmpty) {
     ASSERT_TRUE(frameCb);
 
     bool received = false;
-    auto sub = testClientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
             "points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
@@ -450,7 +357,6 @@ TEST_F(RosInterfaceTest, PointsNotPublishedWhenPointCloudEmpty) {
 }
 
 TEST_F(RosInterfaceTest, PointCloudNotPublishedWhenNotCombined) {
-    // publish_combined = false (default): point_cloud topic must not receive any message
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
@@ -460,7 +366,7 @@ TEST_F(RosInterfaceTest, PointCloudNotPublishedWhenNotCombined) {
     frame.pointCloud = &pcRec;
 
     bool received = false;
-    auto sub = testClientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
             "point_cloud", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
@@ -471,7 +377,6 @@ TEST_F(RosInterfaceTest, PointCloudNotPublishedWhenNotCombined) {
 }
 
 TEST_F(RosInterfaceTest, IndividualTopicsNotPublishedWhenCombined) {
-    // publish_combined = true: individual topics (e.g. points) must not receive any message
     lcNode->set_parameter(rclcpp::Parameter("publish_combined", true));
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
@@ -482,7 +387,7 @@ TEST_F(RosInterfaceTest, IndividualTopicsNotPublishedWhenCombined) {
     frame.pointCloud = &pcRec;
 
     bool received = false;
-    auto sub = testClientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
             "points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
@@ -617,16 +522,14 @@ TEST_F(RosInterfaceTest, TexturePublished) {
     EXPECT_EQ(msg->data[5], static_cast<uint8_t>(600 * scale));
 }
 
-// ── Profile services ────────────────────────────────────────────────────────
 
 TEST_F(RosInterfaceTest, ProfileServicesUnavailableWhenUnconfigured) {
-    // Services are only created during on_configure, so they must not be discoverable before that.
-    auto client = testClientNode->create_client<phoxi_camera_msgs::srv::GetProfileList>("/phoxi_camera/profiles/list");
+    auto client = clientNode->create_client<phoxi_camera_msgs::srv::GetProfileList>("/phoxi_camera/profiles/list");
     EXPECT_FALSE(client->wait_for_service(std::chrono::milliseconds(500)));
 }
 
 TEST_F(RosInterfaceTest, GetProfileListReturnsProfiles) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     pho::api::PhoXiProfileDescriptor userProfile;
     userProfile.Name = "MyProfile";
@@ -645,11 +548,11 @@ TEST_F(RosInterfaceTest, GetProfileListReturnsProfiles) {
     EXPECT_EQ(response->names[1], "Factory");
     EXPECT_TRUE(response->is_factory[1]);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, GetActiveProfileReturnsName) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, getActiveProfile()).WillOnce(Return("MyProfile"));
 
@@ -658,11 +561,11 @@ TEST_F(RosInterfaceTest, GetActiveProfileReturnsName) {
     ASSERT_TRUE(response->success);
     EXPECT_EQ(response->name, "MyProfile");
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, SetActiveProfileCallsInterface) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, setActiveProfile("MyProfile")).Times(1);
 
@@ -672,11 +575,11 @@ TEST_F(RosInterfaceTest, SetActiveProfileCallsInterface) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, SetActiveProfileReportsSDKError) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, setActiveProfile(_)).WillOnce(Throw(PhoXiInterfaceException("Profile not found")));
 
@@ -687,11 +590,11 @@ TEST_F(RosInterfaceTest, SetActiveProfileReportsSDKError) {
     EXPECT_FALSE(response->success);
     EXPECT_EQ(response->message, "Profile not found");
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, CreateProfileCallsInterface) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, createProfile("NewProfile")).Times(1);
 
@@ -701,11 +604,11 @@ TEST_F(RosInterfaceTest, CreateProfileCallsInterface) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, DeleteProfileCallsInterface) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, deleteProfile("OldProfile")).Times(1);
 
@@ -715,11 +618,11 @@ TEST_F(RosInterfaceTest, DeleteProfileCallsInterface) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, UpdateProfileCallsInterface) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, updateProfile("MyProfile")).Times(1);
 
@@ -729,11 +632,11 @@ TEST_F(RosInterfaceTest, UpdateProfileCallsInterface) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, GetStartupProfileReturnsName) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, getStartupProfile()).WillOnce(Return("StartupProfile"));
 
@@ -742,11 +645,11 @@ TEST_F(RosInterfaceTest, GetStartupProfileReturnsName) {
     ASSERT_TRUE(response->success);
     EXPECT_EQ(response->name, "StartupProfile");
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, SetStartupProfileCallsInterface) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, setStartupProfile("MyProfile")).Times(1);
 
@@ -756,11 +659,11 @@ TEST_F(RosInterfaceTest, SetStartupProfileCallsInterface) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, ExportProfileReturnsContent) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     pho::api::PhoXiProfileContent content;
     content.Name = "MyProfile";
@@ -776,11 +679,11 @@ TEST_F(RosInterfaceTest, ExportProfileReturnsContent) {
     EXPECT_EQ(response->content[1], 0x02);
     EXPECT_EQ(response->content[2], 0x03);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, ImportProfileSendsContent) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, importProfile(_)).WillOnce([](const pho::api::PhoXiProfileContent& c) {
         EXPECT_EQ(c.Name, "ImportedProfile");
@@ -796,11 +699,11 @@ TEST_F(RosInterfaceTest, ImportProfileSendsContent) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {
-    ASSERT_TRUE(configureOnly());
+    ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, resetActiveProfile()).Times(1);
 
@@ -808,7 +711,7 @@ TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {
     ASSERT_NE(response, nullptr);
     EXPECT_TRUE(response->success);
 
-    ASSERT_TRUE(cleanupWithDisconnect());
+    ASSERT_TRUE(cleanup());
 }
 
 int main(int argc, char** argv) {
