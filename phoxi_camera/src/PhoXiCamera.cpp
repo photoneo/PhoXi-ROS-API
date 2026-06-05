@@ -5,46 +5,55 @@
 #include <vector>
 
 #include "lifecycle_msgs/msg/state.hpp"
-#include "rcl_interfaces/msg/parameter_descriptor.hpp"
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/RosConversions.h"
+#include "rcl_interfaces/msg/parameter_descriptor.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 
-namespace phoxi_camera
-{
+namespace phoxi_camera {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 static constexpr std::string_view kFrameSettingsPrefix = "frameSettings/";
+static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings/";
 
-static const std::array<std::string_view, 7> kComponents = {
-    "PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"
-};
+// PhoXiReprojectionMap, PhoXiMesh and ProjectionGeometry_64f define operator==
+// but not operator!=, so std::variant::operator!= cannot be instantiated.
+// Use this helper instead of `!=` on SettingValue.
+static bool settingValuesEqual(const SettingValue& a, const SettingValue& b) {
+    if (a.index() != b.index()) {
+        return false;
+    }
+    return std::visit(
+            [&b](const auto& av) -> bool {
+                const auto* bv = std::get_if<std::decay_t<decltype(av)>>(&b);
+                return bv && (av == *bv);
+            },
+            a);
+}
 
-PhoXiCamera::PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options) :
-    rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
-    mPhoXiInterface(std::make_unique<PhoXiInterface>()),
-    mDeviceId(std::move(deviceId)) {
+static const std::array<std::string_view, 7> kComponents = {"PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"};
+
+PhoXiCamera::PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options)
+    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()), mDeviceId(std::move(deviceId)) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node for device: %s", mDeviceId.c_str());
     declareParameters();
 }
 
-PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options) :
-    rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
-    mPhoXiInterface(std::make_unique<PhoXiInterface>()) {
+PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node.");
     declareParameters();
     get_parameter("device_id", mDeviceId);
 }
 
 PhoXiCamera::~PhoXiCamera() {
-    get_node_base_interface()->get_context()->remove_pre_shutdown_callback(
-        mShutdownCallbackHandle);
+    get_node_base_interface()->get_context()->remove_pre_shutdown_callback(mShutdownCallbackHandle);
 
     try {
         if (mPhoXiInterface->isAcquiring()) {
             mPhoXiInterface->stopAcquisition();
         }
-    } catch (...) {}
+    } catch (...) {
+    }
 
     if (mPhoXiInterface->isConnected()) {
         mPhoXiInterface->disconnectCamera();
@@ -63,10 +72,21 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     }
 
     try {
-        mPhoXiInterface->connectCamera(mDeviceId,
-            std::bind(&PhoXiCamera::onFrameCallback, this, std::placeholders::_1));
+        mPhoXiInterface->connectCamera(mDeviceId, std::bind(&PhoXiCamera::onFrameCallback, this, std::placeholders::_1));
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
+        return CallbackReturn::FAILURE;
+    }
+
+    try {
+        loadDeviceSettingDescriptors();
+        declareDeviceSettingParameters();
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Configuration failed (device settings): %s", e.what());
+        try {
+            mPhoXiInterface->disconnectCamera();
+        } catch (...) {
+        }
         return CallbackReturn::FAILURE;
     }
 
@@ -83,78 +103,54 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         }
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
-        try { mPhoXiInterface->disconnectCamera(); } catch (...) {}
+        try {
+            mPhoXiInterface->disconnectCamera();
+        } catch (...) {
+        }
         return CallbackReturn::FAILURE;
     }
 
-    mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>(
-    "point_cloud", rclcpp::SystemDefaultsQoS());
-    mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>(
-        "points", rclcpp::SystemDefaultsQoS());
-    mNormalMapPub = create_publisher<sensor_msgs::msg::Image>(
-        "normals", rclcpp::SystemDefaultsQoS());
-    mDepthMapPub = create_publisher<sensor_msgs::msg::Image>(
-        "depth", rclcpp::SystemDefaultsQoS());
-    mConfidenceMapPub = create_publisher<sensor_msgs::msg::Image>(
-        "confidence", rclcpp::SystemDefaultsQoS());
-    mEventMapPub = create_publisher<sensor_msgs::msg::Image>(
-        "event", rclcpp::SystemDefaultsQoS());
-    mTexturePub = create_publisher<sensor_msgs::msg::Image>(
-        "intensity", rclcpp::SystemDefaultsQoS());
-    mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>(
-        "texture", rclcpp::SystemDefaultsQoS());
-    mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>(
-        "color_camera_image", rclcpp::SystemDefaultsQoS());
+    mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS());
+    mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS());
+    mNormalMapPub = create_publisher<sensor_msgs::msg::Image>("normals", rclcpp::SystemDefaultsQoS());
+    mDepthMapPub = create_publisher<sensor_msgs::msg::Image>("depth", rclcpp::SystemDefaultsQoS());
+    mConfidenceMapPub = create_publisher<sensor_msgs::msg::Image>("confidence", rclcpp::SystemDefaultsQoS());
+    mEventMapPub = create_publisher<sensor_msgs::msg::Image>("event", rclcpp::SystemDefaultsQoS());
+    mTexturePub = create_publisher<sensor_msgs::msg::Image>("intensity", rclcpp::SystemDefaultsQoS());
+    mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>("texture", rclcpp::SystemDefaultsQoS());
+    mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>("color_camera_image", rclcpp::SystemDefaultsQoS());
 
-    mConnectService = create_service<phoxi_camera_msgs::srv::Connect>(
-        "~/connect",
-        std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mDisconnectService = create_service<std_srvs::srv::Trigger>(
-        "~/disconnect",
-        std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mConnectService = create_service<phoxi_camera_msgs::srv::Connect>("~/connect", std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mDisconnectService = create_service<std_srvs::srv::Trigger>("~/disconnect", std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
     mTriggerFrameService = create_service<phoxi_camera_msgs::srv::TriggerFrame>(
-        "~/trigger_frame",
-        std::bind(&PhoXiCamera::triggerFrameCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/trigger_frame", std::bind(&PhoXiCamera::triggerFrameCallback, this, std::placeholders::_1, std::placeholders::_2));
     mGetProfileListService = create_service<phoxi_camera_msgs::srv::GetProfileList>(
-        "~/profiles/list",
-        std::bind(&PhoXiCamera::getProfileListCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/list", std::bind(&PhoXiCamera::getProfileListCallback, this, std::placeholders::_1, std::placeholders::_2));
     mGetActiveProfileService = create_service<phoxi_camera_msgs::srv::GetActiveProfile>(
-        "~/profiles/get_active",
-        std::bind(&PhoXiCamera::getActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/get_active", std::bind(&PhoXiCamera::getActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mSetActiveProfileService = create_service<phoxi_camera_msgs::srv::SetActiveProfile>(
-        "~/profiles/set_active",
-        std::bind(&PhoXiCamera::setActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/set_active", std::bind(&PhoXiCamera::setActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mCreateProfileService = create_service<phoxi_camera_msgs::srv::CreateProfile>(
-        "~/profiles/create",
-        std::bind(&PhoXiCamera::createProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/create", std::bind(&PhoXiCamera::createProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mDeleteProfileService = create_service<phoxi_camera_msgs::srv::DeleteProfile>(
-        "~/profiles/delete",
-        std::bind(&PhoXiCamera::deleteProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/delete", std::bind(&PhoXiCamera::deleteProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mUpdateProfileService = create_service<phoxi_camera_msgs::srv::UpdateProfile>(
-        "~/profiles/update",
-        std::bind(&PhoXiCamera::updateProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/update", std::bind(&PhoXiCamera::updateProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mGetStartupProfileService = create_service<phoxi_camera_msgs::srv::GetStartupProfile>(
-        "~/profiles/get_startup",
-        std::bind(&PhoXiCamera::getStartupProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/get_startup", std::bind(&PhoXiCamera::getStartupProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mSetStartupProfileService = create_service<phoxi_camera_msgs::srv::SetStartupProfile>(
-        "~/profiles/set_startup",
-        std::bind(&PhoXiCamera::setStartupProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/set_startup", std::bind(&PhoXiCamera::setStartupProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mExportProfileService = create_service<phoxi_camera_msgs::srv::ExportProfile>(
-        "~/profiles/export",
-        std::bind(&PhoXiCamera::exportProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+            "~/profiles/export", std::bind(&PhoXiCamera::exportProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mImportProfileService = create_service<phoxi_camera_msgs::srv::ImportProfile>(
-        "~/profiles/import",
-        std::bind(&PhoXiCamera::importProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mResetActiveProfileService = create_service<std_srvs::srv::Trigger>(
-        "~/profiles/reset",
-        std::bind(&PhoXiCamera::resetActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
-    RCLCPP_INFO(get_logger(), "Configuration complete. Connected to device: %s",
-                mDeviceId.c_str());
+            "~/profiles/import", std::bind(&PhoXiCamera::importProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mResetActiveProfileService =
+            create_service<std_srvs::srv::Trigger>("~/profiles/reset", std::bind(&PhoXiCamera::resetActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+    RCLCPP_INFO(get_logger(), "Configuration complete. Connected to device: %s", mDeviceId.c_str());
     return CallbackReturn::SUCCESS;
 }
 
-CallbackReturn PhoXiCamera::on_activate(
-    const rclcpp_lifecycle::State& /*previous_state*/) {
+CallbackReturn PhoXiCamera::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
     RCLCPP_INFO(get_logger(), "Activating PhoXi Camera node...");
 
     activatePublishers();
@@ -177,8 +173,7 @@ CallbackReturn PhoXiCamera::on_deactivate(const rclcpp_lifecycle::State& /*previ
     try {
         mPhoXiInterface->stopAcquisition();
     } catch (const PhoXiInterfaceException& e) {
-        RCLCPP_WARN(get_logger(), "Failed to stop acquisition during deactivation: %s",
-                    e.what());
+        RCLCPP_WARN(get_logger(), "Failed to stop acquisition during deactivation: %s", e.what());
     }
     drainFrameCallback();
 
@@ -190,6 +185,9 @@ CallbackReturn PhoXiCamera::on_deactivate(const rclcpp_lifecycle::State& /*previ
 
 CallbackReturn PhoXiCamera::on_cleanup(const rclcpp_lifecycle::State& /*previous_state*/) {
     RCLCPP_INFO(get_logger(), "Cleaning up PhoXi Camera node...");
+
+    mSettingDescriptors.clear();
+    mParamToDescriptor.clear();
 
     try {
         mPhoXiInterface->disconnectCamera();
@@ -210,7 +208,8 @@ CallbackReturn PhoXiCamera::on_shutdown(const rclcpp_lifecycle::State& /*previou
         if (mPhoXiInterface->isAcquiring()) {
             mPhoXiInterface->stopAcquisition();
         }
-    } catch (...) {}
+    } catch (...) {
+    }
     if (mPhoXiInterface->isConnected()) {
         try {
             mPhoXiInterface->disconnectCamera();
@@ -229,29 +228,401 @@ void PhoXiCamera::drainFrameCallback() {
     std::lock_guard<std::mutex> lock(mFrameMutex);
 }
 
-void PhoXiCamera::declareParameters()
-{
+void PhoXiCamera::declareParameters() {
     declare_parameter<std::string>("device_id", mDeviceId);
     declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
     declare_parameter<bool>("publish_combined", false);
     rcl_interfaces::msg::ParameterDescriptor dynamicDesc;
     dynamicDesc.dynamic_typing = true;
     for (const auto& componentName : kComponents) {
-        declare_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName),
-            rclcpp::ParameterValue{}, dynamicDesc);
+        declare_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName), rclcpp::ParameterValue{}, dynamicDesc);
     }
 
-    mParamCallbackHandle = add_on_set_parameters_callback(
-        std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
+    mParamCallbackHandle = add_on_set_parameters_callback(std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
 
-    mShutdownCallbackHandle =
-        get_node_base_interface()->get_context()->add_pre_shutdown_callback(
-            [this]() { rclcpp_lifecycle::LifecycleNode::shutdown(); });
+    mShutdownCallbackHandle = get_node_base_interface()->get_context()->add_pre_shutdown_callback([this]() { rclcpp_lifecycle::LifecycleNode::shutdown(); });
 }
 
-rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(
-    const std::vector<rclcpp::Parameter>& params)
-{
+void PhoXiCamera::loadDeviceSettingDescriptors() {
+    mSettingDescriptors.clear();
+    mParamToDescriptor.clear();
+
+    const auto& schema = mPhoXiInterface->getSettingInfos();
+
+    for (const auto& info : schema) {
+        const size_t idx = mSettingDescriptors.size();
+        mSettingDescriptors.push_back({info.key, info.type, info.isSettable});
+
+        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + info.key;
+
+        switch (info.type) {
+            case SettingValueType::PHOXI_SIZE:
+            case SettingValueType::PHOXI_SIZE_64F:
+                mParamToDescriptor[base + "/width"] = {idx, "width"};
+                mParamToDescriptor[base + "/height"] = {idx, "height"};
+                break;
+            case SettingValueType::PHOXI_2DROI:
+                mParamToDescriptor[base + "/x_min"] = {idx, "x_min"};
+                mParamToDescriptor[base + "/x_max"] = {idx, "x_max"};
+                mParamToDescriptor[base + "/y_min"] = {idx, "y_min"};
+                mParamToDescriptor[base + "/y_max"] = {idx, "y_max"};
+                break;
+            case SettingValueType::AXIS_VOLUME_64F:
+                mParamToDescriptor[base + "/x_min"] = {idx, "x_min"};
+                mParamToDescriptor[base + "/x_max"] = {idx, "x_max"};
+                mParamToDescriptor[base + "/y_min"] = {idx, "y_min"};
+                mParamToDescriptor[base + "/y_max"] = {idx, "y_max"};
+                mParamToDescriptor[base + "/z_min"] = {idx, "z_min"};
+                mParamToDescriptor[base + "/z_max"] = {idx, "z_max"};
+                break;
+            case SettingValueType::POINT3_64F:
+                mParamToDescriptor[base + "/r"] = {idx, "r"};
+                mParamToDescriptor[base + "/g"] = {idx, "g"};
+                mParamToDescriptor[base + "/b"] = {idx, "b"};
+                break;
+            case SettingValueType::SCANNING_VOLUME:
+                mParamToDescriptor[base + "/origin"] = {idx, "origin"};
+                mParamToDescriptor[base + "/top_left"] = {idx, "top_left"};
+                mParamToDescriptor[base + "/top_right"] = {idx, "top_right"};
+                mParamToDescriptor[base + "/bottom_left"] = {idx, "bottom_left"};
+                mParamToDescriptor[base + "/bottom_right"] = {idx, "bottom_right"};
+                mParamToDescriptor[base + "/top_contour"] = {idx, "top_contour"};
+                mParamToDescriptor[base + "/bottom_contour"] = {idx, "bottom_contour"};
+                break;
+            case SettingValueType::SCANNING_VOLUME_MESH:
+                mParamToDescriptor[base + "/points_per_section"] = {idx, "points_per_section"};
+                mParamToDescriptor[base + "/vertices"] = {idx, "vertices"};
+                mParamToDescriptor[base + "/indices"] = {idx, "indices"};
+                break;
+            case SettingValueType::REPROJECTION_MAP:
+                mParamToDescriptor[base + "/width"] = {idx, "width"};
+                mParamToDescriptor[base + "/height"] = {idx, "height"};
+                mParamToDescriptor[base + "/cv_type"] = {idx, "cv_type"};
+                break;
+            default:
+                mParamToDescriptor[base] = {idx, ""};
+                break;
+        }
+    }
+}
+
+void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std::string& base, const SettingValue& devVal) {
+    auto declP = [this](const std::string& name, rclcpp::ParameterValue v) { declare_parameter(name, std::move(v)); };
+
+    switch (desc.type) {
+        case SettingValueType::BOOL:
+            declP(base, rclcpp::ParameterValue(std::get<bool>(devVal)));
+            break;
+        case SettingValueType::INT:
+            declP(base, rclcpp::ParameterValue(std::get<int64_t>(devVal)));
+            break;
+        case SettingValueType::DOUBLE:
+            declP(base, rclcpp::ParameterValue(std::get<double>(devVal)));
+            break;
+        case SettingValueType::STRING:
+            declP(base, rclcpp::ParameterValue(std::get<std::string>(devVal)));
+            break;
+        case SettingValueType::DOUBLE_ARRAY:
+        case SettingValueType::CUTTING_PLANES: {
+            std::vector<double> arr;
+            if (desc.type == SettingValueType::CUTTING_PLANES) {
+                const auto& planes = std::get<std::vector<pho::api::Plane_64f>>(devVal);
+                for (const auto& p : planes) {
+                    arr.push_back(static_cast<double>(p.normal.x));
+                    arr.push_back(static_cast<double>(p.normal.y));
+                    arr.push_back(static_cast<double>(p.normal.z));
+                    arr.push_back(static_cast<double>(p.d));
+                }
+            } else {
+                arr = std::get<std::vector<double>>(devVal);
+            }
+            declP(base, rclcpp::ParameterValue(arr));
+            break;
+        }
+        case SettingValueType::PHOXI_SIZE: {
+            const auto& s = std::get<pho::api::PhoXiSize>(devVal);
+            declP(base + "/width", rclcpp::ParameterValue((int64_t)s.Width));
+            declP(base + "/height", rclcpp::ParameterValue((int64_t)s.Height));
+            break;
+        }
+        case SettingValueType::PHOXI_SIZE_64F: {
+            const auto& s = std::get<pho::api::PhoXiSize_64f>(devVal);
+            declP(base + "/width", rclcpp::ParameterValue((double)s.Width));
+            declP(base + "/height", rclcpp::ParameterValue((double)s.Height));
+            break;
+        }
+        case SettingValueType::PHOXI_2DROI: {
+            const auto& roi = std::get<pho::api::PhoXi2DROI>(devVal);
+            declP(base + "/x_min", rclcpp::ParameterValue((int64_t)(int32_t)roi.Min.x));
+            declP(base + "/y_min", rclcpp::ParameterValue((int64_t)(int32_t)roi.Min.y));
+            declP(base + "/x_max", rclcpp::ParameterValue((int64_t)(int32_t)roi.Max.x));
+            declP(base + "/y_max", rclcpp::ParameterValue((int64_t)(int32_t)roi.Max.y));
+            break;
+        }
+        case SettingValueType::AXIS_VOLUME_64F: {
+            const auto& vol = std::get<pho::api::AxisVolume_64f>(devVal);
+            declP(base + "/x_min", rclcpp::ParameterValue((double)vol.min.x));
+            declP(base + "/y_min", rclcpp::ParameterValue((double)vol.min.y));
+            declP(base + "/z_min", rclcpp::ParameterValue((double)vol.min.z));
+            declP(base + "/x_max", rclcpp::ParameterValue((double)vol.max.x));
+            declP(base + "/y_max", rclcpp::ParameterValue((double)vol.max.y));
+            declP(base + "/z_max", rclcpp::ParameterValue((double)vol.max.z));
+            break;
+        }
+        case SettingValueType::POINT3_64F: {
+            const auto& p = std::get<pho::api::Point3_64f>(devVal);
+            declP(base + "/r", rclcpp::ParameterValue((double)p.x));
+            declP(base + "/g", rclcpp::ParameterValue((double)p.y));
+            declP(base + "/b", rclcpp::ParameterValue((double)p.z));
+            break;
+        }
+        case SettingValueType::SCANNING_VOLUME: {
+            const auto& geom = std::get<pho::api::ProjectionGeometry_64f>(devVal);
+            auto toArr = [](const pho::api::Point3_64f& pt) -> std::vector<double> { return {(double)pt.x, (double)pt.y, (double)pt.z}; };
+            auto toContourArr = [&toArr](const std::vector<pho::api::Point3_64f>& pts) {
+                std::vector<double> arr;
+                for (const auto& pt : pts) {
+                    arr.push_back((double)pt.x);
+                    arr.push_back((double)pt.y);
+                    arr.push_back((double)pt.z);
+                }
+                return arr;
+            };
+            declP(base + "/origin", rclcpp::ParameterValue(toArr(geom.Origin)));
+            declP(base + "/top_left", rclcpp::ParameterValue(toArr(geom.TopLeftTangentialVector)));
+            declP(base + "/top_right", rclcpp::ParameterValue(toArr(geom.TopRightTangentialVector)));
+            declP(base + "/bottom_left", rclcpp::ParameterValue(toArr(geom.BottomLeftTangentialVector)));
+            declP(base + "/bottom_right", rclcpp::ParameterValue(toArr(geom.BottomRightTangentialVector)));
+            declP(base + "/top_contour", rclcpp::ParameterValue(toContourArr(geom.TopContourPoints)));
+            declP(base + "/bottom_contour", rclcpp::ParameterValue(toContourArr(geom.BottomContourPoints)));
+            break;
+        }
+        case SettingValueType::SCANNING_VOLUME_MESH: {
+            const auto& mesh = std::get<pho::api::PhoXiMesh>(devVal);
+            std::vector<double> verts;
+            for (const auto& pt : mesh.Vertices) {
+                verts.push_back((double)pt.x);
+                verts.push_back((double)pt.y);
+                verts.push_back((double)pt.z);
+            }
+            std::vector<int64_t> idxs;
+            for (unsigned int i : mesh.Indices) {
+                idxs.push_back((int64_t)i);
+            }
+            declP(base + "/points_per_section", rclcpp::ParameterValue((int64_t)mesh.PointsPerSection));
+            declP(base + "/vertices", rclcpp::ParameterValue(verts));
+            declP(base + "/indices", rclcpp::ParameterValue(idxs));
+            break;
+        }
+        case SettingValueType::REPROJECTION_MAP: {
+            const auto& reproj = std::get<pho::api::PhoXiReprojectionMap>(devVal);
+            declP(base + "/width", rclcpp::ParameterValue((int64_t)reproj.Map.Size.Width));
+            declP(base + "/height", rclcpp::ParameterValue((int64_t)reproj.Map.Size.Height));
+            declP(base + "/cv_type", rclcpp::ParameterValue((int64_t)0));
+            break;
+        }
+    }
+}
+
+void PhoXiCamera::declareDeviceSettingParameters() {
+    if (mSettingDescriptors.empty()) {
+        return;
+    }
+
+    std::vector<std::string> allKeys;
+    allKeys.reserve(mSettingDescriptors.size());
+    for (const auto& desc : mSettingDescriptors) {
+        allKeys.push_back(desc.deviceKey);
+    }
+    const auto deviceValues = mPhoXiInterface->getSettings(allKeys);
+
+    mDeclaringDeviceSettings = true;
+
+    for (size_t i = 0; i < mSettingDescriptors.size(); ++i) {
+        const auto& desc = mSettingDescriptors[i];
+        const auto it = deviceValues.find(desc.deviceKey);
+        if (it == deviceValues.end()) {
+            continue;
+        }
+
+        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + desc.deviceKey;
+        try {
+            declareSettingParams(desc, base, it->second);
+        } catch (const rclcpp::exceptions::ParameterAlreadyDeclaredException&) {
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "Could not declare param for '%s': %s", desc.deviceKey.c_str(), e.what());
+        }
+    }
+
+    mDeclaringDeviceSettings = false;
+
+    std::vector<std::pair<std::string, SettingValue>> overrides;
+    for (size_t i = 0; i < mSettingDescriptors.size(); ++i) {
+        const auto& desc = mSettingDescriptors[i];
+        if (!desc.isSettable) {
+            continue;
+        }
+
+        const auto it = deviceValues.find(desc.deviceKey);
+        if (it == deviceValues.end()) {
+            continue;
+        }
+
+        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + desc.deviceKey;
+        try {
+            const auto currentVal = reconstructSettingValue(desc, base);
+            if (!settingValuesEqual(currentVal, it->second)) {
+                overrides.push_back({desc.deviceKey, currentVal});
+            }
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "Could not compare setting '%s': %s", desc.deviceKey.c_str(), e.what());
+        }
+    }
+
+    if (!overrides.empty()) {
+        mPhoXiInterface->setSettings(overrides);
+    }
+}
+
+SettingValue PhoXiCamera::reconstructSettingValue(const SettingDescriptor& desc, const std::string& base) const {
+    switch (desc.type) {
+        case SettingValueType::BOOL:
+            return get_parameter(base).as_bool();
+        case SettingValueType::INT:
+            return get_parameter(base).as_int();
+        case SettingValueType::DOUBLE:
+            return get_parameter(base).as_double();
+        case SettingValueType::STRING:
+            return get_parameter(base).as_string();
+        case SettingValueType::DOUBLE_ARRAY:
+            return get_parameter(base).as_double_array();
+        case SettingValueType::PHOXI_SIZE:
+            return pho::api::PhoXiSize{(int32_t)get_parameter(base + "/width").as_int(), (int32_t)get_parameter(base + "/height").as_int()};
+        case SettingValueType::PHOXI_SIZE_64F:
+            return pho::api::PhoXiSize_64f{get_parameter(base + "/width").as_double(), get_parameter(base + "/height").as_double()};
+        case SettingValueType::PHOXI_2DROI:
+            return pho::api::PhoXi2DROI{(int32_t)get_parameter(base + "/x_min").as_int(), (int32_t)get_parameter(base + "/y_min").as_int(),
+                    (int32_t)get_parameter(base + "/x_max").as_int(), (int32_t)get_parameter(base + "/y_max").as_int()};
+        case SettingValueType::AXIS_VOLUME_64F: {
+            pho::api::AxisVolume_64f vol;
+            vol.min.x = get_parameter(base + "/x_min").as_double();
+            vol.min.y = get_parameter(base + "/y_min").as_double();
+            vol.min.z = get_parameter(base + "/z_min").as_double();
+            vol.max.x = get_parameter(base + "/x_max").as_double();
+            vol.max.y = get_parameter(base + "/y_max").as_double();
+            vol.max.z = get_parameter(base + "/z_max").as_double();
+            return vol;
+        }
+        case SettingValueType::POINT3_64F:
+            return pho::api::Point3_64f{get_parameter(base + "/r").as_double(), get_parameter(base + "/g").as_double(), get_parameter(base + "/b").as_double()};
+        default:
+            throw PhoXiInterfaceException("reconstructSettingValue: unhandled type for '" + base + "'");
+    }
+}
+
+SettingValue PhoXiCamera::paramToSettingValue(SettingValueType type, const rclcpp::ParameterValue& pv) const {
+    switch (type) {
+        case SettingValueType::BOOL:
+            return pv.get<bool>();
+        case SettingValueType::INT:
+            return pv.get<int64_t>();
+        case SettingValueType::DOUBLE:
+            return pv.get<double>();
+        case SettingValueType::STRING:
+            return pv.get<std::string>();
+        case SettingValueType::DOUBLE_ARRAY:
+            return pv.get<std::vector<double>>();
+        default:
+            throw PhoXiInterfaceException("paramToSettingValue: not a simple type");
+    }
+}
+
+SettingValue PhoXiCamera::applyFieldUpdate(const SettingValue& current, SettingValueType type, const std::string& field, const rclcpp::Parameter& param) const {
+    switch (type) {
+        case SettingValueType::PHOXI_SIZE: {
+            auto s = std::get<pho::api::PhoXiSize>(current);
+            if (field == "width") {
+                s.Width = (int32_t)param.as_int();
+            }
+            if (field == "height") {
+                s.Height = (int32_t)param.as_int();
+            }
+            return s;
+        }
+        case SettingValueType::PHOXI_SIZE_64F: {
+            auto s = std::get<pho::api::PhoXiSize_64f>(current);
+            if (field == "width") {
+                s.Width = param.as_double();
+            }
+            if (field == "height") {
+                s.Height = param.as_double();
+            }
+            return s;
+        }
+        case SettingValueType::PHOXI_2DROI: {
+            auto roi = std::get<pho::api::PhoXi2DROI>(current);
+            if (field == "x_min") {
+                roi.Min.x = (int32_t)param.as_int();
+            }
+            if (field == "y_min") {
+                roi.Min.y = (int32_t)param.as_int();
+            }
+            if (field == "x_max") {
+                roi.Max.x = (int32_t)param.as_int();
+            }
+            if (field == "y_max") {
+                roi.Max.y = (int32_t)param.as_int();
+            }
+            return roi;
+        }
+        case SettingValueType::AXIS_VOLUME_64F: {
+            auto vol = std::get<pho::api::AxisVolume_64f>(current);
+            if (field == "x_min") {
+                vol.min.x = param.as_double();
+            }
+            if (field == "y_min") {
+                vol.min.y = param.as_double();
+            }
+            if (field == "z_min") {
+                vol.min.z = param.as_double();
+            }
+            if (field == "x_max") {
+                vol.max.x = param.as_double();
+            }
+            if (field == "y_max") {
+                vol.max.y = param.as_double();
+            }
+            if (field == "z_max") {
+                vol.max.z = param.as_double();
+            }
+            return vol;
+        }
+        case SettingValueType::POINT3_64F: {
+            auto p = std::get<pho::api::Point3_64f>(current);
+            if (field == "r") {
+                p.x = param.as_double();
+            }
+            if (field == "g") {
+                p.y = param.as_double();
+            }
+            if (field == "b") {
+                p.z = param.as_double();
+            }
+            return p;
+        }
+        default:
+            return current;
+    }
+}
+
+rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const std::vector<rclcpp::Parameter>& params) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+
+    if (mDeclaringDeviceSettings) {
+        return result;
+    }
+
     std::vector<std::pair<std::string, bool>> components;
     for (const auto& p : params) {
         const auto& name = p.get_name();
@@ -264,15 +635,76 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(
         try {
             mPhoXiInterface->setFrameOutputSettings(components);
         } catch (const PhoXiInterfaceException& e) {
-            rcl_interfaces::msg::SetParametersResult result;
             result.successful = false;
             result.reason = e.what();
             return result;
         }
     }
 
-    rcl_interfaces::msg::SetParametersResult result;
-    result.successful = true;
+    std::map<size_t, std::vector<const rclcpp::Parameter*>> deviceChanges;
+    for (const auto& p : params) {
+        const auto& name = p.get_name();
+        if (name.rfind(DEVICE_SETTINGS_PREFIX, 0) != 0) {
+            continue;
+        }
+
+        const auto it = mParamToDescriptor.find(name);
+        if (it == mParamToDescriptor.end()) {
+            result.successful = false;
+            result.reason = "Unknown device setting parameter: '" + name + "'";
+            return result;
+        }
+        deviceChanges[it->second.first].push_back(&p);
+    }
+
+    if (deviceChanges.empty()) {
+        return result;
+    }
+
+    for (const auto& [descIdx, _] : deviceChanges) {
+        const auto& desc = mSettingDescriptors[descIdx];
+        if (!desc.isSettable) {
+            result.successful = false;
+            result.reason = "'" + desc.deviceKey + "' is a read-only device setting";
+            return result;
+        }
+    }
+
+    if (!mPhoXiInterface->isConnected()) {
+        return result;  // params updated in ROS2 but no device call
+    }
+
+    std::vector<std::pair<std::string, SettingValue>> toSet;
+    for (const auto& [descIdx, paramPtrs] : deviceChanges) {
+        const auto& desc = mSettingDescriptors[descIdx];
+        const auto& firstParam = *paramPtrs[0];
+        const auto& fieldName = mParamToDescriptor.at(firstParam.get_name()).second;
+
+        try {
+            if (fieldName.empty()) {
+                toSet.push_back({desc.deviceKey, paramToSettingValue(desc.type, firstParam.get_parameter_value())});
+            } else {
+                auto current = mPhoXiInterface->getSetting(desc.deviceKey);
+                for (const auto* pPtr : paramPtrs) {
+                    const auto& f = mParamToDescriptor.at(pPtr->get_name()).second;
+                    current = applyFieldUpdate(current, desc.type, f, *pPtr);
+                }
+                toSet.push_back({desc.deviceKey, current});
+            }
+        } catch (const std::exception& e) {
+            result.successful = false;
+            result.reason = std::string("Failed to prepare setting '") + desc.deviceKey + "': " + e.what();
+            return result;
+        }
+    }
+
+    try {
+        mPhoXiInterface->setSettings(toSet);
+    } catch (const PhoXiInterfaceException& e) {
+        result.successful = false;
+        result.reason = e.what();
+    }
+
     return result;
 }
 
@@ -333,8 +765,7 @@ void PhoXiCamera::cleanupResources() {
     mResetActiveProfileService.reset();
 }
 
-void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame)
-{
+void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
     std::lock_guard<std::mutex> lock(mFrameMutex);
     try {
         const rclcpp::Time rosStamp = get_clock()->now();
@@ -344,9 +775,7 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame)
             img.header.stamp = rosStamp;
         };
 
-        auto shouldPublish = [](const auto& pub) {
-            return pub->is_activated() && pub->get_subscription_count() > 0;
-        };
+        auto shouldPublish = [](const auto& pub) { return pub->is_activated() && pub->get_subscription_count() > 0; };
 
         if (frame.pointCloud && shouldPublish(mPointCloudPub)) {
             auto msg = phoXiFrameToRosMsg(frame);
@@ -411,11 +840,9 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame)
 }
 
 void PhoXiCamera::connectCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response) {
+        const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response) {
     auto stateId = get_current_state().id();
-    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE &&
-        stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
         RCLCPP_WARN(get_logger(), "Node must be in active or inactive state to connect.");
         response->success = false;
         response->message = "Node is not in active or inactive state.";
@@ -434,12 +861,14 @@ void PhoXiCamera::connectCallback(
 
     bool isActive = (stateId == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE);
     if (isActive) {
-        try { mPhoXiInterface->stopAcquisition(); } catch (...) {}
+        try {
+            mPhoXiInterface->stopAcquisition();
+        } catch (...) {
+        }
         drainFrameCallback();
     }
     try {
-        mPhoXiInterface->connectCamera(snToUse, std::bind(&PhoXiCamera::onFrameCallback,
-            this, std::placeholders::_1));
+        mPhoXiInterface->connectCamera(snToUse, std::bind(&PhoXiCamera::onFrameCallback, this, std::placeholders::_1));
         if (isActive) {
             mPhoXiInterface->startAcquisition();
         }
@@ -454,12 +883,9 @@ void PhoXiCamera::connectCallback(
     response->success = true;
 }
 
-void PhoXiCamera::disconnectCallback(
-    const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+void PhoXiCamera::disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     auto stateId = get_current_state().id();
-    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE &&
-        stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
         RCLCPP_WARN(get_logger(), "Node must be in active or inactive state to disconnect.");
         response->success = false;
         response->message = "Node is not in active or inactive state.";
@@ -477,8 +903,7 @@ void PhoXiCamera::disconnectCallback(
 }
 
 void PhoXiCamera::triggerFrameCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response) {
+        const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response) {
     if (get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
         RCLCPP_WARN(get_logger(), "Node is not active. Cannot trigger frame.");
         response->success = false;
@@ -499,9 +924,8 @@ void PhoXiCamera::triggerFrameCallback(
     response->success = true;
 }
 
-void PhoXiCamera::getProfileListCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response) {
+void PhoXiCamera::getProfileListCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& /*request*/,
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response) {
     RCLCPP_INFO(get_logger(), "Getting profile list.");
     try {
         auto profiles = mPhoXiInterface->getProfileList();
@@ -517,9 +941,8 @@ void PhoXiCamera::getProfileListCallback(
     }
 }
 
-void PhoXiCamera::getActiveProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response) {
+void PhoXiCamera::getActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& /*request*/,
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Getting active profile.");
     try {
         response->name = mPhoXiInterface->getActiveProfile();
@@ -531,9 +954,8 @@ void PhoXiCamera::getActiveProfileCallback(
     }
 }
 
-void PhoXiCamera::setActiveProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response) {
+void PhoXiCamera::setActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Setting active profile to '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->setActiveProfile(request->name);
@@ -546,8 +968,7 @@ void PhoXiCamera::setActiveProfileCallback(
 }
 
 void PhoXiCamera::createProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response) {
+        const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Creating profile '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->createProfile(request->name);
@@ -560,8 +981,7 @@ void PhoXiCamera::createProfileCallback(
 }
 
 void PhoXiCamera::deleteProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response) {
+        const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Deleting profile '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->deleteProfile(request->name);
@@ -574,8 +994,7 @@ void PhoXiCamera::deleteProfileCallback(
 }
 
 void PhoXiCamera::updateProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response) {
+        const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Updating profile '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->updateProfile(request->name);
@@ -587,9 +1006,8 @@ void PhoXiCamera::updateProfileCallback(
     }
 }
 
-void PhoXiCamera::getStartupProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response) {
+void PhoXiCamera::getStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& /*request*/,
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Getting startup profile.");
     try {
         response->name = mPhoXiInterface->getStartupProfile();
@@ -601,9 +1019,8 @@ void PhoXiCamera::getStartupProfileCallback(
     }
 }
 
-void PhoXiCamera::setStartupProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response) {
+void PhoXiCamera::setStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Setting startup profile to '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->setStartupProfile(request->name);
@@ -615,9 +1032,8 @@ void PhoXiCamera::setStartupProfileCallback(
     }
 }
 
-void PhoXiCamera::exportProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response) {
+void PhoXiCamera::exportProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& /*request*/,
+        const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Exporting active profile.");
     try {
         auto content = mPhoXiInterface->exportProfile();
@@ -632,8 +1048,7 @@ void PhoXiCamera::exportProfileCallback(
 }
 
 void PhoXiCamera::importProfileCallback(
-    const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) {
+        const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Importing profile '%s'.", request->name.c_str());
     try {
         pho::api::PhoXiProfileContent content;
@@ -649,8 +1064,7 @@ void PhoXiCamera::importProfileCallback(
 }
 
 void PhoXiCamera::resetActiveProfileCallback(
-    const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+        const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     RCLCPP_INFO(get_logger(), "Resetting active profile to factory defaults.");
     try {
         mPhoXiInterface->resetActiveProfile();
@@ -661,6 +1075,6 @@ void PhoXiCamera::resetActiveProfileCallback(
         response->message = e.what();
     }
 }
-} // namespace phoxi_camera
+}  // namespace phoxi_camera
 
 RCLCPP_COMPONENTS_REGISTER_NODE(phoxi_camera::PhoXiCamera)

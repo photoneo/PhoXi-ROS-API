@@ -2,9 +2,11 @@
 #define PHOXI_CAMERA_PHOXIINTERFACE_H
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "PhoXi.h"
@@ -12,11 +14,36 @@
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/PhoXiFrame.h"
 
-namespace phoxi_camera
-{
-class PhoXiInterface
-{
-  public:
+namespace phoxi_camera {
+
+enum class SettingValueType {
+    BOOL,
+    INT,
+    DOUBLE,
+    STRING,
+    DOUBLE_ARRAY,
+    PHOXI_SIZE,
+    PHOXI_SIZE_64F,
+    PHOXI_2DROI,
+    AXIS_VOLUME_64F,
+    POINT3_64F,
+    CUTTING_PLANES,
+    SCANNING_VOLUME,
+    SCANNING_VOLUME_MESH,
+    REPROJECTION_MAP,
+};
+
+using SettingValue = std::variant<bool, int64_t, double, std::string, std::vector<double>, pho::api::PhoXiSize, pho::api::PhoXiSize_64f, pho::api::PhoXi2DROI,
+        pho::api::AxisVolume_64f, pho::api::Point3_64f, std::vector<pho::api::Plane_64f>, pho::api::ProjectionGeometry_64f, pho::api::PhoXiMesh, pho::api::PhoXiReprojectionMap>;
+
+struct SettingInfo {
+    std::string key;
+    SettingValueType type;
+    bool isSettable;
+};
+
+class PhoXiInterface {
+public:
     using GetFrameCallback = std::function<void(const PhoXiFrame&)>;
 
     PhoXiInterface() = default;
@@ -218,17 +245,59 @@ class PhoXiInterface
      */
     virtual void setFrameOutputSettings(const std::vector<std::pair<std::string, bool>>& components);
 
+    /**
+     * Return the setting descriptors built when connectCamera() succeeded.
+     * Empty if the device does not expose a schema or the camera is not connected.
+     */
+    const std::vector<SettingInfo>& getSettingInfos() const { return mSettingInfos; }
+
+    /**
+     * Get a single device setting value.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error or unknown key
+     */
+    virtual SettingValue getSetting(const std::string& key);
+
+    /**
+     * Get multiple device setting values in one round-trip.
+     * Keys not returned by the device are omitted from the result.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual std::map<std::string, SettingValue> getSettings(const std::vector<std::string>& keys);
+
+    /**
+     * Set a single device setting value.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void setSetting(const std::string& key, const SettingValue& value);
+
+    /**
+     * Set multiple device setting values in one round-trip.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on SDK error
+     */
+    virtual void setSettings(const std::vector<std::pair<std::string, SettingValue>>& keyValues);
+
     pho::api::PPhoXi mPhoXiDevice;
 
-  protected:
+protected:
     pho::api::PhoXiFactory mPhoXiFactory;
 
-  private:
+private:
     static void frameAcceptor(const phoxi_frame_record_t* records, void* userData);
+    void loadDeviceSchema();
 
     const int CONNECTION_TIMEOUT_MS = 60000;
     mutable std::mutex mFrameCallbackMutex;
     GetFrameCallback mFrameCallback;
+    std::map<std::string, SettingValueType> mSchemaTypeCache;
+    std::vector<SettingInfo> mSettingInfos;
 };
 }  // namespace phoxi_camera
 

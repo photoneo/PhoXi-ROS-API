@@ -1,3 +1,4 @@
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -21,19 +22,19 @@ using ::testing::UnorderedElementsAre;
 
 static constexpr const char* kDeviceId = "test-device-fs";
 
-// Alias needed because MOCK_METHOD macros cannot handle commas inside
+// Aliases needed because MOCK_METHOD macros cannot handle commas inside
 // template arguments.
 using ComponentList = std::vector<std::pair<std::string, bool>>;
+using SettingValueMap = std::map<std::string, SettingValue>;
+using SettingKeyValueList = std::vector<std::pair<std::string, SettingValue>>;
 
 // ---------------------------------------------------------------------------
 // Mock
 // ---------------------------------------------------------------------------
 
-class MockPhoXiInterface : public PhoXiInterface
-{
-  public:
-    MOCK_METHOD(void, connectCamera,
-        (const std::string&, GetFrameCallback&&), (override));
+class MockPhoXiInterface : public PhoXiInterface {
+public:
+    MOCK_METHOD(void, connectCamera, (const std::string&, GetFrameCallback&&), (override));
     MOCK_METHOD(void, disconnectCamera, (), (override));
     MOCK_METHOD(void, triggerFrame, (bool), (override));
     MOCK_METHOD(void, startAcquisition, (), (override));
@@ -52,14 +53,15 @@ class MockPhoXiInterface : public PhoXiInterface
     MOCK_METHOD(pho::api::PhoXiProfileContent, exportProfile, (), (override));
     MOCK_METHOD(void, importProfile, (const pho::api::PhoXiProfileContent&), (override));
     MOCK_METHOD(void, resetActiveProfile, (), (override));
+    MOCK_METHOD(SettingValue, getSetting, (const std::string&), (override));
+    MOCK_METHOD(SettingValueMap, getSettings, (const std::vector<std::string>&), (override));
+    MOCK_METHOD(void, setSetting, (const std::string&, const SettingValue&), (override));
+    MOCK_METHOD(void, setSettings, (const SettingKeyValueList&), (override));
 };
 
-class TestableNode : public PhoXiCamera
-{
-  public:
-    TestableNode(const std::string& deviceId, const rclcpp::NodeOptions& options,
-        std::unique_ptr<PhoXiInterface> iface)
-    : PhoXiCamera(deviceId, options) {
+class TestableNode : public PhoXiCamera {
+public:
+    TestableNode(const std::string& deviceId, const rclcpp::NodeOptions& options, std::unique_ptr<PhoXiInterface> iface) : PhoXiCamera(deviceId, options) {
         mPhoXiInterface = std::move(iface);
     }
 };
@@ -68,9 +70,8 @@ class TestableNode : public PhoXiCamera
 // Fixture
 // ---------------------------------------------------------------------------
 
-class FrameSettingsTest : public ::testing::Test
-{
-  protected:
+class FrameSettingsTest : public ::testing::Test {
+protected:
     void SetUp() override {
         auto mockPtr = std::make_unique<MockPhoXiInterface>();
         mockInterface = mockPtr.get();
@@ -78,6 +79,7 @@ class FrameSettingsTest : public ::testing::Test
 
         EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(false));
         EXPECT_CALL(*mockInterface, isAcquiring()).WillRepeatedly(Return(false));
+        EXPECT_CALL(*mockInterface, getSettings(_)).WillRepeatedly(Return(SettingValueMap{}));
 
         rclcpp::NodeOptions options;
         lcNode = std::make_shared<TestableNode>(kDeviceId, options, std::move(mockPtr));
@@ -99,16 +101,14 @@ class FrameSettingsTest : public ::testing::Test
     }
 
     bool changeLcState(uint8_t transition) {
-        auto client = clientNode->create_client<lifecycle_msgs::srv::ChangeState>(
-            "/phoxi_camera/change_state");
+        auto client = clientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
         if (!client->wait_for_service(std::chrono::seconds(2))) {
             return false;
         }
         auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
         req->transition.id = transition;
         auto future = client->async_send_request(req);
-        return executor_.spin_until_future_complete(future) == rclcpp::FutureReturnCode::SUCCESS
-            && future.get()->success;
+        return executor_.spin_until_future_complete(future) == rclcpp::FutureReturnCode::SUCCESS && future.get()->success;
     }
 
     bool configure() {
@@ -123,10 +123,7 @@ class FrameSettingsTest : public ::testing::Test
 
     // Simulate loading a value from YAML: set the param before configure so
     // on_configure picks it up via get_parameter().
-    void setParamBeforeConfigure(const std::string& component, bool enabled) {
-        lcNode->set_parameter(
-            rclcpp::Parameter("frameSettings/" + component, enabled));
-    }
+    void setParamBeforeConfigure(const std::string& component, bool enabled) { lcNode->set_parameter(rclcpp::Parameter("frameSettings/" + component, enabled)); }
 
     rclcpp::executors::SingleThreadedExecutor executor_;
     MockPhoXiInterface* mockInterface = nullptr;
@@ -148,10 +145,7 @@ TEST_F(FrameSettingsTest, Configure_SingleComponentEnabled_CallsWithCorrectCompo
     setParamBeforeConfigure("PointCloud", true);
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 
@@ -166,10 +160,7 @@ TEST_F(FrameSettingsTest, Configure_ComponentDisabled_PassedAsFalse) {
     setParamBeforeConfigure("NormalMap", false);
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 
@@ -186,32 +177,22 @@ TEST_F(FrameSettingsTest, Configure_MultipleComponents_AllPassedTogether) {
     setParamBeforeConfigure("EventMap", false);
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 
-    EXPECT_THAT(captured, UnorderedElementsAre(
-        Pair("DepthMap", true),
-        Pair("ConfidenceMap", false),
-        Pair("EventMap", false)));
+    EXPECT_THAT(captured, UnorderedElementsAre(Pair("DepthMap", true), Pair("ConfidenceMap", false), Pair("EventMap", false)));
 
     ASSERT_TRUE(cleanup());
 }
 
 TEST_F(FrameSettingsTest, Configure_AllComponents_AllSevenPassed) {
-    for (const auto* name : {"PointCloud", "NormalMap", "DepthMap", "Texture",
-                              "ConfidenceMap", "ColorCameraImage", "EventMap"}) {
+    for (const auto* name : {"PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"}) {
         setParamBeforeConfigure(name, true);
     }
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 
@@ -228,8 +209,7 @@ TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_ReturnsFailure)
     setParamBeforeConfigure("Texture", true);
 
     EXPECT_CALL(*mockInterface, connectCamera(kDeviceId, _)).Times(1);
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce(Throw(PhoXiInterfaceException("SDK rejected component")));
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce(Throw(PhoXiInterfaceException("SDK rejected component")));
     EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
 
     EXPECT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
@@ -240,8 +220,7 @@ TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_CanReconfigureS
 
     // First configure: setFrameOutputSettings throws → FAILURE + disconnect
     EXPECT_CALL(*mockInterface, connectCamera(kDeviceId, _)).Times(1);
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce(Throw(PhoXiInterfaceException("transient error")));
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce(Throw(PhoXiInterfaceException("transient error")));
     EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
     ASSERT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
@@ -263,10 +242,7 @@ TEST_F(FrameSettingsTest, ParameterChange_WhenConnected_CallsSetFrameOutputSetti
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings/DepthMap", false));
     EXPECT_TRUE(result.successful);
@@ -296,19 +272,14 @@ TEST_F(FrameSettingsTest, ParameterChange_MultipleComponents_AllPassedInSingleCa
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     lcNode->set_parameters_atomically({
-        rclcpp::Parameter("frameSettings/PointCloud", true),
-        rclcpp::Parameter("frameSettings/ColorCameraImage", false),
+            rclcpp::Parameter("frameSettings/PointCloud", true),
+            rclcpp::Parameter("frameSettings/ColorCameraImage", false),
     });
 
-    EXPECT_THAT(captured, UnorderedElementsAre(
-        Pair("PointCloud", true),
-        Pair("ColorCameraImage", false)));
+    EXPECT_THAT(captured, UnorderedElementsAre(Pair("PointCloud", true), Pair("ColorCameraImage", false)));
 
     ASSERT_TRUE(cleanup());
 }
@@ -330,14 +301,11 @@ TEST_F(FrameSettingsTest, ParameterChange_MixedParams_OnlyFrameSettingsForwarded
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     lcNode->set_parameters_atomically({
-        rclcpp::Parameter("publish_combined", false),
-        rclcpp::Parameter("frameSettings/EventMap", false),
+            rclcpp::Parameter("publish_combined", false),
+            rclcpp::Parameter("frameSettings/EventMap", false),
     });
 
     ASSERT_EQ(captured.size(), 1u);
@@ -350,8 +318,7 @@ TEST_F(FrameSettingsTest, ParameterChange_SetFrameOutputSettingsThrows_CallbackR
     ASSERT_TRUE(configure());
 
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce(Throw(PhoXiInterfaceException("device busy")));
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce(Throw(PhoXiInterfaceException("device busy")));
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings/Texture", false));
     EXPECT_FALSE(result.successful);
@@ -367,10 +334,7 @@ TEST_F(FrameSettingsTest, YamlOverride_SingleComponentBeforeConfigure_AppliedOnC
     setParamBeforeConfigure("ColorCameraImage", false);
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 
@@ -387,17 +351,11 @@ TEST_F(FrameSettingsTest, YamlOverride_MultipleComponents_AllAppliedOnConfigure)
     setParamBeforeConfigure("ConfidenceMap", false);
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 
-    EXPECT_THAT(captured, UnorderedElementsAre(
-        Pair("PointCloud", true),
-        Pair("NormalMap", false),
-        Pair("ConfidenceMap", false)));
+    EXPECT_THAT(captured, UnorderedElementsAre(Pair("PointCloud", true), Pair("NormalMap", false), Pair("ConfidenceMap", false)));
 
     ASSERT_TRUE(cleanup());
 }
@@ -407,10 +365,7 @@ TEST_F(FrameSettingsTest, YamlOverride_UnsetComponentsNotPassed) {
     setParamBeforeConfigure("DepthMap", true);
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
-        .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
-            captured = c;
-        });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     ASSERT_TRUE(configure());
 

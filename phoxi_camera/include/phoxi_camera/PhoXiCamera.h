@@ -1,9 +1,12 @@
 #ifndef PHOXI_CAMERA_ROSINTERFACE_H
 #define PHOXI_CAMERA_ROSINTERFACE_H
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "phoxi_camera/PhoXiInterface.h"
 #include "phoxi_camera_msgs/srv/connect.hpp"
@@ -16,19 +19,17 @@
 #include "phoxi_camera_msgs/srv/import_profile.hpp"
 #include "phoxi_camera_msgs/srv/set_active_profile.hpp"
 #include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
-#include "phoxi_camera_msgs/srv/update_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
+#include "phoxi_camera_msgs/srv/update_profile.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
-namespace phoxi_camera
-{
-class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
-{
-  public:
+namespace phoxi_camera {
+class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode {
+public:
     explicit PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options);
     explicit PhoXiCamera(const rclcpp::NodeOptions& options);
     ~PhoXiCamera() override;
@@ -39,48 +40,65 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     CallbackReturn on_cleanup(const rclcpp_lifecycle::State& previous_state) override;
     CallbackReturn on_shutdown(const rclcpp_lifecycle::State& previous_state) override;
 
-  protected:
+protected:
     std::unique_ptr<PhoXiInterface> mPhoXiInterface;
 
-  private:
+private:
+    struct SettingDescriptor {
+        std::string deviceKey;
+        SettingValueType type;
+        bool isSettable;
+    };
+
     void drainFrameCallback();
     void declareParameters();
+    void loadDeviceSettingDescriptors();
+    void declareDeviceSettingParameters();
     void activatePublishers();
     void deactivatePublishers();
     void cleanupResources();
 
     void onFrameCallback(const PhoXiFrame& frame);
-    rcl_interfaces::msg::SetParametersResult onParametersChanged(
-        const std::vector<rclcpp::Parameter>& params);
+    rcl_interfaces::msg::SetParametersResult onParametersChanged(const std::vector<rclcpp::Parameter>& params);
 
-    void connectCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
-    void disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
-    void triggerFrameCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response);
+    // Declare one or more ROS2 params for a setting, using devVal as the default.
+    void declareSettingParams(const SettingDescriptor& desc, const std::string& baseParam, const SettingValue& devVal);
+
+    // Reconstruct a SettingValue from currently declared ROS2 params (for settable types).
+    SettingValue reconstructSettingValue(const SettingDescriptor& desc, const std::string& baseParam) const;
+
+    // Convert a single param value to SettingValue for simple (non-object) types.
+    SettingValue paramToSettingValue(SettingValueType type, const rclcpp::ParameterValue& pv) const;
+
+    // Apply a single field update to an object-type SettingValue (partial update).
+    SettingValue applyFieldUpdate(const SettingValue& current, SettingValueType type, const std::string& field, const rclcpp::Parameter& param) const;
+
+    void connectCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
+    void disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void triggerFrameCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response);
     void getProfileListCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response);
+            const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response);
     void getActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response);
+            const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response);
     void setActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response);
-    void createProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response);
-    void deleteProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response);
-    void updateProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response);
+            const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response);
+    void createProfileCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response);
+    void deleteProfileCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response);
+    void updateProfileCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response);
     void getStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response);
+            const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response);
     void setStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response);
-    void exportProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response);
-    void importProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response);
-    void resetActiveProfileCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+            const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response);
+    void exportProfileCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response);
+    void importProfileCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response);
+    void resetActiveProfileCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
 
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointCloudPub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointsPub;
@@ -111,6 +129,13 @@ class PhoXiCamera : public rclcpp_lifecycle::LifecycleNode
     std::string mDeviceId;
     std::string mFrameId;
     bool mPublishCombined = false;
+
+    // Device settings parameter state
+    std::vector<SettingDescriptor> mSettingDescriptors;
+    // Maps ROS2 param name → {descriptor index, object field name (empty for simple types)}
+    std::map<std::string, std::pair<size_t, std::string>> mParamToDescriptor;
+    // Suppresses device calls from onParametersChanged during initial param declaration
+    bool mDeclaringDeviceSettings = false;
 };
 
 }  // namespace phoxi_camera
