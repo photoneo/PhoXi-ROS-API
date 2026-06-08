@@ -98,13 +98,13 @@ if(BUILD_TESTING)
     find_package(ament_cmake_gmock REQUIRED)
 
     ament_add_gmock(${PROJECT_NAME}_ros_interface_test
-            test/test_ros_interface.cpp
+            test_mock/test_ros_interface.cpp
             TIMEOUT 200
     )
     target_link_libraries(${PROJECT_NAME}_ros_interface_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_ros_interface_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+    target_include_directories(${PROJECT_NAME}_ros_interface_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
     ament_add_gtest(${PROJECT_NAME}_conversions_test
             test/test_conversions.cpp
@@ -115,31 +115,31 @@ if(BUILD_TESTING)
     )
 
     ament_add_gmock(${PROJECT_NAME}_frame_settings_test
-            test/test_frame_settings.cpp
+            test_mock/test_frame_settings.cpp
             TIMEOUT 200
     )
     target_link_libraries(${PROJECT_NAME}_frame_settings_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_frame_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+    target_include_directories(${PROJECT_NAME}_frame_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
     ament_add_gmock(${PROJECT_NAME}_setting_types_test
-            test/test_setting_types.cpp
+            test_mock/test_setting_types.cpp
             TIMEOUT 200
     )
     target_link_libraries(${PROJECT_NAME}_setting_types_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_setting_types_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+    target_include_directories(${PROJECT_NAME}_setting_types_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
     ament_add_gmock(${PROJECT_NAME}_device_settings_params_test
-            test/test_device_settings_params.cpp
+            test_mock/test_device_settings_params.cpp
             TIMEOUT 200
     )
     target_link_libraries(${PROJECT_NAME}_device_settings_params_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_device_settings_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+    target_include_directories(${PROJECT_NAME}_device_settings_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
     ament_add_gtest(${PROJECT_NAME}_hardware_integration_test
             test/test_hardware_integration.cpp
