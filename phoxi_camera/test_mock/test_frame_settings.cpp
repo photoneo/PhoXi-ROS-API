@@ -26,7 +26,7 @@ protected:
     void SetUp() override { SetUpBase("test-device-fs", "fs_test_client"); }
 
     void setParamBeforeConfigure(const std::string& component, bool enabled) {
-        lcNode->set_parameter(rclcpp::Parameter("frameSettings/" + component, enabled));
+        lcNode->set_parameter(rclcpp::Parameter("frameSettings." + component, enabled));
     }
 };
 
@@ -132,7 +132,7 @@ TEST_F(FrameSettingsTest, ParameterChange_WhenConnected_CallsSetFrameOutputSetti
     std::vector<std::pair<std::string, bool>> captured;
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings/DepthMap", false));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings.DepthMap", false));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -147,7 +147,7 @@ TEST_F(FrameSettingsTest, ParameterChange_WhenNotConnected_DoesNotCallSetFrameOu
 
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).Times(0);
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings/NormalMap", false));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings.NormalMap", false));
     EXPECT_TRUE(result.successful);
 
     ASSERT_TRUE(cleanup());
@@ -162,8 +162,8 @@ TEST_F(FrameSettingsTest, ParameterChange_MultipleComponents_AllPassedInSingleCa
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     lcNode->set_parameters_atomically({
-            rclcpp::Parameter("frameSettings/PointCloud", true),
-            rclcpp::Parameter("frameSettings/ColorCameraImage", false),
+            rclcpp::Parameter("frameSettings.PointCloud", true),
+            rclcpp::Parameter("frameSettings.ColorCameraImage", false),
     });
 
     EXPECT_THAT(captured, UnorderedElementsAre(Pair("PointCloud", true), Pair("ColorCameraImage", false)));
@@ -192,7 +192,7 @@ TEST_F(FrameSettingsTest, ParameterChange_MixedParams_OnlyFrameSettingsForwarded
 
     lcNode->set_parameters_atomically({
             rclcpp::Parameter("publish_combined", false),
-            rclcpp::Parameter("frameSettings/EventMap", false),
+            rclcpp::Parameter("frameSettings.EventMap", false),
     });
 
     ASSERT_EQ(captured.size(), 1u);
@@ -207,7 +207,7 @@ TEST_F(FrameSettingsTest, ParameterChange_SetFrameOutputSettingsThrows_CallbackR
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce(Throw(PhoXiInterfaceException("device busy")));
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings/Texture", false));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings.Texture", false));
     EXPECT_FALSE(result.successful);
 
     ASSERT_TRUE(cleanup());

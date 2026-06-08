@@ -52,11 +52,10 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
 }
 
 int main(int argc, char** argv) {
-    DeviceRequiredTest::parseDeviceId(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
     rclcpp::init(argc, argv);
     if (DeviceRequiredTest::deviceId().empty()) {
-        std::cerr << "[ERROR] --device_id is required. Usage: test_hardware_integration --device_id=<id>\n";
+        std::cerr << "[ERROR] PHO_TEST_DEVICE_ID environment variable is not set.\n";
         rclcpp::shutdown();
         return 1;
     }

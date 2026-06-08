@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdlib>
 #include <memory>
 #include <string>
 
@@ -12,20 +13,12 @@
 
 class DeviceRequiredTest : public ::testing::Test {
 public:
-    static std::string& deviceId() {
-        static std::string id;
+    static const std::string& deviceId() {
+        static const std::string id = [] {
+            const char* env = std::getenv("PHO_TEST_DEVICE_ID");
+            return env ? std::string(env) : std::string{};
+        }();
         return id;
-    }
-
-    static void parseDeviceId(int argc, char** argv) {
-        for (int i = 1; i < argc; ++i) {
-            std::string arg = argv[i];
-            if (arg.rfind("--device_id=", 0) == 0) {
-                deviceId() = arg.substr(12);
-            } else if (arg == "--device_id" && i + 1 < argc) {
-                deviceId() = argv[++i];
-            }
-        }
     }
 
 protected:

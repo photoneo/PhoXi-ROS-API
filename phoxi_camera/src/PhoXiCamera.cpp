@@ -13,8 +13,15 @@
 namespace phoxi_camera {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
-static constexpr std::string_view kFrameSettingsPrefix = "frameSettings/";
-static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings/";
+static constexpr char PARAM_SEP = '.';
+static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings";
+static constexpr std::string_view FRAME_SETTINGS_PREFIX = "frameSettings";
+
+static std::string deviceKeyToParamName(const std::string& key) {
+    std::string name = key;
+    std::replace(name.begin(), name.end(), '/', PARAM_SEP);
+    return name;
+}
 
 // PhoXiReprojectionMap, PhoXiMesh and ProjectionGeometry_64f define operator==
 // but not operator!=, so std::variant::operator!= cannot be instantiated.
@@ -93,7 +100,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     try {
         std::vector<std::pair<std::string, bool>> components;
         for (const auto& componentName : kComponents) {
-            const auto param = get_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName));
+            const auto param = get_parameter(std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + std::string(componentName));
             if (param.get_type() != rclcpp::PARAMETER_NOT_SET) {
                 components.emplace_back(std::string(componentName), param.as_bool());
             }
@@ -235,7 +242,7 @@ void PhoXiCamera::declareParameters() {
     rcl_interfaces::msg::ParameterDescriptor dynamicDesc;
     dynamicDesc.dynamic_typing = true;
     for (const auto& componentName : kComponents) {
-        declare_parameter(std::string(kFrameSettingsPrefix) + std::string(componentName), rclcpp::ParameterValue{}, dynamicDesc);
+        declare_parameter(std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + std::string(componentName), rclcpp::ParameterValue{}, dynamicDesc);
     }
 
     mParamCallbackHandle = add_on_set_parameters_callback(std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
@@ -253,51 +260,51 @@ void PhoXiCamera::loadDeviceSettingDescriptors() {
         const size_t idx = mSettingDescriptors.size();
         mSettingDescriptors.push_back({info.key, info.type, info.isSettable});
 
-        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + info.key;
+        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + PARAM_SEP + deviceKeyToParamName(info.key);
 
         switch (info.type) {
             case SettingValueType::PHOXI_SIZE:
             case SettingValueType::PHOXI_SIZE_64F:
-                mParamToDescriptor[base + "/width"] = {idx, "width"};
-                mParamToDescriptor[base + "/height"] = {idx, "height"};
+                mParamToDescriptor[base + PARAM_SEP + "width"] = {idx, "width"};
+                mParamToDescriptor[base + PARAM_SEP + "height"] = {idx, "height"};
                 break;
             case SettingValueType::PHOXI_2DROI:
-                mParamToDescriptor[base + "/x_min"] = {idx, "x_min"};
-                mParamToDescriptor[base + "/x_max"] = {idx, "x_max"};
-                mParamToDescriptor[base + "/y_min"] = {idx, "y_min"};
-                mParamToDescriptor[base + "/y_max"] = {idx, "y_max"};
+                mParamToDescriptor[base + PARAM_SEP + "x_min"] = {idx, "x_min"};
+                mParamToDescriptor[base + PARAM_SEP + "x_max"] = {idx, "x_max"};
+                mParamToDescriptor[base + PARAM_SEP + "y_min"] = {idx, "y_min"};
+                mParamToDescriptor[base + PARAM_SEP + "y_max"] = {idx, "y_max"};
                 break;
             case SettingValueType::AXIS_VOLUME_64F:
-                mParamToDescriptor[base + "/x_min"] = {idx, "x_min"};
-                mParamToDescriptor[base + "/x_max"] = {idx, "x_max"};
-                mParamToDescriptor[base + "/y_min"] = {idx, "y_min"};
-                mParamToDescriptor[base + "/y_max"] = {idx, "y_max"};
-                mParamToDescriptor[base + "/z_min"] = {idx, "z_min"};
-                mParamToDescriptor[base + "/z_max"] = {idx, "z_max"};
+                mParamToDescriptor[base + PARAM_SEP + "x_min"] = {idx, "x_min"};
+                mParamToDescriptor[base + PARAM_SEP + "x_max"] = {idx, "x_max"};
+                mParamToDescriptor[base + PARAM_SEP + "y_min"] = {idx, "y_min"};
+                mParamToDescriptor[base + PARAM_SEP + "y_max"] = {idx, "y_max"};
+                mParamToDescriptor[base + PARAM_SEP + "z_min"] = {idx, "z_min"};
+                mParamToDescriptor[base + PARAM_SEP + "z_max"] = {idx, "z_max"};
                 break;
             case SettingValueType::POINT3_64F:
-                mParamToDescriptor[base + "/r"] = {idx, "r"};
-                mParamToDescriptor[base + "/g"] = {idx, "g"};
-                mParamToDescriptor[base + "/b"] = {idx, "b"};
+                mParamToDescriptor[base + PARAM_SEP + "r"] = {idx, "r"};
+                mParamToDescriptor[base + PARAM_SEP + "g"] = {idx, "g"};
+                mParamToDescriptor[base + PARAM_SEP + "b"] = {idx, "b"};
                 break;
             case SettingValueType::SCANNING_VOLUME:
-                mParamToDescriptor[base + "/origin"] = {idx, "origin"};
-                mParamToDescriptor[base + "/top_left"] = {idx, "top_left"};
-                mParamToDescriptor[base + "/top_right"] = {idx, "top_right"};
-                mParamToDescriptor[base + "/bottom_left"] = {idx, "bottom_left"};
-                mParamToDescriptor[base + "/bottom_right"] = {idx, "bottom_right"};
-                mParamToDescriptor[base + "/top_contour"] = {idx, "top_contour"};
-                mParamToDescriptor[base + "/bottom_contour"] = {idx, "bottom_contour"};
+                mParamToDescriptor[base + PARAM_SEP + "origin"] = {idx, "origin"};
+                mParamToDescriptor[base + PARAM_SEP + "top_left"] = {idx, "top_left"};
+                mParamToDescriptor[base + PARAM_SEP + "top_right"] = {idx, "top_right"};
+                mParamToDescriptor[base + PARAM_SEP + "bottom_left"] = {idx, "bottom_left"};
+                mParamToDescriptor[base + PARAM_SEP + "bottom_right"] = {idx, "bottom_right"};
+                mParamToDescriptor[base + PARAM_SEP + "top_contour"] = {idx, "top_contour"};
+                mParamToDescriptor[base + PARAM_SEP + "bottom_contour"] = {idx, "bottom_contour"};
                 break;
             case SettingValueType::SCANNING_VOLUME_MESH:
-                mParamToDescriptor[base + "/points_per_section"] = {idx, "points_per_section"};
-                mParamToDescriptor[base + "/vertices"] = {idx, "vertices"};
-                mParamToDescriptor[base + "/indices"] = {idx, "indices"};
+                mParamToDescriptor[base + PARAM_SEP + "points_per_section"] = {idx, "points_per_section"};
+                mParamToDescriptor[base + PARAM_SEP + "vertices"] = {idx, "vertices"};
+                mParamToDescriptor[base + PARAM_SEP + "indices"] = {idx, "indices"};
                 break;
             case SettingValueType::REPROJECTION_MAP:
-                mParamToDescriptor[base + "/width"] = {idx, "width"};
-                mParamToDescriptor[base + "/height"] = {idx, "height"};
-                mParamToDescriptor[base + "/cv_type"] = {idx, "cv_type"};
+                mParamToDescriptor[base + PARAM_SEP + "width"] = {idx, "width"};
+                mParamToDescriptor[base + PARAM_SEP + "height"] = {idx, "height"};
+                mParamToDescriptor[base + PARAM_SEP + "cv_type"] = {idx, "cv_type"};
                 break;
             default:
                 mParamToDescriptor[base] = {idx, ""};
@@ -307,7 +314,9 @@ void PhoXiCamera::loadDeviceSettingDescriptors() {
 }
 
 void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std::string& base, const SettingValue& devVal) {
-    auto declP = [this](const std::string& name, rclcpp::ParameterValue v) { declare_parameter(name, std::move(v)); };
+    auto declP = [this](const std::string& name, rclcpp::ParameterValue v) {
+        declare_parameter(name, std::move(v));
+    };
 
     switch (desc.type) {
         case SettingValueType::BOOL:
@@ -341,39 +350,39 @@ void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std:
         }
         case SettingValueType::PHOXI_SIZE: {
             const auto& s = std::get<pho::api::PhoXiSize>(devVal);
-            declP(base + "/width", rclcpp::ParameterValue((int64_t)s.Width));
-            declP(base + "/height", rclcpp::ParameterValue((int64_t)s.Height));
+            declP(base + PARAM_SEP + "width", rclcpp::ParameterValue((int64_t)s.Width));
+            declP(base + PARAM_SEP + "height", rclcpp::ParameterValue((int64_t)s.Height));
             break;
         }
         case SettingValueType::PHOXI_SIZE_64F: {
             const auto& s = std::get<pho::api::PhoXiSize_64f>(devVal);
-            declP(base + "/width", rclcpp::ParameterValue((double)s.Width));
-            declP(base + "/height", rclcpp::ParameterValue((double)s.Height));
+            declP(base + PARAM_SEP + "width", rclcpp::ParameterValue((double)s.Width));
+            declP(base + PARAM_SEP + "height", rclcpp::ParameterValue((double)s.Height));
             break;
         }
         case SettingValueType::PHOXI_2DROI: {
             const auto& roi = std::get<pho::api::PhoXi2DROI>(devVal);
-            declP(base + "/x_min", rclcpp::ParameterValue((int64_t)(int32_t)roi.Min.x));
-            declP(base + "/y_min", rclcpp::ParameterValue((int64_t)(int32_t)roi.Min.y));
-            declP(base + "/x_max", rclcpp::ParameterValue((int64_t)(int32_t)roi.Max.x));
-            declP(base + "/y_max", rclcpp::ParameterValue((int64_t)(int32_t)roi.Max.y));
+            declP(base + PARAM_SEP + "x_min", rclcpp::ParameterValue((int64_t)(int32_t)roi.Min.x));
+            declP(base + PARAM_SEP + "y_min", rclcpp::ParameterValue((int64_t)(int32_t)roi.Min.y));
+            declP(base + PARAM_SEP + "x_max", rclcpp::ParameterValue((int64_t)(int32_t)roi.Max.x));
+            declP(base + PARAM_SEP + "y_max", rclcpp::ParameterValue((int64_t)(int32_t)roi.Max.y));
             break;
         }
         case SettingValueType::AXIS_VOLUME_64F: {
             const auto& vol = std::get<pho::api::AxisVolume_64f>(devVal);
-            declP(base + "/x_min", rclcpp::ParameterValue((double)vol.min.x));
-            declP(base + "/y_min", rclcpp::ParameterValue((double)vol.min.y));
-            declP(base + "/z_min", rclcpp::ParameterValue((double)vol.min.z));
-            declP(base + "/x_max", rclcpp::ParameterValue((double)vol.max.x));
-            declP(base + "/y_max", rclcpp::ParameterValue((double)vol.max.y));
-            declP(base + "/z_max", rclcpp::ParameterValue((double)vol.max.z));
+            declP(base + PARAM_SEP + "x_min", rclcpp::ParameterValue((double)vol.min.x));
+            declP(base + PARAM_SEP + "y_min", rclcpp::ParameterValue((double)vol.min.y));
+            declP(base + PARAM_SEP + "z_min", rclcpp::ParameterValue((double)vol.min.z));
+            declP(base + PARAM_SEP + "x_max", rclcpp::ParameterValue((double)vol.max.x));
+            declP(base + PARAM_SEP + "y_max", rclcpp::ParameterValue((double)vol.max.y));
+            declP(base + PARAM_SEP + "z_max", rclcpp::ParameterValue((double)vol.max.z));
             break;
         }
         case SettingValueType::POINT3_64F: {
             const auto& p = std::get<pho::api::Point3_64f>(devVal);
-            declP(base + "/r", rclcpp::ParameterValue((double)p.x));
-            declP(base + "/g", rclcpp::ParameterValue((double)p.y));
-            declP(base + "/b", rclcpp::ParameterValue((double)p.z));
+            declP(base + PARAM_SEP + "r", rclcpp::ParameterValue((double)p.x));
+            declP(base + PARAM_SEP + "g", rclcpp::ParameterValue((double)p.y));
+            declP(base + PARAM_SEP + "b", rclcpp::ParameterValue((double)p.z));
             break;
         }
         case SettingValueType::SCANNING_VOLUME: {
@@ -388,13 +397,13 @@ void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std:
                 }
                 return arr;
             };
-            declP(base + "/origin", rclcpp::ParameterValue(toArr(geom.Origin)));
-            declP(base + "/top_left", rclcpp::ParameterValue(toArr(geom.TopLeftTangentialVector)));
-            declP(base + "/top_right", rclcpp::ParameterValue(toArr(geom.TopRightTangentialVector)));
-            declP(base + "/bottom_left", rclcpp::ParameterValue(toArr(geom.BottomLeftTangentialVector)));
-            declP(base + "/bottom_right", rclcpp::ParameterValue(toArr(geom.BottomRightTangentialVector)));
-            declP(base + "/top_contour", rclcpp::ParameterValue(toContourArr(geom.TopContourPoints)));
-            declP(base + "/bottom_contour", rclcpp::ParameterValue(toContourArr(geom.BottomContourPoints)));
+            declP(base + PARAM_SEP + "origin", rclcpp::ParameterValue(toArr(geom.Origin)));
+            declP(base + PARAM_SEP + "top_left", rclcpp::ParameterValue(toArr(geom.TopLeftTangentialVector)));
+            declP(base + PARAM_SEP + "top_right", rclcpp::ParameterValue(toArr(geom.TopRightTangentialVector)));
+            declP(base + PARAM_SEP + "bottom_left", rclcpp::ParameterValue(toArr(geom.BottomLeftTangentialVector)));
+            declP(base + PARAM_SEP + "bottom_right", rclcpp::ParameterValue(toArr(geom.BottomRightTangentialVector)));
+            declP(base + PARAM_SEP + "top_contour", rclcpp::ParameterValue(toContourArr(geom.TopContourPoints)));
+            declP(base + PARAM_SEP + "bottom_contour", rclcpp::ParameterValue(toContourArr(geom.BottomContourPoints)));
             break;
         }
         case SettingValueType::SCANNING_VOLUME_MESH: {
@@ -409,16 +418,16 @@ void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std:
             for (unsigned int i : mesh.Indices) {
                 idxs.push_back((int64_t)i);
             }
-            declP(base + "/points_per_section", rclcpp::ParameterValue((int64_t)mesh.PointsPerSection));
-            declP(base + "/vertices", rclcpp::ParameterValue(verts));
-            declP(base + "/indices", rclcpp::ParameterValue(idxs));
+            declP(base + PARAM_SEP + "points_per_section", rclcpp::ParameterValue((int64_t)mesh.PointsPerSection));
+            declP(base + PARAM_SEP + "vertices", rclcpp::ParameterValue(verts));
+            declP(base + PARAM_SEP + "indices", rclcpp::ParameterValue(idxs));
             break;
         }
         case SettingValueType::REPROJECTION_MAP: {
             const auto& reproj = std::get<pho::api::PhoXiReprojectionMap>(devVal);
-            declP(base + "/width", rclcpp::ParameterValue((int64_t)reproj.Map.Size.Width));
-            declP(base + "/height", rclcpp::ParameterValue((int64_t)reproj.Map.Size.Height));
-            declP(base + "/cv_type", rclcpp::ParameterValue((int64_t)0));
+            declP(base + PARAM_SEP + "width", rclcpp::ParameterValue((int64_t)reproj.Map.Size.Width));
+            declP(base + PARAM_SEP + "height", rclcpp::ParameterValue((int64_t)reproj.Map.Size.Height));
+            declP(base + PARAM_SEP + "cv_type", rclcpp::ParameterValue((int64_t)0));
             break;
         }
     }
@@ -445,7 +454,7 @@ void PhoXiCamera::declareDeviceSettingParameters() {
             continue;
         }
 
-        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + desc.deviceKey;
+        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + PARAM_SEP + deviceKeyToParamName(desc.deviceKey);
         try {
             declareSettingParams(desc, base, it->second);
         } catch (const rclcpp::exceptions::ParameterAlreadyDeclaredException&) {
@@ -468,7 +477,7 @@ void PhoXiCamera::declareDeviceSettingParameters() {
             continue;
         }
 
-        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + desc.deviceKey;
+        const std::string base = std::string(DEVICE_SETTINGS_PREFIX) + PARAM_SEP + deviceKeyToParamName(desc.deviceKey);
         try {
             const auto currentVal = reconstructSettingValue(desc, base);
             if (!settingValuesEqual(currentVal, it->second)) {
@@ -496,25 +505,43 @@ SettingValue PhoXiCamera::reconstructSettingValue(const SettingDescriptor& desc,
             return get_parameter(base).as_string();
         case SettingValueType::DOUBLE_ARRAY:
             return get_parameter(base).as_double_array();
-        case SettingValueType::PHOXI_SIZE:
-            return pho::api::PhoXiSize{(int32_t)get_parameter(base + "/width").as_int(), (int32_t)get_parameter(base + "/height").as_int()};
-        case SettingValueType::PHOXI_SIZE_64F:
-            return pho::api::PhoXiSize_64f{get_parameter(base + "/width").as_double(), get_parameter(base + "/height").as_double()};
-        case SettingValueType::PHOXI_2DROI:
-            return pho::api::PhoXi2DROI{(int32_t)get_parameter(base + "/x_min").as_int(), (int32_t)get_parameter(base + "/y_min").as_int(),
-                    (int32_t)get_parameter(base + "/x_max").as_int(), (int32_t)get_parameter(base + "/y_max").as_int()};
+        case SettingValueType::PHOXI_SIZE: {
+            pho::api::PhoXiSize s;
+            s.Width = (int32_t)get_parameter(base + PARAM_SEP + "width").as_int();
+            s.Height = (int32_t)get_parameter(base + PARAM_SEP + "height").as_int();
+            return s;
+        }
+        case SettingValueType::PHOXI_SIZE_64F: {
+            pho::api::PhoXiSize_64f s;
+            s.Width = get_parameter(base + PARAM_SEP + "width").as_double();
+            s.Height = get_parameter(base + PARAM_SEP + "height").as_double();
+            return s;
+        }
+        case SettingValueType::PHOXI_2DROI: {
+            pho::api::PhoXi2DROI roi;
+            roi.Min.x = (int32_t)get_parameter(base + PARAM_SEP + "x_min").as_int();
+            roi.Min.y = (int32_t)get_parameter(base + PARAM_SEP + "y_min").as_int();
+            roi.Max.x = (int32_t)get_parameter(base + PARAM_SEP + "x_max").as_int();
+            roi.Max.y = (int32_t)get_parameter(base + PARAM_SEP + "y_max").as_int();
+            return roi;
+        }
         case SettingValueType::AXIS_VOLUME_64F: {
             pho::api::AxisVolume_64f vol;
-            vol.min.x = get_parameter(base + "/x_min").as_double();
-            vol.min.y = get_parameter(base + "/y_min").as_double();
-            vol.min.z = get_parameter(base + "/z_min").as_double();
-            vol.max.x = get_parameter(base + "/x_max").as_double();
-            vol.max.y = get_parameter(base + "/y_max").as_double();
-            vol.max.z = get_parameter(base + "/z_max").as_double();
+            vol.min.x = get_parameter(base + PARAM_SEP + "x_min").as_double();
+            vol.min.y = get_parameter(base + PARAM_SEP + "y_min").as_double();
+            vol.min.z = get_parameter(base + PARAM_SEP + "z_min").as_double();
+            vol.max.x = get_parameter(base + PARAM_SEP + "x_max").as_double();
+            vol.max.y = get_parameter(base + PARAM_SEP + "y_max").as_double();
+            vol.max.z = get_parameter(base + PARAM_SEP + "z_max").as_double();
             return vol;
         }
-        case SettingValueType::POINT3_64F:
-            return pho::api::Point3_64f{get_parameter(base + "/r").as_double(), get_parameter(base + "/g").as_double(), get_parameter(base + "/b").as_double()};
+        case SettingValueType::POINT3_64F: {
+            pho::api::Point3_64f p;
+            p.x = get_parameter(base + PARAM_SEP + "r").as_double();
+            p.y = get_parameter(base + PARAM_SEP + "g").as_double();
+            p.z = get_parameter(base + PARAM_SEP + "b").as_double();
+            return p;
+        }
         default:
             throw PhoXiInterfaceException("reconstructSettingValue: unhandled type for '" + base + "'");
     }
@@ -623,11 +650,14 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
         return result;
     }
 
+    const std::string framePfx = std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP;
+    const std::string devPfx = std::string(DEVICE_SETTINGS_PREFIX) + PARAM_SEP;
+
     std::vector<std::pair<std::string, bool>> components;
     for (const auto& p : params) {
         const auto& name = p.get_name();
-        if (name.rfind(kFrameSettingsPrefix, 0) == 0) {
-            components.emplace_back(name.substr(kFrameSettingsPrefix.size()), p.as_bool());
+        if (name.rfind(framePfx, 0) == 0) {
+            components.emplace_back(name.substr(framePfx.size()), p.as_bool());
         }
     }
 
@@ -644,7 +674,7 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
     std::map<size_t, std::vector<const rclcpp::Parameter*>> deviceChanges;
     for (const auto& p : params) {
         const auto& name = p.get_name();
-        if (name.rfind(DEVICE_SETTINGS_PREFIX, 0) != 0) {
+        if (name.rfind(devPfx, 0) != 0) {
             continue;
         }
 

@@ -15,26 +15,15 @@ bool isParamDeclared(rclcpp_lifecycle::LifecycleNode& node, const std::string& k
         return false;
     }
 }
-
-std::vector<std::string> listDeviceSettings(rclcpp_lifecycle::LifecycleNode& node) {
-    auto all = node.list_parameters({}, 1000);
-    std::vector<std::string> result;
-    for (const auto& name : all.names) {
-        if (name.rfind("deviceSettings/", 0) == 0) {
-            result.push_back(name);
-        }
-    }
-    return result;
-}
 }  // namespace
 
 TEST_F(DeviceRequiredTest, DeviceSettings_PopulatedAfterConfigure) {
-    const auto settings = listDeviceSettings(*mLcNode);
-    EXPECT_FALSE(settings.empty()) << "No deviceSettings parameters declared after configure";
+    auto result = mLcNode->list_parameters({"deviceSettings"}, 100);
+    EXPECT_FALSE(result.names.empty()) << "No deviceSettings parameters declared after configure";
 }
 
 TEST_F(DeviceRequiredTest, GetSettings_LaserPower_IsPositive) {
-    const std::string key = "deviceSettings/CapturingSettings/LaserPower";
+    const std::string key = "deviceSettings.CapturingSettings.LaserPower";
     if (!isParamDeclared(*mLcNode, key)) {
         GTEST_SKIP() << key << " not available on this device";
     }
@@ -44,7 +33,7 @@ TEST_F(DeviceRequiredTest, GetSettings_LaserPower_IsPositive) {
 }
 
 TEST_F(DeviceRequiredTest, SetSettings_LaserPower_ChangePersists) {
-    const std::string key = "deviceSettings/CapturingSettings/LaserPower";
+    const std::string key = "deviceSettings.CapturingSettings.LaserPower";
     if (!isParamDeclared(*mLcNode, key)) {
         GTEST_SKIP() << key << " not available on this device";
     }
@@ -58,12 +47,12 @@ TEST_F(DeviceRequiredTest, SetSettings_LaserPower_ChangePersists) {
 
 TEST_F(DeviceRequiredTest, GetSettings_UnknownKey_NotDeclared) {
     EXPECT_THROW(
-        mLcNode->get_parameter("deviceSettings/NonExistent/FooBar"),
+        mLcNode->get_parameter("deviceSettings.NonExistent.FooBar"),
         rclcpp::exceptions::ParameterNotDeclaredException);
 }
 
 TEST_F(DeviceRequiredTest, SetSettings_WrongType_Rejected) {
-    const std::string key = "deviceSettings/CapturingSettings/LaserPower";
+    const std::string key = "deviceSettings.CapturingSettings.LaserPower";
     if (!isParamDeclared(*mLcNode, key)) {
         GTEST_SKIP() << key << " not available on this device";
     }
@@ -72,11 +61,10 @@ TEST_F(DeviceRequiredTest, SetSettings_WrongType_Rejected) {
 }
 
 int main(int argc, char** argv) {
-    DeviceRequiredTest::parseDeviceId(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
     rclcpp::init(argc, argv);
     if (DeviceRequiredTest::deviceId().empty()) {
-        std::cerr << "[ERROR] --device_id is required. Usage: test_settings --device_id=<id>\n";
+        std::cerr << "[ERROR] PHO_TEST_DEVICE_ID environment variable is not set.\n";
         rclcpp::shutdown();
         return 1;
     }

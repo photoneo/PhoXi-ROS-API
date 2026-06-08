@@ -50,7 +50,7 @@ TEST_P(SimpleScalarTest, DeclaredWithCorrectValue) {
 
     ASSERT_TRUE(configure());
 
-    auto param = lcNode->get_parameter("deviceSettings/" + key);
+    auto param = lcNode->get_parameter("deviceSettings." + key);
     ASSERT_EQ(param.get_type(), tc.expectedParamType);
     tc.checkDeclared(param);
 
@@ -73,7 +73,7 @@ TEST_P(SimpleScalarTest, ParameterChange_CallsSetSettings) {
             captured = kv;
         });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key, tc.newValue));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key, tc.newValue));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -177,7 +177,7 @@ TEST_P(ReadOnlyTest, SetAttempt_IsRejected) {
     setConnected();
 
     auto result = lcNode->set_parameter(
-            rclcpp::Parameter("deviceSettings/" + key + tc.paramSuffix, tc.attemptedValue));
+            rclcpp::Parameter("deviceSettings." + key + tc.paramSuffix, tc.attemptedValue));
     EXPECT_FALSE(result.successful);
 
     ASSERT_TRUE(cleanup());
@@ -203,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(AllReadOnly, ReadOnlyTest, ::testing::Values(
             g.Origin = pho::api::Point3_64f(0.0, 0.0, 0.0);
             return SettingValue{g};
         }(),
-        "/origin",
+        ".origin",
         rclcpp::ParameterValue(std::vector<double>{9.0, 9.0, 9.0}),
     },
     ReadOnlyCase{
@@ -216,7 +216,7 @@ INSTANTIATE_TEST_SUITE_P(AllReadOnly, ReadOnlyTest, ::testing::Values(
             m.Indices = {0u};
             return SettingValue{m};
         }(),
-        "/points_per_section",
+        ".points_per_section",
         rclcpp::ParameterValue(int64_t{6}),
     },
     ReadOnlyCase{
@@ -227,7 +227,7 @@ INSTANTIATE_TEST_SUITE_P(AllReadOnly, ReadOnlyTest, ::testing::Values(
             r.Map.Resize(pho::api::PhoXiSize(320, 240));
             return SettingValue{r};
         }(),
-        "/width",
+        ".width",
         rclcpp::ParameterValue(int64_t{640}),
     }),
     ReadOnlyCaseName);
@@ -241,8 +241,8 @@ TEST_F(SettingTypesTest, PhoxiSize_DeclaresTwoIntSubparams) {
 
     ASSERT_TRUE(configure());
 
-    auto wParam = lcNode->get_parameter("deviceSettings/" + key + "/width");
-    auto hParam = lcNode->get_parameter("deviceSettings/" + key + "/height");
+    auto wParam = lcNode->get_parameter("deviceSettings." + key + ".width");
+    auto hParam = lcNode->get_parameter("deviceSettings." + key + ".height");
     ASSERT_EQ(wParam.get_type(), rclcpp::PARAMETER_INTEGER);
     ASSERT_EQ(hParam.get_type(), rclcpp::PARAMETER_INTEGER);
     EXPECT_EQ(wParam.as_int(), 1920);
@@ -269,7 +269,7 @@ TEST_F(SettingTypesTest, PhoxiSize_FieldChange_MergesAndCallsSetSettings) {
             captured = kv;
         });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key + "/width", int64_t{1280}));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key + ".width", int64_t{1280}));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -290,8 +290,8 @@ TEST_F(SettingTypesTest, PhoxiSize64f_DeclaresTwoDoubleSubparams) {
 
     ASSERT_TRUE(configure());
 
-    auto wParam = lcNode->get_parameter("deviceSettings/" + key + "/width");
-    auto hParam = lcNode->get_parameter("deviceSettings/" + key + "/height");
+    auto wParam = lcNode->get_parameter("deviceSettings." + key + ".width");
+    auto hParam = lcNode->get_parameter("deviceSettings." + key + ".height");
     ASSERT_EQ(wParam.get_type(), rclcpp::PARAMETER_DOUBLE);
     ASSERT_EQ(hParam.get_type(), rclcpp::PARAMETER_DOUBLE);
     EXPECT_DOUBLE_EQ(wParam.as_double(), 2.5);
@@ -318,7 +318,7 @@ TEST_F(SettingTypesTest, PhoxiSize64f_FieldChange_MergesAndCallsSetSettings) {
             captured = kv;
         });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key + "/height", 4.0));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key + ".height", 4.0));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -338,11 +338,11 @@ TEST_F(SettingTypesTest, Phoxi2DROI_DeclaresCorrectSubparams) {
 
     ASSERT_TRUE(configure());
 
-    const std::string base = "deviceSettings/" + key;
-    EXPECT_EQ(lcNode->get_parameter(base + "/x_min").as_int(), 10);
-    EXPECT_EQ(lcNode->get_parameter(base + "/y_min").as_int(), 20);
-    EXPECT_EQ(lcNode->get_parameter(base + "/x_max").as_int(), 100);
-    EXPECT_EQ(lcNode->get_parameter(base + "/y_max").as_int(), 200);
+    const std::string base = "deviceSettings." + key;
+    EXPECT_EQ(lcNode->get_parameter(base + ".x_min").as_int(), 10);
+    EXPECT_EQ(lcNode->get_parameter(base + ".y_min").as_int(), 20);
+    EXPECT_EQ(lcNode->get_parameter(base + ".x_max").as_int(), 100);
+    EXPECT_EQ(lcNode->get_parameter(base + ".y_max").as_int(), 200);
 
     ASSERT_TRUE(cleanup());
 }
@@ -365,7 +365,7 @@ TEST_F(SettingTypesTest, Phoxi2DROI_FieldChange_MergesAndCallsSetSettings) {
             captured = kv;
         });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key + "/x_max", int64_t{300}));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key + ".x_max", int64_t{300}));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -388,13 +388,13 @@ TEST_F(SettingTypesTest, AxisVolume64f_DeclaresCorrectSubparams) {
 
     ASSERT_TRUE(configure());
 
-    const std::string base = "deviceSettings/" + key;
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/x_min").as_double(), -1.0);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/y_min").as_double(), -2.0);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/z_min").as_double(), -3.0);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/x_max").as_double(), 1.0);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/y_max").as_double(), 2.0);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/z_max").as_double(), 3.0);
+    const std::string base = "deviceSettings." + key;
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".x_min").as_double(), -1.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".y_min").as_double(), -2.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".z_min").as_double(), -3.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".x_max").as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".y_max").as_double(), 2.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".z_max").as_double(), 3.0);
 
     ASSERT_TRUE(cleanup());
 }
@@ -418,7 +418,7 @@ TEST_F(SettingTypesTest, AxisVolume64f_FieldChange_MergesAndCallsSetSettings) {
             captured = kv;
         });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key + "/z_max", 99.0));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key + ".z_max", 99.0));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -438,10 +438,10 @@ TEST_F(SettingTypesTest, Point3_64f_DeclaresRGBSubparams) {
 
     ASSERT_TRUE(configure());
 
-    const std::string base = "deviceSettings/" + key;
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/r").as_double(), 0.1);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/g").as_double(), 0.2);
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + "/b").as_double(), 0.3);
+    const std::string base = "deviceSettings." + key;
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".r").as_double(), 0.1);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".g").as_double(), 0.2);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter(base + ".b").as_double(), 0.3);
 
     ASSERT_TRUE(cleanup());
 }
@@ -464,7 +464,7 @@ TEST_F(SettingTypesTest, Point3_64f_FieldChange_MergesAndCallsSetSettings) {
             captured = kv;
         });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key + "/g", 9.9));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key + ".g", 9.9));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);
@@ -486,7 +486,7 @@ TEST_F(SettingTypesTest, CuttingPlanes_DeclaredAsDoubleArray) {
 
     ASSERT_TRUE(configure());
 
-    auto param = lcNode->get_parameter("deviceSettings/" + key);
+    auto param = lcNode->get_parameter("deviceSettings." + key);
     ASSERT_EQ(param.get_type(), rclcpp::PARAMETER_DOUBLE_ARRAY);
     auto arr = param.as_double_array();
     ASSERT_EQ(arr.size(), 4u);
@@ -515,17 +515,17 @@ TEST_F(SettingTypesTest, ScanningVolume_DeclaresSevenSubparams) {
 
     ASSERT_TRUE(configure());
 
-    const std::string base = "deviceSettings/" + key;
-    auto origin = lcNode->get_parameter(base + "/origin").as_double_array();
+    const std::string base = "deviceSettings." + key;
+    auto origin = lcNode->get_parameter(base + ".origin").as_double_array();
     ASSERT_EQ(origin.size(), 3u);
     EXPECT_DOUBLE_EQ(origin[0], 1.0);
     EXPECT_DOUBLE_EQ(origin[1], 2.0);
     EXPECT_DOUBLE_EQ(origin[2], 3.0);
 
-    auto topContour = lcNode->get_parameter(base + "/top_contour").as_double_array();
+    auto topContour = lcNode->get_parameter(base + ".top_contour").as_double_array();
     ASSERT_EQ(topContour.size(), 3u);
 
-    auto bottomContour = lcNode->get_parameter(base + "/bottom_contour").as_double_array();
+    auto bottomContour = lcNode->get_parameter(base + ".bottom_contour").as_double_array();
     ASSERT_EQ(bottomContour.size(), 3u);
 
     ASSERT_TRUE(cleanup());
@@ -548,15 +548,15 @@ TEST_F(SettingTypesTest, ScanningVolumeMesh_DeclaresThreeSubparams) {
 
     ASSERT_TRUE(configure());
 
-    const std::string base = "deviceSettings/" + key;
-    auto pps = lcNode->get_parameter(base + "/points_per_section");
+    const std::string base = "deviceSettings." + key;
+    auto pps = lcNode->get_parameter(base + ".points_per_section");
     ASSERT_EQ(pps.get_type(), rclcpp::PARAMETER_INTEGER);
     EXPECT_EQ(pps.as_int(), 3);
 
-    auto verts = lcNode->get_parameter(base + "/vertices").as_double_array();
+    auto verts = lcNode->get_parameter(base + ".vertices").as_double_array();
     ASSERT_EQ(verts.size(), 9u);
 
-    auto idxs = lcNode->get_parameter(base + "/indices").as_integer_array();
+    auto idxs = lcNode->get_parameter(base + ".indices").as_integer_array();
     ASSERT_EQ(idxs.size(), 3u);
     EXPECT_EQ(idxs[0], 0);
     EXPECT_EQ(idxs[1], 1);
@@ -576,12 +576,12 @@ TEST_F(SettingTypesTest, ReprojectionMap_DeclaresWidthHeightCvType) {
 
     ASSERT_TRUE(configure());
 
-    const std::string base = "deviceSettings/" + key;
-    ASSERT_EQ(lcNode->get_parameter(base + "/width").get_type(), rclcpp::PARAMETER_INTEGER);
-    ASSERT_EQ(lcNode->get_parameter(base + "/height").get_type(), rclcpp::PARAMETER_INTEGER);
-    ASSERT_EQ(lcNode->get_parameter(base + "/cv_type").get_type(), rclcpp::PARAMETER_INTEGER);
-    EXPECT_EQ(lcNode->get_parameter(base + "/width").as_int(), 320);
-    EXPECT_EQ(lcNode->get_parameter(base + "/height").as_int(), 240);
+    const std::string base = "deviceSettings." + key;
+    ASSERT_EQ(lcNode->get_parameter(base + ".width").get_type(), rclcpp::PARAMETER_INTEGER);
+    ASSERT_EQ(lcNode->get_parameter(base + ".height").get_type(), rclcpp::PARAMETER_INTEGER);
+    ASSERT_EQ(lcNode->get_parameter(base + ".cv_type").get_type(), rclcpp::PARAMETER_INTEGER);
+    EXPECT_EQ(lcNode->get_parameter(base + ".width").as_int(), 320);
+    EXPECT_EQ(lcNode->get_parameter(base + ".height").as_int(), 240);
 
     ASSERT_TRUE(cleanup());
 }
@@ -596,7 +596,7 @@ TEST_F(SettingTypesTest, DeviceDisconnected_ParamAccepted_NoDeviceCall) {
 
     EXPECT_CALL(*mockInterface, setSettings(_)).Times(0);
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings/" + key, false));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key, false));
     EXPECT_TRUE(result.successful);
 
     ASSERT_TRUE(cleanup());
@@ -620,10 +620,10 @@ TEST_F(SettingTypesTest, Phoxi2DROI_BothMinMaxChanged_SingleSetSettingsCall) {
             captured = kv;
         });
 
-    const std::string base = "deviceSettings/" + key;
+    const std::string base = "deviceSettings." + key;
     auto result = lcNode->set_parameters_atomically({
-        rclcpp::Parameter(base + "/x_min", int64_t{5}),
-        rclcpp::Parameter(base + "/y_min", int64_t{15}),
+        rclcpp::Parameter(base + ".x_min", int64_t{5}),
+        rclcpp::Parameter(base + ".y_min", int64_t{15}),
     });
     EXPECT_TRUE(result.successful);
 
