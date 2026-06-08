@@ -148,6 +148,25 @@ if(BUILD_TESTING)
     target_link_libraries(${PROJECT_NAME}_hardware_integration_test
             ${PROJECT_NAME}_Ros_Interface
     )
+    target_include_directories(${PROJECT_NAME}_hardware_integration_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+    ament_add_gtest(${PROJECT_NAME}_get_frame_test
+            test/test_get_frame.cpp
+            TIMEOUT 300
+    )
+    target_link_libraries(${PROJECT_NAME}_get_frame_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_get_frame_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+    ament_add_gtest(${PROJECT_NAME}_settings_test
+            test/test_settings.cpp
+            TIMEOUT 120
+    )
+    target_link_libraries(${PROJECT_NAME}_settings_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif()
 
 ament_package()
