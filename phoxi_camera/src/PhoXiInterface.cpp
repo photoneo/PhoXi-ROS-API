@@ -678,7 +678,8 @@ void PhoXiInterface::loadDeviceSchema() {
     mSchemaTypeCache.clear();
     mSettingInfos.clear();
 
-    auto req = createCommand("schema");
+    const std::string deviceId = mPhoXiDevice->HardwareIdentification.GetStoredValue();
+    auto req = createDeviceCommand("schema", deviceId);
     std::string reqStr;
     req.dump(reqStr);
 
@@ -758,6 +759,10 @@ std::map<std::string, SettingValue> PhoXiInterface::getSettings(const std::vecto
 
     std::map<std::string, SettingValue> result;
     const auto& settings = resp["settings"];
+    if (!settings.is_object()) {
+        return result;
+    }
+
     for (const auto& key : keys) {
         if (!settings.contains(key)) {
             continue;
