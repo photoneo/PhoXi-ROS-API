@@ -739,6 +739,7 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
 }
 
 void PhoXiCamera::activatePublishers() {
+    mColorCameraImagePub->on_activate();
     if (mPublishCombined) {
         mPointCloudPub->on_activate();
     } else {
@@ -749,11 +750,11 @@ void PhoXiCamera::activatePublishers() {
         mEventMapPub->on_activate();
         mTexturePub->on_activate();
         mTextureRgbPub->on_activate();
-        mColorCameraImagePub->on_activate();
     }
 }
 
 void PhoXiCamera::deactivatePublishers() {
+    mColorCameraImagePub->on_deactivate();
     if (mPublishCombined) {
         mPointCloudPub->on_deactivate();
     } else {
@@ -764,7 +765,6 @@ void PhoXiCamera::deactivatePublishers() {
         mEventMapPub->on_deactivate();
         mTexturePub->on_deactivate();
         mTextureRgbPub->on_deactivate();
-        mColorCameraImagePub->on_deactivate();
     }
 }
 

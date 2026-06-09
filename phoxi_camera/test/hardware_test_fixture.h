@@ -10,6 +10,21 @@
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "phoxi_camera/PhoXiCamera.h"
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+
+inline const sensor_msgs::msg::PointField* findField(
+    const sensor_msgs::msg::PointCloud2& msg, const std::string& name) {
+    for (const auto& f : msg.fields) {
+        if (f.name == name) {
+            return &f;
+        }
+    }
+    return nullptr;
+}
+
+inline bool hasField(const sensor_msgs::msg::PointCloud2& msg, const std::string& name) {
+    return findField(msg, name) != nullptr;
+}
 
 class DeviceRequiredTest : public ::testing::Test {
 public:
@@ -22,27 +37,71 @@ public:
     }
 
 protected:
-    virtual rclcpp::NodeOptions makeNodeOptions() {
+    // Default suite setup: connects with base options (device_id only).
+    // Derived classes override SetUpTestSuite to pass additional parameter overrides.
+    static void SetUpTestSuite() {
         rclcpp::NodeOptions options;
         options.append_parameter_override("device_id", deviceId());
-        return options;
+        suiteSetUp(options);
     }
 
+    static void TearDownTestSuite() {
+        suiteTearDown();
+    }
+
+    // Helper for derived-class SetUpTestSuite implementations.
+    // Creates the shared executor and node, then runs CONFIGURE (device connect).
+    // The node is left in INACTIVE state; per-test activation is the caller's responsibility.
+    static void suiteSetUp(const rclcpp::NodeOptions& options) {
+        sExecutor = std::make_unique<rclcpp::executors::SingleThreadedExecutor>();
+        sLcNode = std::make_shared<phoxi_camera::PhoXiCamera>(options);
+        sClientNode = std::make_shared<rclcpp::Node>("hw_test_client");
+        sExecutor->add_node(sLcNode->get_node_base_interface());
+        sExecutor->add_node(sClientNode);
+        auto client = sClientNode->create_client<lifecycle_msgs::srv::ChangeState>(
+            "/phoxi_camera/change_state");
+        ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(5)));
+        auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+        req->transition.id = lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE;
+        auto future = client->async_send_request(req);
+        ASSERT_EQ(sExecutor->spin_until_future_complete(future, std::chrono::seconds(120)),
+                  rclcpp::FutureReturnCode::SUCCESS)
+            << "Configure timed out for device: " << deviceId();
+        ASSERT_TRUE(future.get()->success) << "Failed to configure device: " << deviceId();
+    }
+
+    static void suiteTearDown() {
+        if (!sExecutor || !sLcNode || !sClientNode) {
+            return;
+        }
+        // Best-effort cleanup; the node may already be unconfigured if a test ran CLEANUP.
+        auto client = sClientNode->create_client<lifecycle_msgs::srv::ChangeState>(
+            "/phoxi_camera/change_state");
+        if (client->wait_for_service(std::chrono::seconds(5))) {
+            auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+            req->transition.id = lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP;
+            auto future = client->async_send_request(req);
+            sExecutor->spin_until_future_complete(future, std::chrono::seconds(10));
+        }
+        sExecutor->remove_node(sLcNode->get_node_base_interface());
+        sExecutor->remove_node(sClientNode);
+        sLcNode->shutdown();
+        sLcNode.reset();
+        sClientNode.reset();
+        sExecutor.reset();
+    }
+
+    DeviceRequiredTest() : mExecutor(*sExecutor) {}
+
+    // Assigns the shared node/client to per-test instance members.
+    // Does NOT activate — tests or subclasses that need ACTIVE state call
+    // changeLcState(TRANSITION_ACTIVATE) in their own SetUp.
     void SetUp() override {
-        mLcNode = std::make_shared<phoxi_camera::PhoXiCamera>(makeNodeOptions());
-        mClientNode = std::make_shared<rclcpp::Node>("hw_test_client");
-        mExecutor.add_node(mLcNode->get_node_base_interface());
-        mExecutor.add_node(mClientNode);
-        ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE,
-                                  std::chrono::seconds(120)))
-            << "Failed to configure device: " << deviceId();
+        mLcNode = sLcNode;
+        mClientNode = sClientNode;
     }
 
     void TearDown() override {
-        changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP, std::chrono::seconds(10));
-        mExecutor.remove_node(mLcNode->get_node_base_interface());
-        mExecutor.remove_node(mClientNode);
-        mLcNode->shutdown();
         mLcNode.reset();
         mClientNode.reset();
     }
@@ -79,7 +138,11 @@ protected:
         return future.get();
     }
 
-    rclcpp::executors::SingleThreadedExecutor mExecutor;
+    rclcpp::executors::SingleThreadedExecutor& mExecutor;
     std::shared_ptr<phoxi_camera::PhoXiCamera> mLcNode;
     std::shared_ptr<rclcpp::Node> mClientNode;
+
+    static inline std::unique_ptr<rclcpp::executors::SingleThreadedExecutor> sExecutor;
+    static inline std::shared_ptr<phoxi_camera::PhoXiCamera> sLcNode;
+    static inline std::shared_ptr<rclcpp::Node> sClientNode;
 };

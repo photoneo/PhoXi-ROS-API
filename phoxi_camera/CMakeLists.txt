@@ -5,6 +5,7 @@ set(CMAKE_PREFIX_PATH $ENV{PHOXI_CONTROL_PATH} ${CMAKE_PREFIX_PATH})
 
 find_package(ament_cmake REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(message_filters REQUIRED)
 find_package(phoxi_camera_msgs REQUIRED)
 find_package(phoxi_camera_vendor REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -156,6 +157,7 @@ if(BUILD_TESTING)
     )
     target_link_libraries(${PROJECT_NAME}_get_frame_test
             ${PROJECT_NAME}_Ros_Interface
+            message_filters::message_filters
     )
     target_include_directories(${PROJECT_NAME}_get_frame_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
@@ -167,6 +169,16 @@ if(BUILD_TESTING)
             ${PROJECT_NAME}_Ros_Interface
     )
     target_include_directories(${PROJECT_NAME}_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+    ament_add_gtest(${PROJECT_NAME}_get_frame_individual_test
+            test/test_get_frame_individual.cpp
+            TIMEOUT 600
+    )
+    target_link_libraries(${PROJECT_NAME}_get_frame_individual_test
+            ${PROJECT_NAME}_Ros_Interface
+            message_filters::message_filters
+    )
+    target_include_directories(${PROJECT_NAME}_get_frame_individual_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif()
 
 ament_package()

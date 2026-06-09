@@ -11,10 +11,15 @@ using namespace std::chrono_literals;
 
 class HardwareIntegrationTest : public DeviceRequiredTest {
 protected:
-    rclcpp::NodeOptions makeNodeOptions() override {
-        auto options = DeviceRequiredTest::makeNodeOptions();
+    static void SetUpTestSuite() {
+        rclcpp::NodeOptions options;
+        options.append_parameter_override("device_id", deviceId());
         options.append_parameter_override("publish_combined", true);
-        return options;
+        suiteSetUp(options);
+    }
+
+    static void TearDownTestSuite() {
+        suiteTearDown();
     }
 };
 
