@@ -41,6 +41,39 @@ This example is best run using the provided launch file, which starts the main c
 - **RViz:** The RViz window will open, and you should see the triggered point cloud appear.
 - **Shutdown:** Once the example node's workflow is complete, it will shut down, and the launch file will automatically terminate all other nodes, including the driver and RViz.
 
+## Settings example
+
+This example demonstrates how to configure device and frame settings from code.
+
+The example performs the following sequence:
+1. Sets `frameSettings.*` from code via the parameter service before configure.
+2. Triggers configure — the camera node connects to the device and applies both the frame settings set above and the `deviceSettings.*` overrides supplied in the launch file.
+3. Lists all declared device and frame settings parameters.
+4. Activates the camera to start acquisition.
+5. Changes `LaserPower` live via the parameter service while the camera is running.
+
+### How to Run the Settings Example
+
+1.  **Source your ROS 2 workspace:**
+    ```bash
+    source /path/to/your/ros2_ws/install/setup.bash
+    ```
+
+2. **Update `LD_LIBRARY_PATH`**
+    ```bash
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Photoneo/PhoXiControl-x.xx.x/API/lib/:/opt/ros/{your-ros-distro}/lib/
+    ```
+
+3.  **Run the launch file:**
+    ```bash
+    ros2 launch phoxi_camera_example run_settings_example.launch.py sensor_sn:='your-sensor-sn-goes-here'
+    ```
+
+### What to Expect
+
+- **Terminal Output:** The `settings_example_caller` logs all declared `deviceSettings.*` and `frameSettings.*` parameters after configure, then confirms the live `LaserPower` change.
+- **Shutdown:** Once the caller's workflow is complete it shuts down, and the launch file automatically terminates the camera node.
+
 ## Composition example
 
 The `composition` example demonstrates how to use the `phoxi_camera` driver node as a component within a

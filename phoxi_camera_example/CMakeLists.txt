@@ -95,6 +95,14 @@ target_link_libraries(export_import_profiles
         ${phoxi_camera_msgs_TARGETS}
 )
 
+add_executable(settings_example_caller src/settings/settings_example_caller.cpp)
+target_link_libraries(settings_example_caller
+    PUBLIC
+        ${lifecycle_msgs_TARGETS}
+        ${rcl_interfaces_TARGETS}
+        rclcpp::rclcpp
+)
+
 install(
     TARGETS
         phoxi_camera_composition_example
@@ -114,6 +122,7 @@ install(
         list_profiles
         manage_profiles
         export_import_profiles
+        settings_example_caller
     DESTINATION
         lib/${PROJECT_NAME}
 )
