@@ -78,6 +78,13 @@ public:
     std::vector<std::string> cameraList();
 
     /**
+     * Return device information for the currently connected device.
+     *
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     */
+    virtual PhoXiDeviceInformation getDeviceInfo();
+
+    /**
      * Connect to camera.
      *
      * \param deviceId - identification number

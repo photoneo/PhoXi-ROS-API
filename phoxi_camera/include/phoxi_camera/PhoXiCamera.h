@@ -54,6 +54,7 @@ private:
     void declareParameters();
     void loadDeviceSettingDescriptors();
     void declareDeviceSettingParameters();
+    void declareDeviceInfoParameters();
     void activatePublishers();
     void deactivatePublishers();
     void cleanupResources();

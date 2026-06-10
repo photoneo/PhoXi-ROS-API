@@ -37,6 +37,8 @@ protected:
         testing::Mock::AllowLeak(mockInterface);
         EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(testing::Return(false));
         EXPECT_CALL(*mockInterface, isAcquiring()).WillRepeatedly(testing::Return(false));
+        EXPECT_CALL(*mockInterface, getDeviceInfo())
+            .WillRepeatedly(testing::Return(phoxi_camera::PhoXiDeviceInformation{}));
         EXPECT_CALL(*mockInterface, getSettingInfos())
             .WillRepeatedly(testing::Return(std::vector<phoxi_camera::SettingInfo>{}));
         EXPECT_CALL(*mockInterface, getSettings(testing::_))

@@ -142,6 +142,15 @@ if(BUILD_TESTING)
     )
     target_include_directories(${PROJECT_NAME}_device_settings_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
+    ament_add_gmock(${PROJECT_NAME}_device_info_params_test
+            test_mock/test_device_info_params.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_device_info_params_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_device_info_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
     ament_add_gtest(${PROJECT_NAME}_hardware_integration_test
             test/test_hardware_integration.cpp
             TIMEOUT 200

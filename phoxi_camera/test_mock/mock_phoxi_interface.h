@@ -33,6 +33,7 @@ public:
     MOCK_METHOD(pho::api::PhoXiProfileContent, exportProfile, (), (override));
     MOCK_METHOD(void, importProfile, (const pho::api::PhoXiProfileContent&), (override));
     MOCK_METHOD(void, resetActiveProfile, (), (override));
+    MOCK_METHOD(phoxi_camera::PhoXiDeviceInformation, getDeviceInfo, (), (override));
     MOCK_METHOD(std::vector<phoxi_camera::SettingInfo>, getSettingInfos, (), (const, override));
     MOCK_METHOD(phoxi_camera::SettingValue, getSetting, (const std::string&), (override));
     MOCK_METHOD(SettingValueMap, getSettings, (const std::vector<std::string>&), (override));

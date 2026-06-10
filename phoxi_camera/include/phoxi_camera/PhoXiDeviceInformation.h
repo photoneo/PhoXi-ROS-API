@@ -11,18 +11,27 @@ class PhoXiInterface;
 class PhoXiDeviceInformation {
 public:
     friend PhoXiInterface;
-    enum PhoXiConnectionStatus { Undefined = 0, Ready = 1, Occupied = 2, Connected = 3 };
+    enum PhoXiConnectionStatus {
+        Undefined = 0,
+        Ready = 1,
+        Occupied = 2,
+        Connected = 3
+    };
 
-    operator std::string() const { return hwIdentification; }
-
-    bool operator==(const PhoXiDeviceInformation& other) { return hwIdentification == other.hwIdentification; }
-
-    bool operator==(const std::string& hwIdentification) { return this->hwIdentification == hwIdentification; }
+    operator std::string() const {
+        return hwIdentification;
+    }
+    bool operator==(const PhoXiDeviceInformation& other) const {
+        return hwIdentification == other.hwIdentification;
+    }
+    bool operator==(const std::string& hwIdentification) const {
+        return this->hwIdentification == hwIdentification;
+    }
 
     std::string name;
     pho::api::PhoXiDeviceType type;
     std::string hwIdentification;
-    std::string IPaddress;
+    std::string ipAddress;
     PhoXiConnectionStatus status;
     std::string firmwareVersion;
     std::string variant;

@@ -401,8 +401,17 @@ std::vector<PhoXiDeviceInformation> PhoXiInterface::deviceList() {
         throw PhoXiControlNotRunning("PhoXi Control is not running");
     }
     std::vector<PhoXiDeviceInformation> deviceInfo;
-    toPhoXiCameraDeviceInforamtion(mPhoXiFactory.GetDeviceList(), deviceInfo);
+    toPhoXiCameraDeviceInformation(mPhoXiFactory.GetDeviceList(), deviceInfo);
     return deviceInfo;
+}
+
+PhoXiDeviceInformation PhoXiInterface::getDeviceInfo() {
+    if (!isConnected()) {
+        throw PhoXiDeviceNotConnected("No device is connected");
+    }
+    PhoXiDeviceInformation info;
+    toPhoXiCameraDeviceInformation(mPhoXiDevice->Info(), info);
+    return info;
 }
 
 std::vector<std::string> PhoXiInterface::cameraList() {

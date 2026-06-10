@@ -15,7 +15,24 @@ using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface
 
 static constexpr char PARAM_SEP = '.';
 static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings";
+static constexpr std::string_view DEVICE_INFO_PREFIX = "deviceInfo";
 static constexpr std::string_view FRAME_SETTINGS_PREFIX = "frameSettings";
+static constexpr std::array<std::string_view, 7> COMPONENTS = {
+    "PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"
+};
+
+static std::string connectionStatusToString(PhoXiDeviceInformation::PhoXiConnectionStatus status) {
+    switch (status) {
+        case PhoXiDeviceInformation::Ready:
+            return "Ready";
+        case PhoXiDeviceInformation::Occupied:
+            return "Occupied";
+        case PhoXiDeviceInformation::Connected:
+            return "Connected";
+        default:
+            return "Undefined";
+    }
+}
 
 static std::string deviceKeyToParamName(const std::string& key) {
     std::string name = key;
@@ -38,15 +55,17 @@ static bool settingValuesEqual(const SettingValue& a, const SettingValue& b) {
             a);
 }
 
-static const std::array<std::string_view, 7> kComponents = {"PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"};
-
 PhoXiCamera::PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options)
-    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()), mDeviceId(std::move(deviceId)) {
+    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
+      mPhoXiInterface(std::make_unique<PhoXiInterface>()),
+      mDeviceId(std::move(deviceId)) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node for device: %s", mDeviceId.c_str());
     declareParameters();
 }
 
-PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()) {
+PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options)
+    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
+      mPhoXiInterface(std::make_unique<PhoXiInterface>()) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node.");
     declareParameters();
     get_parameter("device_id", mDeviceId);
@@ -86,6 +105,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     }
 
     try {
+        declareDeviceInfoParameters();
         loadDeviceSettingDescriptors();
         declareDeviceSettingParameters();
     } catch (const PhoXiInterfaceException& e) {
@@ -99,7 +119,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
 
     try {
         std::vector<std::pair<std::string, bool>> components;
-        for (const auto& componentName : kComponents) {
+        for (const auto& componentName : COMPONENTS) {
             const auto param = get_parameter(std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + std::string(componentName));
             if (param.get_type() != rclcpp::PARAMETER_NOT_SET) {
                 components.emplace_back(std::string(componentName), param.as_bool());
@@ -241,7 +261,7 @@ void PhoXiCamera::declareParameters() {
     declare_parameter<bool>("publish_combined", false);
     rcl_interfaces::msg::ParameterDescriptor dynamicDesc;
     dynamicDesc.dynamic_typing = true;
-    for (const auto& componentName : kComponents) {
+    for (const auto& componentName : COMPONENTS) {
         declare_parameter(std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + std::string(componentName), rclcpp::ParameterValue{}, dynamicDesc);
     }
 
@@ -431,6 +451,33 @@ void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std:
             break;
         }
     }
+}
+
+void PhoXiCamera::declareDeviceInfoParameters() {
+    const auto info = mPhoXiInterface->getDeviceInfo();
+    const std::string prefix = std::string(DEVICE_INFO_PREFIX) + PARAM_SEP;
+
+    rcl_interfaces::msg::ParameterDescriptor readOnly;
+    readOnly.read_only = true;
+
+    auto declare = [&](const std::string& name, const auto& value) {
+        try {
+            declare_parameter(prefix + name, value, readOnly);
+        } catch (const rclcpp::exceptions::ParameterAlreadyDeclaredException&) {
+        }
+    };
+
+    declare("name", info.name);
+    declare("type", static_cast<std::string>(info.type));
+    declare("deviceId", info.hwIdentification);
+    declare("ipAddress", info.ipAddress);
+    declare("status", connectionStatusToString(info.status));
+    declare("firmwareVersion", info.firmwareVersion);
+    declare("variant", info.variant);
+    declare("isAlpha", info.isAlpha);
+    declare("isBlue", info.isBlue);
+    declare("isColor", info.isColor);
+    declare("isFileCam", info.isFileCam);
 }
 
 void PhoXiCamera::declareDeviceSettingParameters() {
@@ -701,7 +748,7 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
     }
 
     if (!mPhoXiInterface->isConnected()) {
-        return result;  // params updated in ROS2 but no device call
+        return result; // params updated in ROS2 but no device call
     }
 
     std::vector<std::pair<std::string, SettingValue>> toSet;
@@ -1105,6 +1152,6 @@ void PhoXiCamera::resetActiveProfileCallback(
         response->message = e.what();
     }
 }
-}  // namespace phoxi_camera
+} // namespace phoxi_camera
 
 RCLCPP_COMPONENTS_REGISTER_NODE(phoxi_camera::PhoXiCamera)
