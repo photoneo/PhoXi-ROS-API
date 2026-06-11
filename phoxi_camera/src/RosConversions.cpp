@@ -4,6 +4,8 @@
 #include <cassert>
 #include <cstring>
 
+#include "phoxi/details/jsoncons/json.hpp"
+
 namespace phoxi_camera
 {
 static constexpr float MAX_TEXTURE = 2047.0f;                // 11-bit ADC full scale
@@ -244,9 +246,75 @@ std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_re
         [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
 }
 
-std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(
-    const phoxi_frame_record_t& record) {
+std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record) {
     return recordToRosMsg<uint16_t, uint8_t>(record, "rgb8", 3,
         [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
 }
+
+static std::unique_ptr<sensor_msgs::msg::CameraInfo> buildCameraInfo(const std::array<double, 9>& k, std::vector<double> d,
+    uint32_t width, uint32_t height) {
+    auto msg = std::make_unique<sensor_msgs::msg::CameraInfo>();
+    msg->width = width;
+    msg->height = height;
+    msg->distortion_model = "plumb_bob";
+    msg->d = std::move(d);
+    msg->k = k;
+    msg->r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    msg->p = {k[0], k[1], k[2], 0.0, k[3], k[4], k[5], 0.0, k[6], k[7], k[8], 0.0};
+    return msg;
+}
+
+FrameCameraInfos frameInfoToRosMsgs(const phoxi_frame_record_t& record) {
+    const char* dataPtr = static_cast<const char*>(record.data);
+    size_t dataSize = record.data_size;
+    while (dataSize > 0 && dataPtr[dataSize - 1] == '\0') {
+        --dataSize;
+    }
+    const auto json = pho_jsoncons::json::parse(std::string(dataPtr, dataSize));
+
+    if (!json.contains("info")) {
+        return {};
+    }
+    const auto& info = json["info"];
+
+    auto readArray9 = [](const pho_jsoncons::json& node) -> std::array<double, 9> {
+        std::array<double, 9> arr{};
+        for (size_t i = 0; i < arr.size() && i < node.size(); ++i) {
+            arr[i] = node[i].as<double>();
+        }
+        return arr;
+    };
+
+    auto readD = [](const pho_jsoncons::json& node) -> std::vector<double> {
+        std::vector<double> v;
+        for (const auto& x : node.array_range()) {
+            v.push_back(x.as<double>());
+        }
+        return v;
+    };
+
+    auto tryBuild = [&](const std::string& prefix) -> std::unique_ptr<sensor_msgs::msg::CameraInfo> {
+        const std::string MAT  = prefix + "/PerspectiveSettings/CameraMatrix";
+        const std::string DIST = prefix + "/PerspectiveSettings/DistortionCoefficients";
+        const std::string RES  = prefix + "/Resolution";
+        if (!info.contains(MAT) || !info.contains(DIST) || !info.contains(RES)) {
+            return nullptr;
+        }
+        const auto& res = info[RES];
+        if (!res.contains("width") || !res.contains("height")) {
+            return nullptr;
+        }
+        return buildCameraInfo(
+            readArray9(info[MAT]),
+            readD(info[DIST]),
+            res["width"].as<uint32_t>(),
+            res["height"].as<uint32_t>());
+    };
+
+    FrameCameraInfos result;
+    result.currentCamera      = tryBuild("current_camera");
+    result.currentColorCamera = tryBuild("current_color_camera");
+    return result;
+}
+
 } // namespace phoxi_camera

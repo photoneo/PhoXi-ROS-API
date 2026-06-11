@@ -8,6 +8,7 @@
 #include "message_filters/sync_policies/exact_time.hpp"
 #include "message_filters/synchronizer.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
@@ -19,6 +20,7 @@ protected:
 
     using PC2 = sensor_msgs::msg::PointCloud2;
     using Img = sensor_msgs::msg::Image;
+    using CI = sensor_msgs::msg::CameraInfo;
 
     struct ReceivedFrame {
         PC2::ConstSharedPtr pointCloud;
@@ -102,6 +104,12 @@ protected:
         const auto qos = rclcpp::SystemDefaultsQoS();
         mPointCloudSub.subscribe(mClientNode, "/point_cloud", qos);
         mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
+        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>(
+            "/frameInfo/currentCamera", qos,
+            [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
+        mColorCameraInfoSub = mClientNode->create_subscription<CI>(
+            "/frameInfo/currentColorCamera", qos,
+            [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
     }
 
     void TearDown() override {
@@ -109,6 +117,10 @@ protected:
         mSync2.reset();
         mPointCloudSub.unsubscribe();
         mColorCameraSub.unsubscribe();
+        mPrimaryCameraInfoSub.reset();
+        mColorCameraInfoSub.reset();
+        mLatestPrimaryCameraInfo.reset();
+        mLatestColorCameraInfo.reset();
         mTriggerClient.reset();
         changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, 10s);
         DeviceRequiredTest::TearDown();
@@ -146,9 +158,13 @@ protected:
 
     message_filters::Subscriber<PC2> mPointCloudSub;
     message_filters::Subscriber<Img> mColorCameraSub;
+    rclcpp::Subscription<CI>::SharedPtr mPrimaryCameraInfoSub;
+    rclcpp::Subscription<CI>::SharedPtr mColorCameraInfoSub;
 
     rclcpp::Client<phoxi_camera_msgs::srv::TriggerFrame>::SharedPtr mTriggerClient;
     ReceivedFrame mLatestFrame;
+    CI::ConstSharedPtr mLatestPrimaryCameraInfo;
+    CI::ConstSharedPtr mLatestColorCameraInfo;
 };
 
 // Combined point cloud must always be produced with correct geometry and depth field.
@@ -217,6 +233,37 @@ TEST_F(FrameTest, ColorTexture_PointCloudHasRgbFieldAndColorCameraImageReceived)
     EXPECT_GT(frame.colorCamera->height, 0u);
     EXPECT_GT(frame.colorCamera->data.size(), 0u);
     EXPECT_EQ(frame.pointCloud->header.stamp, frame.colorCamera->header.stamp);
+}
+
+// PHOXI_FRAME_TYPE_FRAMEINFO must produce valid CameraInfo on both topics every frame.
+TEST_F(FrameTest, FrameInfo_CameraInfoReceived) {
+    usePointCloudOnly();
+    triggerAndReceive();
+
+    auto deadline = std::chrono::steady_clock::now() + 5s;
+    while (!mLatestPrimaryCameraInfo && std::chrono::steady_clock::now() < deadline) {
+        mExecutor.spin_some(10ms);
+    }
+
+    ASSERT_NE(mLatestPrimaryCameraInfo, nullptr) << "No primary camera info received";
+    EXPECT_GT(mLatestPrimaryCameraInfo->width, 0u);
+    EXPECT_GT(mLatestPrimaryCameraInfo->height, 0u);
+    EXPECT_EQ(mLatestPrimaryCameraInfo->distortion_model, "plumb_bob");
+    EXPECT_GT(mLatestPrimaryCameraInfo->k[0], 0.0);  // fx
+    EXPECT_GT(mLatestPrimaryCameraInfo->k[4], 0.0);  // fy
+    EXPECT_NE(mLatestPrimaryCameraInfo->header.frame_id, "");
+    EXPECT_TRUE(mLatestPrimaryCameraInfo->header.stamp.sec > 0 ||
+                mLatestPrimaryCameraInfo->header.stamp.nanosec > 0u);
+
+    if (sIsColorDevice) {
+        ASSERT_NE(mLatestColorCameraInfo, nullptr) << "No color camera info received";
+        EXPECT_GT(mLatestColorCameraInfo->width, 0u);
+        EXPECT_GT(mLatestColorCameraInfo->height, 0u);
+        EXPECT_EQ(mLatestColorCameraInfo->distortion_model, "plumb_bob");
+        EXPECT_GT(mLatestColorCameraInfo->k[0], 0.0);
+        EXPECT_GT(mLatestColorCameraInfo->k[4], 0.0);
+        EXPECT_EQ(mLatestColorCameraInfo->header.stamp, mLatestPrimaryCameraInfo->header.stamp);
+    }
 }
 
 // Repeated Laser triggers must all succeed — verifies there are no per-frame resource leaks.

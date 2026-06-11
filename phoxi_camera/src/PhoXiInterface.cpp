@@ -832,6 +832,9 @@ void PhoXiInterface::frameAcceptor(const phoxi_frame_record_t* records, void* us
             continue;
         }
         switch (r->type) {
+            case PHOXI_FRAME_TYPE_FRAMEINFO:
+                frame.frameInfo = r;
+                break;
             case PHOXI_FRAME_TYPE_POINTCLOUD:
                 frame.pointCloud = r;
                 break;

@@ -137,6 +137,8 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         return CallbackReturn::FAILURE;
     }
 
+    mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentCamera", rclcpp::SystemDefaultsQoS());
+    mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentColorCamera", rclcpp::SystemDefaultsQoS());
     mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS());
     mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS());
     mNormalMapPub = create_publisher<sensor_msgs::msg::Image>("normals", rclcpp::SystemDefaultsQoS());
@@ -786,6 +788,8 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
 }
 
 void PhoXiCamera::activatePublishers() {
+    mPrimaryCameraInfoPub->on_activate();
+    mColorCameraInfoPub->on_activate();
     mColorCameraImagePub->on_activate();
     if (mPublishCombined) {
         mPointCloudPub->on_activate();
@@ -801,6 +805,8 @@ void PhoXiCamera::activatePublishers() {
 }
 
 void PhoXiCamera::deactivatePublishers() {
+    mPrimaryCameraInfoPub->on_deactivate();
+    mColorCameraInfoPub->on_deactivate();
     mColorCameraImagePub->on_deactivate();
     if (mPublishCombined) {
         mPointCloudPub->on_deactivate();
@@ -816,6 +822,8 @@ void PhoXiCamera::deactivatePublishers() {
 }
 
 void PhoXiCamera::cleanupResources() {
+    mPrimaryCameraInfoPub.reset();
+    mColorCameraInfoPub.reset();
     mPointCloudPub.reset();
     mPointsPub.reset();
     mNormalMapPub.reset();
@@ -908,6 +916,20 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             auto img = colorCameraImageToRosMsg(*frame.colorCamera);
             setHeader(*img);
             mColorCameraImagePub->publish(std::move(img));
+        }
+
+        if (frame.frameInfo && (shouldPublish(mPrimaryCameraInfoPub) || shouldPublish(mColorCameraInfoPub))) {
+            auto msgs = frameInfoToRosMsgs(*frame.frameInfo);
+            if (msgs.currentCamera && shouldPublish(mPrimaryCameraInfoPub)) {
+                msgs.currentCamera->header.frame_id = mFrameId;
+                msgs.currentCamera->header.stamp = rosStamp;
+                mPrimaryCameraInfoPub->publish(std::move(msgs.currentCamera));
+            }
+            if (msgs.currentColorCamera && shouldPublish(mColorCameraInfoPub)) {
+                msgs.currentColorCamera->header.frame_id = mFrameId;
+                msgs.currentColorCamera->header.stamp = rosStamp;
+                mColorCameraInfoPub->publish(std::move(msgs.currentColorCamera));
+            }
         }
 
         RCLCPP_INFO(get_logger(), "Frame published successfully.");

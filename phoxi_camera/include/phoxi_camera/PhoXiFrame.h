@@ -15,6 +15,7 @@ namespace phoxi_camera
  */
 struct PhoXiFrame
 {
+    const phoxi_frame_record_t* frameInfo = nullptr;
     const phoxi_frame_record_t* pointCloud = nullptr;
     const phoxi_frame_record_t* normalMap = nullptr;
     const phoxi_frame_record_t* depthMap = nullptr;

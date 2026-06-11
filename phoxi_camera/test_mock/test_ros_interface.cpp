@@ -24,6 +24,7 @@
 #include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "phoxi_camera_msgs/srv/update_profile.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 #include "std_srvs/srv/trigger.hpp"
@@ -700,6 +701,139 @@ TEST_F(RosInterfaceTest, ImportProfileSendsContent) {
     EXPECT_TRUE(response->success);
 
     ASSERT_TRUE(cleanup());
+}
+
+static const std::string FRAME_INFO_JSON = R"({
+    "info": {
+        "current_camera/PerspectiveSettings/CameraMatrix": [800.0, 0.0, 320.0, 0.0, 800.0, 240.0, 0.0, 0.0, 1.0],
+        "current_camera/PerspectiveSettings/DistortionCoefficients": [-0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "current_camera/Resolution": {"width": 640, "height": 480},
+        "current_color_camera/PerspectiveSettings/CameraMatrix": [1000.0, 0.0, 400.0, 0.0, 1000.0, 300.0, 0.0, 0.0, 1.0],
+        "current_color_camera/PerspectiveSettings/DistortionCoefficients": [0.05, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        "current_color_camera/Resolution": {"width": 1280, "height": 960}
+    }
+})";
+
+TEST_F(RosInterfaceTest, FrameInfo_CurrentCameraPublished) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        FRAME_INFO_JSON.size(),
+        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frameInfo/currentCamera", frame);
+    ASSERT_NE(msg, nullptr);
+    EXPECT_EQ(msg->width, 640u);
+    EXPECT_EQ(msg->height, 480u);
+    EXPECT_EQ(msg->distortion_model, "plumb_bob");
+    ASSERT_EQ(msg->d.size(), 14u);
+    EXPECT_DOUBLE_EQ(msg->d[0], -0.1);
+    EXPECT_DOUBLE_EQ(msg->k[0], 800.0);   // fx
+    EXPECT_DOUBLE_EQ(msg->k[4], 800.0);   // fy
+    EXPECT_DOUBLE_EQ(msg->k[2], 320.0);   // cx
+    EXPECT_DOUBLE_EQ(msg->k[5], 240.0);   // cy
+    EXPECT_DOUBLE_EQ(msg->p[0], 800.0);   // P = [K|0]
+    EXPECT_DOUBLE_EQ(msg->p[3], 0.0);
+    EXPECT_NE(msg->header.frame_id, "");
+}
+
+TEST_F(RosInterfaceTest, FrameInfo_CurrentColorCameraPublished) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        FRAME_INFO_JSON.size(),
+        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frameInfo/currentColorCamera", frame);
+    ASSERT_NE(msg, nullptr);
+    EXPECT_EQ(msg->width, 1280u);
+    EXPECT_EQ(msg->height, 960u);
+    EXPECT_EQ(msg->distortion_model, "plumb_bob");
+    ASSERT_EQ(msg->d.size(), 14u);
+    EXPECT_DOUBLE_EQ(msg->d[0], 0.05);
+    EXPECT_DOUBLE_EQ(msg->k[0], 1000.0);
+    EXPECT_DOUBLE_EQ(msg->k[4], 1000.0);
+    EXPECT_DOUBLE_EQ(msg->k[2], 400.0);
+    EXPECT_DOUBLE_EQ(msg->k[5], 300.0);
+}
+
+TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFrameInfoNull) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    bool received = false;
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "frameInfo/currentCamera", rclcpp::SystemDefaultsQoS(),
+        [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+    frameCb(PhoXiFrame{});
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    EXPECT_FALSE(received);
+}
+
+TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFieldsMissing) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    const std::string incompleteJson = R"({"info": {"current_camera/Resolution": {"width": 1, "height": 1}}})";
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        incompleteJson.size(),
+        const_cast<void*>(static_cast<const void*>(incompleteJson.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    bool received = false;
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "frameInfo/currentCamera", rclcpp::SystemDefaultsQoS(),
+        [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+    frameCb(frame);
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    EXPECT_FALSE(received);
+}
+
+// Non-color device: JSON has CurrentCamera but no CurrentColorCamera key.
+// Primary camera info must be published; color camera info must not.
+TEST_F(RosInterfaceTest, FrameInfo_ColorCamera_NotPublishedWhenAbsentFromJson) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    const std::string primaryOnlyJson = R"({
+        "info": {
+            "current_camera/PerspectiveSettings/CameraMatrix": [800.0, 0.0, 320.0, 0.0, 800.0, 240.0, 0.0, 0.0, 1.0],
+            "current_camera/PerspectiveSettings/DistortionCoefficients": [-0.1, 0.2, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            "current_camera/Resolution": {"width": 640, "height": 480}
+        }
+    })";
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        primaryOnlyJson.size(),
+        const_cast<void*>(static_cast<const void*>(primaryOnlyJson.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    bool colorReceived = false;
+    auto colorSub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
+        "frameInfo/currentColorCamera", rclcpp::SystemDefaultsQoS(),
+        [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) { colorReceived = true; });
+
+    auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(
+        frameCb, "frameInfo/currentCamera", frame);
+
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    ASSERT_NE(primaryMsg, nullptr);
+    EXPECT_EQ(primaryMsg->width, 640u);
+    EXPECT_FALSE(colorReceived);
 }
 
 TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {

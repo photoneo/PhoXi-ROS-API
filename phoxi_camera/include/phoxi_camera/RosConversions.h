@@ -6,6 +6,7 @@
 
 #include "phoxi_camera/PhoXiFrame.h"
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
@@ -34,6 +35,13 @@ std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_re
 // rgb16 image with RGB data from the color camera
 std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(
     const phoxi_frame_record_t& record);
+
+struct FrameCameraInfos {
+    std::unique_ptr<sensor_msgs::msg::CameraInfo> currentCamera;
+    std::unique_ptr<sensor_msgs::msg::CameraInfo> currentColorCamera;
+};
+
+FrameCameraInfos frameInfoToRosMsgs(const phoxi_frame_record_t& record);
 
 }  // namespace phoxi_camera
 
