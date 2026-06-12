@@ -8,16 +8,12 @@
 
 namespace phoxi_camera
 {
-static constexpr float MAX_TEXTURE = 2047.0f;                // 11-bit ADC full scale
-static constexpr float MAX_RGB_CHANNEL = 1023.0f;            // 10-bit RGB channel full scale
-static constexpr float RGB_SCALE = 255.0f / MAX_RGB_CHANNEL; // 10-bit channel to uint8
+static constexpr float MAX_TEXTURE = 2047.0f;
+static constexpr float MAX_RGB_CHANNEL = 1023.0f;
+static constexpr float RGB_SCALE = 255.0f / MAX_RGB_CHANNEL;
+static constexpr float INV_MM = 1.f / 1000.f;
+static constexpr float INV_MAX_TEXTURE = 1.f / MAX_TEXTURE;
 
-// Write `val` into `base[offset]` and advance `offset` by sizeof(T).
-template <typename T>
-void packField(uint8_t* base, uint32_t& offset, const T& val) {
-    std::memcpy(base + offset, &val, sizeof(T));
-    offset += sizeof(T);
-}
 
 void addField(const std::string& name, int datatype, uint32_t size, uint32_t& offset,
     const std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg) {
@@ -107,45 +103,54 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const PhoXiFra
     msg->data.resize(static_cast<size_t>(msg->height) * msg->row_step);
 
     uint8_t* dataPtr = msg->data.data();
-    for (int r = 0; r < height; ++r) {
-        for (int c = 0; c < width; ++c) {
-            const int idx = r * width + c;
-            uint8_t* pointStart = dataPtr + r * msg->row_step + c * msg->point_step;
+    const int nPixels = height * width;
+    const size_t step = msg->point_step;
 
-            auto pack = [&](uint32_t off, const auto& val) {
-                std::memcpy(pointStart + off, &val, sizeof(val));
-            };
+    for (int i = 0; i < nPixels; ++i) {
+        uint8_t* p = dataPtr + static_cast<size_t>(i) * step;
+        float* xyz = reinterpret_cast<float*>(p + xOff);
+        xyz[0] = points[i][0] * INV_MM;
+        xyz[1] = points[i][1] * INV_MM;
+        xyz[2] = points[i][2] * INV_MM;
+    }
 
-            pack(xOff, points[idx][0] / 1000.f);
-            pack(yOff, points[idx][1] / 1000.f);
-            pack(zOff, points[idx][2] / 1000.f);
+    if (normals) {
+        for (int i = 0; i < nPixels; ++i) {
+            float* dst = reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + normalXOff);
+            dst[0] = normals[i][0];
+            dst[1] = normals[i][1];
+            dst[2] = normals[i][2];
+        }
+    }
 
-            if (normals) {
-                pack(normalXOff, normals[idx][0]);
-                pack(normalYOff, normals[idx][1]);
-                pack(normalZOff, normals[idx][2]);
-            }
+    if (rgbTexture) {
+        for (int i = 0; i < nPixels; ++i) {
+            const auto r8 = static_cast<uint8_t>(rgbTexture[i][0] * RGB_SCALE);
+            const auto g8 = static_cast<uint8_t>(rgbTexture[i][1] * RGB_SCALE);
+            const auto b8 = static_cast<uint8_t>(rgbTexture[i][2] * RGB_SCALE);
+            const uint32_t rgb = (uint32_t{r8} << 16) | (uint32_t{g8} << 8) | uint32_t{b8};
+            *reinterpret_cast<uint32_t*>(dataPtr + static_cast<size_t>(i) * step + rgbOff) = rgb;
+        }
+    } else if (texture) {
+        for (int i = 0; i < nPixels; ++i) {
+            *reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + intensityOff) =
+                texture[i] * INV_MAX_TEXTURE;
+        }
+    }
 
-            if (rgbTexture) {
-                const auto r8 = static_cast<uint8_t>(rgbTexture[idx][0] * RGB_SCALE);
-                const auto g8 = static_cast<uint8_t>(rgbTexture[idx][1] * RGB_SCALE);
-                const auto b8 = static_cast<uint8_t>(rgbTexture[idx][2] * RGB_SCALE);
-                const uint32_t rgb = (uint32_t{r8} << 16) | (uint32_t{g8} << 8) | uint32_t{b8};
-                pack(rgbOff, rgb);
-            } else if (texture) {
-                const float normalizedIntensity = texture[idx] / MAX_TEXTURE;
-                pack(intensityOff, normalizedIntensity);
-            }
-
-            if (confidence) {
-                pack(confidenceOff, confidence[idx]);
-            }
-            if (depth) {
-                pack(depthOff, depth[idx]);
-            }
-            if (event) {
-                pack(eventOff, event[idx]);
-            }
+    if (confidence) {
+        for (int i = 0; i < nPixels; ++i) {
+            *reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + confidenceOff) = confidence[i];
+        }
+    }
+    if (depth) {
+        for (int i = 0; i < nPixels; ++i) {
+            *reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + depthOff) = depth[i];
+        }
+    }
+    if (event) {
+        for (int i = 0; i < nPixels; ++i) {
+            *reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + eventOff) = event[i];
         }
     }
 
@@ -162,8 +167,6 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const PhoXiFrame& 
     const int height = frame.pointCloud->height;
     const int width = frame.pointCloud->width;
 
-    const auto* points = static_cast<const float(*)[3]>(frame.pointCloud->data);
-
     msg->height = static_cast<uint32_t>(height);
     msg->width = static_cast<uint32_t>(width);
     msg->is_bigendian = false;
@@ -178,16 +181,11 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const PhoXiFrame& 
     msg->row_step = msg->width * msg->point_step;
     msg->data.resize(msg->height * msg->row_step, 0);
 
-    uint8_t* dataPtr = msg->data.data();
-    for (int r = 0; r < height; ++r) {
-        for (int c = 0; c < width; ++c) {
-            const int idx = r * width + c;
-            uint8_t* p = dataPtr + r * msg->row_step + c * msg->point_step;
-            uint32_t off = 0;
-            packField(p, off, points[idx][0] / 1000.f);
-            packField(p, off, points[idx][1] / 1000.f);
-            packField(p, off, points[idx][2] / 1000.f);
-        }
+    const int nPixels = height * width;
+    const float* src = reinterpret_cast<const float*>(frame.pointCloud->data);
+    float* dst = reinterpret_cast<float*>(msg->data.data());
+    for (int i = 0; i < nPixels * 3; ++i) {
+        dst[i] = src[i] * INV_MM;
     }
 
     return msg;
@@ -247,8 +245,7 @@ std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_re
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record) {
-    return recordToRosMsg<uint16_t, uint8_t>(record, "rgb8", 3,
-        [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
+    return textureRgbToRosMsg(record);
 }
 
 
@@ -262,6 +259,7 @@ static std::array<double, 9> readArray9(const pho_jsoncons::json& node) {
 
 static std::vector<double> readDoubleArray(const pho_jsoncons::json& node) {
     std::vector<double> v;
+    v.reserve(node.size());
     for (const auto& x : node.array_range()) {
         v.push_back(x.as<double>());
     }
@@ -277,27 +275,25 @@ static std::array<double, 3> readXyz(const pho_jsoncons::json& info, const std::
 }
 
 static std::unique_ptr<sensor_msgs::msg::CameraInfo> tryBuildCameraInfo(
-    const pho_jsoncons::json& info, const std::string& prefix)
+    const pho_jsoncons::json& info,
+    const char* matKey, const char* distKey, const char* resKey)
 {
-    const std::string MAT = prefix + "/PerspectiveSettings/CameraMatrix";
-    const std::string DIST = prefix + "/PerspectiveSettings/DistortionCoefficients";
-    const std::string RES = prefix + "/Resolution";
-    if (!info.contains(MAT) || !info.contains(DIST) || !info.contains(RES)) {
+    if (!info.contains(matKey) || !info.contains(distKey) || !info.contains(resKey)) {
         return nullptr;
     }
-    const auto& res = info[RES];
+    const auto& res = info[resKey];
     if (!res.contains("width") || !res.contains("height")) {
         return nullptr;
     }
-    auto k = readArray9(info[MAT]);
+    auto k = readArray9(info[matKey]);
     auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>();
     ci->width = res["width"].as<uint32_t>();
     ci->height = res["height"].as<uint32_t>();
     ci->distortion_model = "plumb_bob";
-    ci->d = readDoubleArray(info[DIST]);
+    ci->d = readDoubleArray(info[distKey]);
     ci->k = k;
     ci->r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-    ci->p = {k[0], k[1], k[2], 0.0, k[3], k[4], k[5], 0.0, k[6], k[7], k[8], 0.0};
+    ci->p = {k[0], 0.0, k[2], 0.0, 0.0, k[4], k[5], 0.0, 0.0, 0.0, 1.0, 0.0};
     return ci;
 }
 
@@ -307,7 +303,7 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     while (dataSize > 0 && dataPtr[dataSize - 1] == '\0') {
         --dataSize;
     }
-    const auto json = pho_jsoncons::json::parse(std::string(dataPtr, dataSize));
+    const auto json = pho_jsoncons::json::parse(dataPtr, dataSize);
 
     if (!json.contains("info")) {
         return {};
@@ -315,8 +311,14 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     const auto& info = json["info"];
 
     ParsedFrameInfo result;
-    result.currentCamera = tryBuildCameraInfo(info, "current_camera");
-    result.currentColorCamera = tryBuildCameraInfo(info, "current_color_camera");
+    result.currentCamera = tryBuildCameraInfo(info,
+        "current_camera/PerspectiveSettings/CameraMatrix",
+        "current_camera/PerspectiveSettings/DistortionCoefficients",
+        "current_camera/Resolution");
+    result.currentColorCamera = tryBuildCameraInfo(info,
+        "current_color_camera/PerspectiveSettings/CameraMatrix",
+        "current_color_camera/PerspectiveSettings/DistortionCoefficients",
+        "current_color_camera/Resolution");
 
     auto msg = std::make_unique<phoxi_camera_msgs::msg::FrameInfo>();
 
@@ -361,7 +363,9 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     }
 
     if (info.contains("temperature")) {
-        for (const auto& v : info["temperature"].array_range()) {
+        const auto& tempNode = info["temperature"];
+        msg->temperature.reserve(tempNode.size());
+        for (const auto& v : tempNode.array_range()) {
             msg->temperature.push_back(v.as<double>());
         }
     }

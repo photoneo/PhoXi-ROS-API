@@ -89,7 +89,10 @@ PhoXiCamera::~PhoXiCamera() {
 CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
     RCLCPP_INFO(get_logger(), "Configuring PhoXi Camera node...");
 
-    get_parameter("device_id", mDeviceId);
+    {
+        std::lock_guard<std::mutex> lock(mDeviceIdMutex);
+        get_parameter("device_id", mDeviceId);
+    }
     get_parameter("frame_id", mFrameId);
     get_parameter("publish_combined", mPublishCombined);
     if (mDeviceId.empty()) {
@@ -936,21 +939,25 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             const bool pubPrimaryCamera = shouldPublish(mPrimaryCameraInfoPub);
             const bool pubColorCamera = shouldPublish(mColorCameraInfoPub);
             if (pubFrameInfo || pubPrimaryCamera || pubColorCamera) {
-                auto parsed = parseFrameInfo(*frame.frameInfo);
-                if (parsed.frameInfo && pubFrameInfo) {
-                    parsed.frameInfo->header.frame_id = mFrameId;
-                    parsed.frameInfo->header.stamp = rosStamp;
-                    mFrameInfoPub->publish(std::move(parsed.frameInfo));
-                }
-                if (parsed.currentCamera && pubPrimaryCamera) {
-                    parsed.currentCamera->header.frame_id = mFrameId;
-                    parsed.currentCamera->header.stamp = rosStamp;
-                    mPrimaryCameraInfoPub->publish(std::move(parsed.currentCamera));
-                }
-                if (parsed.currentColorCamera && pubColorCamera) {
-                    parsed.currentColorCamera->header.frame_id = mFrameId;
-                    parsed.currentColorCamera->header.stamp = rosStamp;
-                    mColorCameraInfoPub->publish(std::move(parsed.currentColorCamera));
+                try {
+                    auto parsed = parseFrameInfo(*frame.frameInfo);
+                    if (parsed.frameInfo && pubFrameInfo) {
+                        parsed.frameInfo->header.frame_id = mFrameId;
+                        parsed.frameInfo->header.stamp = rosStamp;
+                        mFrameInfoPub->publish(std::move(parsed.frameInfo));
+                    }
+                    if (parsed.currentCamera && pubPrimaryCamera) {
+                        parsed.currentCamera->header.frame_id = mFrameId;
+                        parsed.currentCamera->header.stamp = rosStamp;
+                        mPrimaryCameraInfoPub->publish(std::move(parsed.currentCamera));
+                    }
+                    if (parsed.currentColorCamera && pubColorCamera) {
+                        parsed.currentColorCamera->header.frame_id = mFrameId;
+                        parsed.currentColorCamera->header.stamp = rosStamp;
+                        mColorCameraInfoPub->publish(std::move(parsed.currentColorCamera));
+                    }
+                } catch (const std::exception& e) {
+                    RCLCPP_WARN(get_logger(), "Failed to parse frameInfo: %s", e.what());
                 }
             }
         }
@@ -964,14 +971,18 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
 void PhoXiCamera::rebootCallback(
         const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
         const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
-    if (mDeviceId.empty()) {
+    const std::string deviceId = [this] {
+        std::lock_guard<std::mutex> lock(mDeviceIdMutex);
+        return mDeviceId;
+    }();
+    if (deviceId.empty()) {
         response->success = false;
         response->message = "No device_id configured.";
         return;
     }
-    RCLCPP_INFO(get_logger(), "Rebooting device '%s'.", mDeviceId.c_str());
+    RCLCPP_INFO(get_logger(), "Rebooting device '%s'.", deviceId.c_str());
     try {
-        mPhoXiInterface->rebootDevice(mDeviceId);
+        mPhoXiInterface->rebootDevice(deviceId);
         response->success = true;
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Reboot failed: %s", e.what());
@@ -983,14 +994,18 @@ void PhoXiCamera::rebootCallback(
 void PhoXiCamera::shutdownCallback(
         const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
         const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
-    if (mDeviceId.empty()) {
+    const std::string deviceId = [this] {
+        std::lock_guard<std::mutex> lock(mDeviceIdMutex);
+        return mDeviceId;
+    }();
+    if (deviceId.empty()) {
         response->success = false;
         response->message = "No device_id configured.";
         return;
     }
-    RCLCPP_INFO(get_logger(), "Shutting down device '%s'.", mDeviceId.c_str());
+    RCLCPP_INFO(get_logger(), "Shutting down device '%s'.", deviceId.c_str());
     try {
-        mPhoXiInterface->shutdownDevice(mDeviceId);
+        mPhoXiInterface->shutdownDevice(deviceId);
         response->success = true;
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Shutdown failed: %s", e.what());
@@ -1002,14 +1017,18 @@ void PhoXiCamera::shutdownCallback(
 void PhoXiCamera::factoryResetCallback(
         const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
         const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
-    if (mDeviceId.empty()) {
+    const std::string deviceId = [this] {
+        std::lock_guard<std::mutex> lock(mDeviceIdMutex);
+        return mDeviceId;
+    }();
+    if (deviceId.empty()) {
         response->success = false;
         response->message = "No device_id configured.";
         return;
     }
-    RCLCPP_INFO(get_logger(), "Factory resetting device '%s'.", mDeviceId.c_str());
+    RCLCPP_INFO(get_logger(), "Factory resetting device '%s'.", deviceId.c_str());
     try {
-        mPhoXiInterface->factoryResetDevice(mDeviceId);
+        mPhoXiInterface->factoryResetDevice(deviceId);
         response->success = true;
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Factory reset failed: %s", e.what());
@@ -1021,15 +1040,19 @@ void PhoXiCamera::factoryResetCallback(
 void PhoXiCamera::logDownloadCallback(
         const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request,
         const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response) {
-    if (mDeviceId.empty()) {
+    const std::string deviceId = [this] {
+        std::lock_guard<std::mutex> lock(mDeviceIdMutex);
+        return mDeviceId;
+    }();
+    if (deviceId.empty()) {
         response->success = false;
         response->message = "No device_id configured.";
         return;
     }
     RCLCPP_INFO(get_logger(), "Downloading log from device '%s' to '%s'.",
-            mDeviceId.c_str(), request->logfile_path.c_str());
+            deviceId.c_str(), request->logfile_path.c_str());
     try {
-        mPhoXiInterface->downloadDeviceLog(mDeviceId, request->logfile_path, request->overwrite);
+        mPhoXiInterface->downloadDeviceLog(deviceId, request->logfile_path, request->overwrite);
         response->success = true;
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Log download failed: %s", e.what());

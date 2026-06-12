@@ -149,6 +149,7 @@ private:
     rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr mParamCallbackHandle;
     rclcpp::PreShutdownCallbackHandle mShutdownCallbackHandle;
     std::mutex mFrameMutex;
+    std::mutex mDeviceIdMutex;
     std::string mDeviceId;
     std::string mFrameId;
     bool mPublishCombined = false;
