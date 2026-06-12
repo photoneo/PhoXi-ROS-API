@@ -11,6 +11,7 @@
 #include "phoxi_camera/PhoXiInterface.h"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "phoxi_camera_msgs/srv/connect.hpp"
+#include "phoxi_camera_msgs/srv/log_download.hpp"
 #include "phoxi_camera_msgs/srv/create_profile.hpp"
 #include "phoxi_camera_msgs/srv/delete_profile.hpp"
 #include "phoxi_camera_msgs/srv/export_profile.hpp"
@@ -76,6 +77,18 @@ private:
     // Apply a single field update to an object-type SettingValue (partial update).
     SettingValue applyFieldUpdate(const SettingValue& current, SettingValueType type, const std::string& field, const rclcpp::Parameter& param) const;
 
+    void rebootCallback(
+            const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
+            const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void shutdownCallback(
+            const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
+            const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void factoryResetCallback(
+            const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
+            const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void logDownloadCallback(
+            const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request,
+            const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response);
     void connectCallback(
             const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
     void disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
@@ -115,6 +128,10 @@ private:
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mTexturePub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mTextureRgbPub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mColorCameraImagePub;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mRebootService;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mShutdownService;
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mFactoryResetService;
+    rclcpp::Service<phoxi_camera_msgs::srv::LogDownload>::SharedPtr mLogDownloadService;
     rclcpp::Service<phoxi_camera_msgs::srv::Connect>::SharedPtr mConnectService;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mDisconnectService;
     rclcpp::Service<phoxi_camera_msgs::srv::TriggerFrame>::SharedPtr mTriggerFrameService;

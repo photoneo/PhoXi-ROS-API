@@ -271,6 +271,15 @@ void PhoXiCamera::declareParameters() {
     mParamCallbackHandle = add_on_set_parameters_callback(std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
 
     mShutdownCallbackHandle = get_node_base_interface()->get_context()->add_pre_shutdown_callback([this]() { rclcpp_lifecycle::LifecycleNode::shutdown(); });
+
+    mRebootService = create_service<std_srvs::srv::Trigger>(
+            "~/reboot", std::bind(&PhoXiCamera::rebootCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mShutdownService = create_service<std_srvs::srv::Trigger>(
+            "~/shutdown", std::bind(&PhoXiCamera::shutdownCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mFactoryResetService = create_service<std_srvs::srv::Trigger>(
+            "~/factory_reset", std::bind(&PhoXiCamera::factoryResetCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mLogDownloadService = create_service<phoxi_camera_msgs::srv::LogDownload>(
+            "~/log_download", std::bind(&PhoXiCamera::logDownloadCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void PhoXiCamera::loadDeviceSettingDescriptors() {
@@ -949,6 +958,83 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
         RCLCPP_INFO(get_logger(), "Frame published successfully.");
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "Failed to publish frame: %s", e.what());
+    }
+}
+
+void PhoXiCamera::rebootCallback(
+        const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
+        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+    if (mDeviceId.empty()) {
+        response->success = false;
+        response->message = "No device_id configured.";
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "Rebooting device '%s'.", mDeviceId.c_str());
+    try {
+        mPhoXiInterface->rebootDevice(mDeviceId);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Reboot failed: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::shutdownCallback(
+        const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
+        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+    if (mDeviceId.empty()) {
+        response->success = false;
+        response->message = "No device_id configured.";
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "Shutting down device '%s'.", mDeviceId.c_str());
+    try {
+        mPhoXiInterface->shutdownDevice(mDeviceId);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Shutdown failed: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::factoryResetCallback(
+        const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
+        const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+    if (mDeviceId.empty()) {
+        response->success = false;
+        response->message = "No device_id configured.";
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "Factory resetting device '%s'.", mDeviceId.c_str());
+    try {
+        mPhoXiInterface->factoryResetDevice(mDeviceId);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Factory reset failed: %s", e.what());
+        response->success = false;
+        response->message = e.what();
+    }
+}
+
+void PhoXiCamera::logDownloadCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request,
+        const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response) {
+    if (mDeviceId.empty()) {
+        response->success = false;
+        response->message = "No device_id configured.";
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "Downloading log from device '%s' to '%s'.",
+            mDeviceId.c_str(), request->logfile_path.c_str());
+    try {
+        mPhoXiInterface->downloadDeviceLog(mDeviceId, request->logfile_path, request->overwrite);
+        response->success = true;
+    } catch (const PhoXiInterfaceException& e) {
+        RCLCPP_ERROR(get_logger(), "Log download failed: %s", e.what());
+        response->success = false;
+        response->message = e.what();
     }
 }
 

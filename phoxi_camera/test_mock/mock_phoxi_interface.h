@@ -39,4 +39,8 @@ public:
     MOCK_METHOD(SettingValueMap, getSettings, (const std::vector<std::string>&), (override));
     MOCK_METHOD(void, setSetting, (const std::string&, const phoxi_camera::SettingValue&), (override));
     MOCK_METHOD(void, setSettings, (const SettingKeyValueList&), (override));
+    MOCK_METHOD(void, rebootDevice, (const std::string&), (override));
+    MOCK_METHOD(void, shutdownDevice, (const std::string&), (override));
+    MOCK_METHOD(void, factoryResetDevice, (const std::string&), (override));
+    MOCK_METHOD(void, downloadDeviceLog, (const std::string&, const std::string&, bool), (override));
 };

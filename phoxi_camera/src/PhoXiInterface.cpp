@@ -817,6 +817,30 @@ void PhoXiInterface::setSetting(const std::string& key, const SettingValue& valu
     setSettings({{key, value}});
 }
 
+void PhoXiInterface::rebootDevice(const std::string& deviceId) {
+    if (!mPhoXiFactory.Reboot(deviceId)) {
+        throw PhoXiInterfaceException("Failed to reboot device '" + deviceId + "'");
+    }
+}
+
+void PhoXiInterface::shutdownDevice(const std::string& deviceId) {
+    if (!mPhoXiFactory.Shutdown(deviceId)) {
+        throw PhoXiInterfaceException("Failed to shut down device '" + deviceId + "'");
+    }
+}
+
+void PhoXiInterface::factoryResetDevice(const std::string& deviceId) {
+    if (!mPhoXiFactory.FactoryReset(deviceId)) {
+        throw PhoXiInterfaceException("Failed to factory reset device '" + deviceId + "'");
+    }
+}
+
+void PhoXiInterface::downloadDeviceLog(const std::string& deviceId, const std::string& logfilePath, bool overwrite) {
+    if (!mPhoXiFactory.LogDownload(deviceId, logfilePath, overwrite)) {
+        throw PhoXiInterfaceException("Failed to download log from device '" + deviceId + "'");
+    }
+}
+
 void PhoXiInterface::frameAcceptor(const phoxi_frame_record_t* records, void* userData) {
     auto* self = static_cast<PhoXiInterface*>(userData);
 

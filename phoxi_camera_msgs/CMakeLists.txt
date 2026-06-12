@@ -7,6 +7,7 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
         "msg/FrameInfo.msg"
+        "srv/LogDownload.srv"
         "srv/Connect.srv"
         "srv/TriggerFrame.srv"
         "srv/GetProfileList.srv"

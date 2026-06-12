@@ -257,6 +257,34 @@ public:
     virtual void resetActiveProfile();
 
     /**
+     * Reboot the device. Does not require an active connection.
+     *
+     * \throw PhoXiInterfaceException on failure
+     */
+    virtual void rebootDevice(const std::string& deviceId);
+
+    /**
+     * Shut down the device. Does not require an active connection.
+     *
+     * \throw PhoXiInterfaceException on failure
+     */
+    virtual void shutdownDevice(const std::string& deviceId);
+
+    /**
+     * Reset the device to factory defaults. Does not require an active connection.
+     *
+     * \throw PhoXiInterfaceException on failure
+     */
+    virtual void factoryResetDevice(const std::string& deviceId);
+
+    /**
+     * Download device logs to a file. Does not require an active connection.
+     *
+     * \throw PhoXiInterfaceException on failure
+     */
+    virtual void downloadDeviceLog(const std::string& deviceId, const std::string& logfilePath, bool overwrite);
+
+    /**
      * Set which data components the device should include in each frame.
      * Only the listed components are updated; omitted components retain their current device setting.
      *

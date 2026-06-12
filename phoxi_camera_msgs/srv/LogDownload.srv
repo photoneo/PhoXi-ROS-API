@@ -1,0 +1,5 @@
+string logfile_path
+bool overwrite
+---
+bool success
+string message
