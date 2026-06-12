@@ -8,6 +8,7 @@
 #include "message_filters/sync_policies/exact_time.hpp"
 #include "message_filters/synchronizer.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
+#include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -21,6 +22,7 @@ protected:
     using PC2 = sensor_msgs::msg::PointCloud2;
     using Img = sensor_msgs::msg::Image;
     using CI = sensor_msgs::msg::CameraInfo;
+    using FI = phoxi_camera_msgs::msg::FrameInfo;
 
     struct ReceivedFrame {
         PC2::ConstSharedPtr pointCloud;
@@ -104,6 +106,9 @@ protected:
         const auto qos = rclcpp::SystemDefaultsQoS();
         mPointCloudSub.subscribe(mClientNode, "/point_cloud", qos);
         mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
+        mFrameInfoSub = mClientNode->create_subscription<FI>(
+            "/frameInfo", qos,
+            [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
         mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>(
             "/frameInfo/currentCamera", qos,
             [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
@@ -117,6 +122,8 @@ protected:
         mSync2.reset();
         mPointCloudSub.unsubscribe();
         mColorCameraSub.unsubscribe();
+        mFrameInfoSub.reset();
+        mLatestFrameInfo.reset();
         mPrimaryCameraInfoSub.reset();
         mColorCameraInfoSub.reset();
         mLatestPrimaryCameraInfo.reset();
@@ -158,11 +165,13 @@ protected:
 
     message_filters::Subscriber<PC2> mPointCloudSub;
     message_filters::Subscriber<Img> mColorCameraSub;
+    rclcpp::Subscription<FI>::SharedPtr mFrameInfoSub;
     rclcpp::Subscription<CI>::SharedPtr mPrimaryCameraInfoSub;
     rclcpp::Subscription<CI>::SharedPtr mColorCameraInfoSub;
 
     rclcpp::Client<phoxi_camera_msgs::srv::TriggerFrame>::SharedPtr mTriggerClient;
     ReceivedFrame mLatestFrame;
+    FI::ConstSharedPtr mLatestFrameInfo;
     CI::ConstSharedPtr mLatestPrimaryCameraInfo;
     CI::ConstSharedPtr mLatestColorCameraInfo;
 };
@@ -233,6 +242,25 @@ TEST_F(FrameTest, ColorTexture_PointCloudHasRgbFieldAndColorCameraImageReceived)
     EXPECT_GT(frame.colorCamera->height, 0u);
     EXPECT_GT(frame.colorCamera->data.size(), 0u);
     EXPECT_EQ(frame.pointCloud->header.stamp, frame.colorCamera->header.stamp);
+}
+
+// PHOXI_FRAME_TYPE_FRAMEINFO must produce a populated FrameInfo message every frame.
+TEST_F(FrameTest, FrameInfo_FrameInfoMsgReceived) {
+    usePointCloudOnly();
+    triggerAndReceive();
+
+    auto deadline = std::chrono::steady_clock::now() + 5s;
+    while (!mLatestFrameInfo && std::chrono::steady_clock::now() < deadline) {
+        mExecutor.spin_some(10ms);
+    }
+
+    ASSERT_NE(mLatestFrameInfo, nullptr) << "No frameInfo message received";
+    EXPECT_FALSE(mLatestFrameInfo->hw_id.empty());
+    EXPECT_GT(mLatestFrameInfo->total_scan_count, 0);
+    EXPECT_GT(mLatestFrameInfo->duration, 0.0);
+    EXPECT_FALSE(mLatestFrameInfo->temperature.empty());
+    EXPECT_NE(mLatestFrameInfo->header.frame_id, "");
+    EXPECT_TRUE(mLatestFrameInfo->header.stamp.sec > 0 || mLatestFrameInfo->header.stamp.nanosec > 0u);
 }
 
 // PHOXI_FRAME_TYPE_FRAMEINFO must produce valid CameraInfo on both topics every frame.

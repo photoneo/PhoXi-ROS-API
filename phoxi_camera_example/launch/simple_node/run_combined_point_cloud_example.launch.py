@@ -28,11 +28,11 @@ def generate_launch_description():
         parameters=[{
             'device_id':        LaunchConfiguration('sensor_sn'),
             'publish_combined': True,
-            'frameSettings/PointCloud':    True,
-            'frameSettings/NormalMap':     True,
-            'frameSettings/DepthMap':      True,
-            'frameSettings/Texture':       True,
-            'frameSettings/ConfidenceMap': True,
+            'frameSettings.PointCloud':    True,
+            'frameSettings.NormalMap':     True,
+            'frameSettings.DepthMap':      True,
+            'frameSettings.Texture':       True,
+            'frameSettings.ConfidenceMap': True,
         }]
     )
 

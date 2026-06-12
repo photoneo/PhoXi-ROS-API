@@ -1,9 +1,42 @@
 #include <iomanip>
 #include <sstream>
 
+#include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+
+static void printFrameInfo(const rclcpp::Logger& logger,
+    const phoxi_camera_msgs::msg::FrameInfo& msg)
+{
+    RCLCPP_INFO(logger, "[frameInfo] #%d  total=%d  hw=%s",
+        msg.index, msg.total_scan_count, msg.hw_id.c_str());
+    RCLCPP_INFO(logger, "  duration=%.2f ms  computation=%.2f ms  transfer=%.2f ms",
+        msg.duration, msg.duration_computation, msg.duration_transfer);
+    RCLCPP_INFO(logger, "  timestamp=%.3f ms  early_transfer=%s",
+        msg.timestamp, msg.is_early_transfer_frame ? "true" : "false");
+    RCLCPP_INFO(logger, "  sensor_pos=[%.2f %.2f %.2f]",
+        msg.sensor_position[0], msg.sensor_position[1], msg.sensor_position[2]);
+    RCLCPP_INFO(logger, "  sensor_x=[%.3f %.3f %.3f]  y=[%.3f %.3f %.3f]  z=[%.3f %.3f %.3f]",
+        msg.sensor_x_axis[0], msg.sensor_x_axis[1], msg.sensor_x_axis[2],
+        msg.sensor_y_axis[0], msg.sensor_y_axis[1], msg.sensor_y_axis[2],
+        msg.sensor_z_axis[0], msg.sensor_z_axis[1], msg.sensor_z_axis[2]);
+    RCLCPP_INFO(logger, "  balance_rgb=[%.3f %.3f %.3f]  binning=[%d %d]  binning_factor=[%.1f %.1f]",
+        msg.balance_rgb[0], msg.balance_rgb[1], msg.balance_rgb[2],
+        msg.camera_binning[0], msg.camera_binning[1],
+        msg.camera_binning_factor[0], msg.camera_binning_factor[1]);
+    std::ostringstream tempStream;
+    for (const auto& t : msg.temperature) {
+        tempStream << std::fixed << std::setprecision(1) << t << " ";
+    }
+    RCLCPP_INFO(logger, "  temperature=[%s]°C", tempStream.str().c_str());
+    RCLCPP_INFO(logger, "  ptp: %s  state=%s  ns=%ld",
+        msg.frame_start_grand_master_identity.c_str(),
+        msg.frame_start_port_state.c_str(),
+        msg.frame_start_time_ns);
+    RCLCPP_INFO(logger, "  marker_dots: status=%d  %s",
+        msg.marker_dots_status, msg.marker_dots_message.c_str());
+}
 
 static void printCameraInfo(const rclcpp::Logger& logger, const std::string& topic,
     const sensor_msgs::msg::CameraInfo& msg)
@@ -42,6 +75,12 @@ int main(int argc, char* argv[]) {
             for (const auto& field : msg->fields) {
                 RCLCPP_INFO(logger, "  %s (offset %u)", field.name.c_str(), field.offset);
             }
+        });
+
+    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>(
+        "/frameInfo", 10,
+        [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) {
+            printFrameInfo(logger, *msg);
         });
 
     auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "phoxi_camera/PhoXiFrame.h"
+#include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -33,15 +34,15 @@ std::unique_ptr<sensor_msgs::msg::Image> textureToRosMsg(const phoxi_frame_recor
 // rgb16 image with RGB texture from the structured-light sensor (TEXTURE record, RGB_16 format)
 std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_record_t& record);
 // rgb16 image with RGB data from the color camera
-std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(
-    const phoxi_frame_record_t& record);
+std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record);
 
-struct FrameCameraInfos {
+struct ParsedFrameInfo {
+    std::unique_ptr<phoxi_camera_msgs::msg::FrameInfo> frameInfo;
     std::unique_ptr<sensor_msgs::msg::CameraInfo> currentCamera;
     std::unique_ptr<sensor_msgs::msg::CameraInfo> currentColorCamera;
 };
 
-FrameCameraInfos frameInfoToRosMsgs(const phoxi_frame_record_t& record);
+ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record);
 
 }  // namespace phoxi_camera
 

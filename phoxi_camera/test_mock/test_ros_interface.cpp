@@ -24,6 +24,7 @@
 #include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "phoxi_camera_msgs/srv/update_profile.hpp"
+#include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -710,7 +711,29 @@ static const std::string FRAME_INFO_JSON = R"({
         "current_camera/Resolution": {"width": 640, "height": 480},
         "current_color_camera/PerspectiveSettings/CameraMatrix": [1000.0, 0.0, 400.0, 0.0, 1000.0, 300.0, 0.0, 0.0, 1.0],
         "current_color_camera/PerspectiveSettings/DistortionCoefficients": [0.05, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        "current_color_camera/Resolution": {"width": 1280, "height": 960}
+        "current_color_camera/Resolution": {"width": 1280, "height": 960},
+        "hw_id": "TEST-CAM-001",
+        "index": 42,
+        "total_scan_count": 1000,
+        "timestamp": 16028169.085,
+        "duration": 95.4,
+        "duration_computation": 44.1,
+        "duration_transfer": 0.33,
+        "is_early_transfer_frame": false,
+        "sensor_position": {"x": 1.0, "y": 2.0, "z": 3.0},
+        "sensor_x_axis": {"x": 1.0, "y": 0.0, "z": 0.0},
+        "sensor_y_axis": {"x": 0.0, "y": 1.0, "z": 0.0},
+        "sensor_z_axis": {"x": 0.0, "y": 0.0, "z": 1.0},
+        "balance_rgb": {"x": 1.0, "y": 0.5, "z": 1.0},
+        "camera_binning": {"h": 1, "w": 1},
+        "camera_binning_factor": {"h": 1.0, "w": 1.0},
+        "temperature": [59.0, 34.9, 36.5],
+        "frame_start_time": {
+            "grand_master_identity": "48b02d.fffe.55f29a",
+            "port_state": "MASTER",
+            "time_since_epoch": 1781179221609790625
+        },
+        "marker_dots": {"status": 1, "message": "Inactive", "recognized_marker_dots": []}
     }
 })";
 
@@ -834,6 +857,40 @@ TEST_F(RosInterfaceTest, FrameInfo_ColorCamera_NotPublishedWhenAbsentFromJson) {
     ASSERT_NE(primaryMsg, nullptr);
     EXPECT_EQ(primaryMsg->width, 640u);
     EXPECT_FALSE(colorReceived);
+}
+
+TEST_F(RosInterfaceTest, FrameInfo_FrameInfoMsgPublished) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        FRAME_INFO_JSON.size(),
+        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameInfo>(frameCb, "frameInfo", frame);
+    ASSERT_NE(msg, nullptr);
+    EXPECT_EQ(msg->hw_id, "TEST-CAM-001");
+    EXPECT_EQ(msg->index, 42);
+    EXPECT_EQ(msg->total_scan_count, 1000);
+    EXPECT_DOUBLE_EQ(msg->duration, 95.4);
+    EXPECT_FALSE(msg->is_early_transfer_frame);
+    EXPECT_DOUBLE_EQ(msg->sensor_position[0], 1.0);
+    EXPECT_DOUBLE_EQ(msg->sensor_position[1], 2.0);
+    EXPECT_DOUBLE_EQ(msg->sensor_position[2], 3.0);
+    EXPECT_DOUBLE_EQ(msg->balance_rgb[0], 1.0);
+    EXPECT_DOUBLE_EQ(msg->balance_rgb[1], 0.5);
+    EXPECT_EQ(msg->camera_binning[0], 1);
+    EXPECT_EQ(msg->camera_binning[1], 1);
+    ASSERT_EQ(msg->temperature.size(), 3u);
+    EXPECT_DOUBLE_EQ(msg->temperature[0], 59.0);
+    EXPECT_EQ(msg->frame_start_grand_master_identity, "48b02d.fffe.55f29a");
+    EXPECT_EQ(msg->frame_start_port_state, "MASTER");
+    EXPECT_EQ(msg->frame_start_time_ns, 1781179221609790625LL);
+    EXPECT_EQ(msg->marker_dots_status, 1);
+    EXPECT_EQ(msg->marker_dots_message, "Inactive");
+    EXPECT_NE(msg->header.frame_id, "");
 }
 
 TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {

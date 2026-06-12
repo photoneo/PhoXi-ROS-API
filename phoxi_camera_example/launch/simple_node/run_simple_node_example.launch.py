@@ -23,7 +23,7 @@ def generate_launch_description():
     # before acquisition starts — so only the listed components are transferred.
     #
     # Alternatively, frame settings can be changed at runtime via:
-    #   ros2 param set /phoxi_camera frameSettings/NormalMap false
+    #   ros2 param set /phoxi_camera frameSettings.NormalMap false
     #
     # Note: parameter names use '/' as the separator, so they must be written as
     # flat keys (not nested dicts) in this parameters dict.
@@ -36,12 +36,12 @@ def generate_launch_description():
             'device_id': LaunchConfiguration('sensor_sn'),
             # Frame output settings — comment out entries to leave the device
             # default unchanged, or set to false to disable a component.
-            'frameSettings/PointCloud':       True,
-            'frameSettings/NormalMap':        False,
-            'frameSettings/DepthMap':         True,
-            'frameSettings/Texture':          True,
-            'frameSettings/ConfidenceMap':    False,
-            'frameSettings/ColorCameraImage': False,
+            'frameSettings.PointCloud':       True,
+            'frameSettings.NormalMap':        False,
+            'frameSettings.DepthMap':         True,
+            'frameSettings.Texture':          True,
+            'frameSettings.ConfidenceMap':    False,
+            'frameSettings.ColorCameraImage': False,
         }]
     )
 

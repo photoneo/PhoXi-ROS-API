@@ -251,20 +251,57 @@ std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_fr
         [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
 }
 
-static std::unique_ptr<sensor_msgs::msg::CameraInfo> buildCameraInfo(const std::array<double, 9>& k, std::vector<double> d,
-    uint32_t width, uint32_t height) {
-    auto msg = std::make_unique<sensor_msgs::msg::CameraInfo>();
-    msg->width = width;
-    msg->height = height;
-    msg->distortion_model = "plumb_bob";
-    msg->d = std::move(d);
-    msg->k = k;
-    msg->r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
-    msg->p = {k[0], k[1], k[2], 0.0, k[3], k[4], k[5], 0.0, k[6], k[7], k[8], 0.0};
-    return msg;
+
+static std::array<double, 9> readArray9(const pho_jsoncons::json& node) {
+    std::array<double, 9> arr{};
+    for (size_t i = 0; i < arr.size() && i < node.size(); ++i) {
+        arr[i] = node[i].as<double>();
+    }
+    return arr;
 }
 
-FrameCameraInfos frameInfoToRosMsgs(const phoxi_frame_record_t& record) {
+static std::vector<double> readDoubleArray(const pho_jsoncons::json& node) {
+    std::vector<double> v;
+    for (const auto& x : node.array_range()) {
+        v.push_back(x.as<double>());
+    }
+    return v;
+}
+
+static std::array<double, 3> readXyz(const pho_jsoncons::json& info, const std::string& key) {
+    if (!info.contains(key)) {
+        return {};
+    }
+    const auto& o = info[key];
+    return {o["x"].as<double>(), o["y"].as<double>(), o["z"].as<double>()};
+}
+
+static std::unique_ptr<sensor_msgs::msg::CameraInfo> tryBuildCameraInfo(
+    const pho_jsoncons::json& info, const std::string& prefix)
+{
+    const std::string MAT = prefix + "/PerspectiveSettings/CameraMatrix";
+    const std::string DIST = prefix + "/PerspectiveSettings/DistortionCoefficients";
+    const std::string RES = prefix + "/Resolution";
+    if (!info.contains(MAT) || !info.contains(DIST) || !info.contains(RES)) {
+        return nullptr;
+    }
+    const auto& res = info[RES];
+    if (!res.contains("width") || !res.contains("height")) {
+        return nullptr;
+    }
+    auto k = readArray9(info[MAT]);
+    auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>();
+    ci->width = res["width"].as<uint32_t>();
+    ci->height = res["height"].as<uint32_t>();
+    ci->distortion_model = "plumb_bob";
+    ci->d = readDoubleArray(info[DIST]);
+    ci->k = k;
+    ci->r = {1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0};
+    ci->p = {k[0], k[1], k[2], 0.0, k[3], k[4], k[5], 0.0, k[6], k[7], k[8], 0.0};
+    return ci;
+}
+
+ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     const char* dataPtr = static_cast<const char*>(record.data);
     size_t dataSize = record.data_size;
     while (dataSize > 0 && dataPtr[dataSize - 1] == '\0') {
@@ -277,43 +314,82 @@ FrameCameraInfos frameInfoToRosMsgs(const phoxi_frame_record_t& record) {
     }
     const auto& info = json["info"];
 
-    auto readArray9 = [](const pho_jsoncons::json& node) -> std::array<double, 9> {
-        std::array<double, 9> arr{};
-        for (size_t i = 0; i < arr.size() && i < node.size(); ++i) {
-            arr[i] = node[i].as<double>();
-        }
-        return arr;
-    };
+    ParsedFrameInfo result;
+    result.currentCamera = tryBuildCameraInfo(info, "current_camera");
+    result.currentColorCamera = tryBuildCameraInfo(info, "current_color_camera");
 
-    auto readD = [](const pho_jsoncons::json& node) -> std::vector<double> {
-        std::vector<double> v;
-        for (const auto& x : node.array_range()) {
-            v.push_back(x.as<double>());
-        }
-        return v;
-    };
+    auto msg = std::make_unique<phoxi_camera_msgs::msg::FrameInfo>();
 
-    auto tryBuild = [&](const std::string& prefix) -> std::unique_ptr<sensor_msgs::msg::CameraInfo> {
-        const std::string MAT  = prefix + "/PerspectiveSettings/CameraMatrix";
-        const std::string DIST = prefix + "/PerspectiveSettings/DistortionCoefficients";
-        const std::string RES  = prefix + "/Resolution";
-        if (!info.contains(MAT) || !info.contains(DIST) || !info.contains(RES)) {
-            return nullptr;
-        }
-        const auto& res = info[RES];
-        if (!res.contains("width") || !res.contains("height")) {
-            return nullptr;
-        }
-        return buildCameraInfo(
-            readArray9(info[MAT]),
-            readD(info[DIST]),
-            res["width"].as<uint32_t>(),
-            res["height"].as<uint32_t>());
-    };
+    if (info.contains("hw_id")) {
+        msg->hw_id = info["hw_id"].as<std::string>();
+    }
+    if (info.contains("index")) {
+        msg->index = info["index"].as<int32_t>();
+    }
+    if (info.contains("total_scan_count")) {
+        msg->total_scan_count = info["total_scan_count"].as<int32_t>();
+    }
+    if (info.contains("timestamp")) {
+        msg->timestamp = info["timestamp"].as<double>();
+    }
+    if (info.contains("duration")) {
+        msg->duration = info["duration"].as<double>();
+    }
+    if (info.contains("duration_computation")) {
+        msg->duration_computation = info["duration_computation"].as<double>();
+    }
+    if (info.contains("duration_transfer")) {
+        msg->duration_transfer = info["duration_transfer"].as<double>();
+    }
+    if (info.contains("is_early_transfer_frame")) {
+        msg->is_early_transfer_frame = info["is_early_transfer_frame"].as<bool>();
+    }
 
-    FrameCameraInfos result;
-    result.currentCamera      = tryBuild("current_camera");
-    result.currentColorCamera = tryBuild("current_color_camera");
+    msg->sensor_position = readXyz(info, "sensor_position");
+    msg->sensor_x_axis = readXyz(info, "sensor_x_axis");
+    msg->sensor_y_axis = readXyz(info, "sensor_y_axis");
+    msg->sensor_z_axis = readXyz(info, "sensor_z_axis");
+    msg->balance_rgb = readXyz(info, "balance_rgb");
+
+    if (info.contains("camera_binning")) {
+        const auto& b = info["camera_binning"];
+        msg->camera_binning = {b["h"].as<int32_t>(), b["w"].as<int32_t>()};
+    }
+    if (info.contains("camera_binning_factor")) {
+        const auto& b = info["camera_binning_factor"];
+        msg->camera_binning_factor = {b["h"].as<double>(), b["w"].as<double>()};
+    }
+
+    if (info.contains("temperature")) {
+        for (const auto& v : info["temperature"].array_range()) {
+            msg->temperature.push_back(v.as<double>());
+        }
+    }
+
+    if (info.contains("frame_start_time")) {
+        const auto& fst = info["frame_start_time"];
+        if (fst.contains("grand_master_identity")) {
+            msg->frame_start_grand_master_identity = fst["grand_master_identity"].as<std::string>();
+        }
+        if (fst.contains("port_state")) {
+            msg->frame_start_port_state = fst["port_state"].as<std::string>();
+        }
+        if (fst.contains("time_since_epoch")) {
+            msg->frame_start_time_ns = fst["time_since_epoch"].as<int64_t>();
+        }
+    }
+
+    if (info.contains("marker_dots")) {
+        const auto& md = info["marker_dots"];
+        if (md.contains("status")) {
+            msg->marker_dots_status = md["status"].as<int32_t>();
+        }
+        if (md.contains("message")) {
+            msg->marker_dots_message = md["message"].as<std::string>();
+        }
+    }
+
+    result.frameInfo = std::move(msg);
     return result;
 }
 

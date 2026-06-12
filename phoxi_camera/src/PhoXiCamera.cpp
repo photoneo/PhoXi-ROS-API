@@ -137,6 +137,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         return CallbackReturn::FAILURE;
     }
 
+    mFrameInfoPub = create_publisher<phoxi_camera_msgs::msg::FrameInfo>("frameInfo", rclcpp::SystemDefaultsQoS());
     mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentCamera", rclcpp::SystemDefaultsQoS());
     mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentColorCamera", rclcpp::SystemDefaultsQoS());
     mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS());
@@ -788,6 +789,7 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
 }
 
 void PhoXiCamera::activatePublishers() {
+    mFrameInfoPub->on_activate();
     mPrimaryCameraInfoPub->on_activate();
     mColorCameraInfoPub->on_activate();
     mColorCameraImagePub->on_activate();
@@ -805,6 +807,7 @@ void PhoXiCamera::activatePublishers() {
 }
 
 void PhoXiCamera::deactivatePublishers() {
+    mFrameInfoPub->on_deactivate();
     mPrimaryCameraInfoPub->on_deactivate();
     mColorCameraInfoPub->on_deactivate();
     mColorCameraImagePub->on_deactivate();
@@ -822,6 +825,7 @@ void PhoXiCamera::deactivatePublishers() {
 }
 
 void PhoXiCamera::cleanupResources() {
+    mFrameInfoPub.reset();
     mPrimaryCameraInfoPub.reset();
     mColorCameraInfoPub.reset();
     mPointCloudPub.reset();
@@ -918,17 +922,27 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             mColorCameraImagePub->publish(std::move(img));
         }
 
-        if (frame.frameInfo && (shouldPublish(mPrimaryCameraInfoPub) || shouldPublish(mColorCameraInfoPub))) {
-            auto msgs = frameInfoToRosMsgs(*frame.frameInfo);
-            if (msgs.currentCamera && shouldPublish(mPrimaryCameraInfoPub)) {
-                msgs.currentCamera->header.frame_id = mFrameId;
-                msgs.currentCamera->header.stamp = rosStamp;
-                mPrimaryCameraInfoPub->publish(std::move(msgs.currentCamera));
-            }
-            if (msgs.currentColorCamera && shouldPublish(mColorCameraInfoPub)) {
-                msgs.currentColorCamera->header.frame_id = mFrameId;
-                msgs.currentColorCamera->header.stamp = rosStamp;
-                mColorCameraInfoPub->publish(std::move(msgs.currentColorCamera));
+        if (frame.frameInfo) {
+            const bool pubFrameInfo = shouldPublish(mFrameInfoPub);
+            const bool pubPrimaryCamera = shouldPublish(mPrimaryCameraInfoPub);
+            const bool pubColorCamera = shouldPublish(mColorCameraInfoPub);
+            if (pubFrameInfo || pubPrimaryCamera || pubColorCamera) {
+                auto parsed = parseFrameInfo(*frame.frameInfo);
+                if (parsed.frameInfo && pubFrameInfo) {
+                    parsed.frameInfo->header.frame_id = mFrameId;
+                    parsed.frameInfo->header.stamp = rosStamp;
+                    mFrameInfoPub->publish(std::move(parsed.frameInfo));
+                }
+                if (parsed.currentCamera && pubPrimaryCamera) {
+                    parsed.currentCamera->header.frame_id = mFrameId;
+                    parsed.currentCamera->header.stamp = rosStamp;
+                    mPrimaryCameraInfoPub->publish(std::move(parsed.currentCamera));
+                }
+                if (parsed.currentColorCamera && pubColorCamera) {
+                    parsed.currentColorCamera->header.frame_id = mFrameId;
+                    parsed.currentColorCamera->header.stamp = rosStamp;
+                    mColorCameraInfoPub->publish(std::move(parsed.currentColorCamera));
+                }
             }
         }
 

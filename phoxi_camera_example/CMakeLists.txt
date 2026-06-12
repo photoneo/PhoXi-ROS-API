@@ -53,6 +53,7 @@ add_executable(simple_node_topic_listener src/simple_node/simple_node_topic_list
 target_link_libraries(simple_node_topic_listener
     PUBLIC
         rclcpp::rclcpp
+        ${phoxi_camera_msgs_TARGETS}
         ${sensor_msgs_TARGETS}
 )
 
@@ -71,6 +72,7 @@ add_executable(combined_point_cloud_topic_listener
 target_link_libraries(combined_point_cloud_topic_listener
     PUBLIC
         rclcpp::rclcpp
+        ${phoxi_camera_msgs_TARGETS}
         ${sensor_msgs_TARGETS}
 )
 
