@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "phoxi_camera/PhoXiInterface.h"
+#include "phoxi_camera_msgs/msg/frame_error.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "phoxi_camera_msgs/srv/connect.hpp"
 #include "phoxi_camera_msgs/srv/log_download.hpp"
@@ -116,6 +117,7 @@ private:
             const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response);
     void resetActiveProfileCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
 
+    rclcpp_lifecycle::LifecyclePublisher<phoxi_camera_msgs::msg::FrameError>::SharedPtr mFrameErrorPub;
     rclcpp_lifecycle::LifecyclePublisher<phoxi_camera_msgs::msg::FrameInfo>::SharedPtr mFrameInfoPub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::CameraInfo>::SharedPtr mPrimaryCameraInfoPub;
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::CameraInfo>::SharedPtr mColorCameraInfoPub;

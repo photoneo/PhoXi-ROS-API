@@ -5,6 +5,8 @@
 #include <string>
 
 #include "phoxi_camera/PhoXiFrame.h"
+#include "phoxi_camera_msgs/msg/frame_error.hpp"
+#include "phoxi_camera_msgs/msg/frame_message.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
@@ -37,6 +39,8 @@ std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_re
 std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record);
 
 struct ParsedFrameInfo {
+    bool successful = true;
+    std::unique_ptr<phoxi_camera_msgs::msg::FrameError> frameError;
     std::unique_ptr<phoxi_camera_msgs::msg::FrameInfo> frameInfo;
     std::unique_ptr<sensor_msgs::msg::CameraInfo> currentCamera;
     std::unique_ptr<sensor_msgs::msg::CameraInfo> currentColorCamera;

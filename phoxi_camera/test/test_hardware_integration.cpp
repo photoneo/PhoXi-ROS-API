@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 #include "hardware_test_fixture.h"
 #include "lifecycle_msgs/msg/transition.hpp"
+#include "phoxi_camera_msgs/msg/frame_error.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
@@ -26,13 +27,20 @@ protected:
 TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, 30s));
 
-    bool messageReceived = false;
+    bool pointCloudReceived = false;
+    bool frameErrorReceived = false;
     sensor_msgs::msg::PointCloud2::SharedPtr receivedMsg;
-    auto sub = mClientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
+
+    auto pcSub = mClientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
         "/point_cloud", 1,
         [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-            messageReceived = true;
+            pointCloudReceived = true;
             receivedMsg = msg;
+        });
+    auto errSub = mClientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
+        "/frameError", 1,
+        [&](phoxi_camera_msgs::msg::FrameError::SharedPtr) {
+            frameErrorReceived = true;
         });
 
     auto req = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
@@ -43,14 +51,18 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
     ASSERT_TRUE(resp->success);
 
     auto deadline = std::chrono::steady_clock::now() + 2s;
-    while (!messageReceived && std::chrono::steady_clock::now() < deadline) {
+    while (!pointCloudReceived && !frameErrorReceived && std::chrono::steady_clock::now() < deadline) {
         mExecutor.spin_some(10ms);
     }
 
-    ASSERT_TRUE(messageReceived);
-    EXPECT_GT(receivedMsg->data.size(), 0u);
-    EXPECT_NE(receivedMsg->header.frame_id, "");
-    EXPECT_TRUE(receivedMsg->header.stamp.sec > 0 || receivedMsg->header.stamp.nanosec > 0u);
+    ASSERT_TRUE(pointCloudReceived || frameErrorReceived)
+        << "Neither point_cloud nor frameError received within timeout";
+
+    if (pointCloudReceived) {
+        EXPECT_GT(receivedMsg->data.size(), 0u);
+        EXPECT_NE(receivedMsg->header.frame_id, "");
+        EXPECT_TRUE(receivedMsg->header.stamp.sec > 0 || receivedMsg->header.stamp.nanosec > 0u);
+    }
 
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE, 10s));
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP, 10s));

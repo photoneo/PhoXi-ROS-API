@@ -1,10 +1,20 @@
 #include <iomanip>
 #include <sstream>
 
+#include "phoxi_camera_msgs/msg/frame_error.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
+
+static void printFrameError(const rclcpp::Logger& logger,
+    const phoxi_camera_msgs::msg::FrameError& msg)
+{
+    RCLCPP_ERROR(logger, "[frameError] %zu message(s):", msg.messages.size());
+    for (const auto& e : msg.messages) {
+        RCLCPP_ERROR(logger, "  [code=%d severity=%d] %s", e.code, e.severity, e.text.c_str());
+    }
+}
 
 static void printFrameInfo(const rclcpp::Logger& logger,
     const phoxi_camera_msgs::msg::FrameInfo& msg)
@@ -93,6 +103,12 @@ int main(int argc, char* argv[]) {
         "/frameInfo/currentColorCamera", 10,
         [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
             printCameraInfo(logger, "frameInfo/currentColorCamera", *msg);
+        });
+
+    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>(
+        "/frameError", 10,
+        [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) {
+            printFrameError(logger, *msg);
         });
 
     RCLCPP_INFO(logger, "Listening on /phoxi_camera/point_cloud (combined mode).");

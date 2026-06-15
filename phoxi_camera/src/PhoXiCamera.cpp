@@ -2,6 +2,7 @@
 
 #include <array>
 #include <chrono>
+#include <optional>
 #include <vector>
 
 #include "lifecycle_msgs/msg/state.hpp"
@@ -140,6 +141,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         return CallbackReturn::FAILURE;
     }
 
+    mFrameErrorPub = create_publisher<phoxi_camera_msgs::msg::FrameError>("frameError", rclcpp::SystemDefaultsQoS());
     mFrameInfoPub = create_publisher<phoxi_camera_msgs::msg::FrameInfo>("frameInfo", rclcpp::SystemDefaultsQoS());
     mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentCamera", rclcpp::SystemDefaultsQoS());
     mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentColorCamera", rclcpp::SystemDefaultsQoS());
@@ -801,6 +803,7 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
 }
 
 void PhoXiCamera::activatePublishers() {
+    mFrameErrorPub->on_activate();
     mFrameInfoPub->on_activate();
     mPrimaryCameraInfoPub->on_activate();
     mColorCameraInfoPub->on_activate();
@@ -819,6 +822,7 @@ void PhoXiCamera::activatePublishers() {
 }
 
 void PhoXiCamera::deactivatePublishers() {
+    mFrameErrorPub->on_deactivate();
     mFrameInfoPub->on_deactivate();
     mPrimaryCameraInfoPub->on_deactivate();
     mColorCameraInfoPub->on_deactivate();
@@ -837,6 +841,7 @@ void PhoXiCamera::deactivatePublishers() {
 }
 
 void PhoXiCamera::cleanupResources() {
+    mFrameErrorPub.reset();
     mFrameInfoPub.reset();
     mPrimaryCameraInfoPub.reset();
     mColorCameraInfoPub.reset();
@@ -877,6 +882,25 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
         };
 
         auto shouldPublish = [](const auto& pub) { return pub->is_activated() && pub->get_subscription_count() > 0; };
+
+        std::optional<ParsedFrameInfo> parsedFrameInfo;
+        if (frame.frameInfo) {
+            try {
+                parsedFrameInfo = parseFrameInfo(*frame.frameInfo);
+            } catch (const std::exception& e) {
+                RCLCPP_WARN(get_logger(), "Failed to parse frameInfo: %s", e.what());
+            }
+        }
+
+        if (parsedFrameInfo && !parsedFrameInfo->successful) {
+            if (parsedFrameInfo->frameError && shouldPublish(mFrameErrorPub)) {
+                parsedFrameInfo->frameError->header.frame_id = mFrameId;
+                parsedFrameInfo->frameError->header.stamp = rosStamp;
+                mFrameErrorPub->publish(std::move(parsedFrameInfo->frameError));
+            }
+            RCLCPP_WARN(get_logger(), "Frame not successful, skipping data publish.");
+            return;
+        }
 
         if (frame.pointCloud && shouldPublish(mPointCloudPub)) {
             auto msg = phoXiFrameToRosMsg(frame);
@@ -934,31 +958,24 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             mColorCameraImagePub->publish(std::move(img));
         }
 
-        if (frame.frameInfo) {
+        if (parsedFrameInfo) {
             const bool pubFrameInfo = shouldPublish(mFrameInfoPub);
             const bool pubPrimaryCamera = shouldPublish(mPrimaryCameraInfoPub);
             const bool pubColorCamera = shouldPublish(mColorCameraInfoPub);
-            if (pubFrameInfo || pubPrimaryCamera || pubColorCamera) {
-                try {
-                    auto parsed = parseFrameInfo(*frame.frameInfo);
-                    if (parsed.frameInfo && pubFrameInfo) {
-                        parsed.frameInfo->header.frame_id = mFrameId;
-                        parsed.frameInfo->header.stamp = rosStamp;
-                        mFrameInfoPub->publish(std::move(parsed.frameInfo));
-                    }
-                    if (parsed.currentCamera && pubPrimaryCamera) {
-                        parsed.currentCamera->header.frame_id = mFrameId;
-                        parsed.currentCamera->header.stamp = rosStamp;
-                        mPrimaryCameraInfoPub->publish(std::move(parsed.currentCamera));
-                    }
-                    if (parsed.currentColorCamera && pubColorCamera) {
-                        parsed.currentColorCamera->header.frame_id = mFrameId;
-                        parsed.currentColorCamera->header.stamp = rosStamp;
-                        mColorCameraInfoPub->publish(std::move(parsed.currentColorCamera));
-                    }
-                } catch (const std::exception& e) {
-                    RCLCPP_WARN(get_logger(), "Failed to parse frameInfo: %s", e.what());
-                }
+            if (parsedFrameInfo->frameInfo && pubFrameInfo) {
+                parsedFrameInfo->frameInfo->header.frame_id = mFrameId;
+                parsedFrameInfo->frameInfo->header.stamp = rosStamp;
+                mFrameInfoPub->publish(std::move(parsedFrameInfo->frameInfo));
+            }
+            if (parsedFrameInfo->currentCamera && pubPrimaryCamera) {
+                parsedFrameInfo->currentCamera->header.frame_id = mFrameId;
+                parsedFrameInfo->currentCamera->header.stamp = rosStamp;
+                mPrimaryCameraInfoPub->publish(std::move(parsedFrameInfo->currentCamera));
+            }
+            if (parsedFrameInfo->currentColorCamera && pubColorCamera) {
+                parsedFrameInfo->currentColorCamera->header.frame_id = mFrameId;
+                parsedFrameInfo->currentColorCamera->header.stamp = rosStamp;
+                mColorCameraInfoPub->publish(std::move(parsedFrameInfo->currentColorCamera));
             }
         }
 

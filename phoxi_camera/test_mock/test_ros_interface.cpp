@@ -24,6 +24,7 @@
 #include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "phoxi_camera_msgs/srv/update_profile.hpp"
+#include "phoxi_camera_msgs/msg/frame_error.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -734,7 +735,10 @@ static const std::string FRAME_INFO_JSON = R"({
             "time_since_epoch": 1781179221609790625
         },
         "marker_dots": {"status": 1, "message": "Inactive", "recognized_marker_dots": []}
-    }
+    },
+    "msgs": [
+        {"code": 3, "severity": 1, "text": "Low signal quality."}
+    ]
 })";
 
 TEST_F(RosInterfaceTest, FrameInfo_CurrentCameraPublished) {
@@ -890,7 +894,88 @@ TEST_F(RosInterfaceTest, FrameInfo_FrameInfoMsgPublished) {
     EXPECT_EQ(msg->frame_start_time_ns, 1781179221609790625LL);
     EXPECT_EQ(msg->marker_dots_status, 1);
     EXPECT_EQ(msg->marker_dots_message, "Inactive");
+    ASSERT_EQ(msg->messages.size(), 1u);
+    EXPECT_EQ(msg->messages[0].code, 3);
+    EXPECT_EQ(msg->messages[0].severity, 1);
+    EXPECT_EQ(msg->messages[0].text, "Low signal quality.");
     EXPECT_NE(msg->header.frame_id, "");
+}
+
+static const std::string FRAME_ERROR_JSON = R"({
+    "successful": false,
+    "msgs": [
+        {"code": 11, "severity": 2, "text": "Marker was not recognized!"},
+        {"code": 12, "severity": 1, "text": "Not enough valid circles!"}
+    ]
+})";
+
+TEST_F(RosInterfaceTest, FrameError_PublishedWhenNotSuccessful) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        FRAME_ERROR_JSON.size(),
+        const_cast<void*>(static_cast<const void*>(FRAME_ERROR_JSON.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameError>(frameCb, "frameError", frame);
+    ASSERT_NE(msg, nullptr);
+    ASSERT_EQ(msg->messages.size(), 2u);
+    EXPECT_EQ(msg->messages[0].code, 11);
+    EXPECT_EQ(msg->messages[0].severity, 2);
+    EXPECT_EQ(msg->messages[0].text, "Marker was not recognized!");
+    EXPECT_EQ(msg->messages[1].code, 12);
+    EXPECT_EQ(msg->messages[1].severity, 1);
+    EXPECT_NE(msg->header.frame_id, "");
+}
+
+TEST_F(RosInterfaceTest, FrameError_PointCloudNotPublishedWhenNotSuccessful) {
+    lcNode->set_parameter(rclcpp::Parameter("publish_combined", true));
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    float pts[1][3] = {{1000.0f, 0.0f, 0.0f}};
+    phoxi_frame_record_t pcRec{PHOXI_FRAME_TYPE_POINTCLOUD, PHOXI_FRAME_FORMAT_POINT3_32F, 1, 1, sizeof(pts), pts};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        FRAME_ERROR_JSON.size(),
+        const_cast<void*>(static_cast<const void*>(FRAME_ERROR_JSON.data()))};
+    PhoXiFrame frame;
+    frame.pointCloud = &pcRec;
+    frame.frameInfo = &infoRec;
+
+    bool pcReceived = false;
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
+        "point_cloud", rclcpp::SystemDefaultsQoS(),
+        [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) { pcReceived = true; });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+    frameCb(frame);
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    EXPECT_FALSE(pcReceived);
+}
+
+TEST_F(RosInterfaceTest, FrameError_NotPublishedWhenSuccessful) {
+    auto frameCb = configureActivateCapture();
+    ASSERT_TRUE(frameCb);
+
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
+        FRAME_INFO_JSON.size(),
+        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    PhoXiFrame frame;
+    frame.frameInfo = &infoRec;
+
+    bool errorReceived = false;
+    auto sub = clientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
+        "frameError", rclcpp::SystemDefaultsQoS(),
+        [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) { errorReceived = true; });
+
+    executor_.spin_some(std::chrono::milliseconds(50));
+    frameCb(frame);
+    executor_.spin_some(std::chrono::milliseconds(100));
+
+    EXPECT_FALSE(errorReceived);
 }
 
 TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {

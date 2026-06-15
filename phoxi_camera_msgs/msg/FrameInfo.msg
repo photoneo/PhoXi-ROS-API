@@ -29,3 +29,5 @@ int64 frame_start_time_ns
 
 int32 marker_dots_status
 string marker_dots_message
+
+FrameMessage[] messages

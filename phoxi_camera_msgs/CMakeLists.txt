@@ -6,7 +6,9 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
+        "msg/FrameError.msg"
         "msg/FrameInfo.msg"
+        "msg/FrameMessage.msg"
         "srv/LogDownload.srv"
         "srv/Connect.srv"
         "srv/TriggerFrame.srv"

@@ -297,6 +297,29 @@ static std::unique_ptr<sensor_msgs::msg::CameraInfo> tryBuildCameraInfo(
     return ci;
 }
 
+static std::vector<phoxi_camera_msgs::msg::FrameMessage> parseMessages(const pho_jsoncons::json& json) {
+    std::vector<phoxi_camera_msgs::msg::FrameMessage> result;
+    if (!json.contains("msgs")) {
+        return result;
+    }
+    const auto& msgsNode = json["msgs"];
+    result.reserve(msgsNode.size());
+    for (const auto& m : msgsNode.array_range()) {
+        phoxi_camera_msgs::msg::FrameMessage fm;
+        if (m.contains("code")) {
+            fm.code = m["code"].as<int32_t>();
+        }
+        if (m.contains("severity")) {
+            fm.severity = m["severity"].as<int32_t>();
+        }
+        if (m.contains("text")) {
+            fm.text = m["text"].as<std::string>();
+        }
+        result.push_back(std::move(fm));
+    }
+    return result;
+}
+
 ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     const char* dataPtr = static_cast<const char*>(record.data);
     size_t dataSize = record.data_size;
@@ -305,12 +328,20 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     }
     const auto json = pho_jsoncons::json::parse(dataPtr, dataSize);
 
+    ParsedFrameInfo result;
+    result.successful = !json.contains("successful") || json["successful"].as<bool>();
+
+    if (!result.successful) {
+        auto errorMsg = std::make_unique<phoxi_camera_msgs::msg::FrameError>();
+        errorMsg->messages = parseMessages(json);
+        result.frameError = std::move(errorMsg);
+        return result;
+    }
+
     if (!json.contains("info")) {
-        return {};
+        return result;
     }
     const auto& info = json["info"];
-
-    ParsedFrameInfo result;
     result.currentCamera = tryBuildCameraInfo(info,
         "current_camera/PerspectiveSettings/CameraMatrix",
         "current_camera/PerspectiveSettings/DistortionCoefficients",
@@ -392,6 +423,8 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
             msg->marker_dots_message = md["message"].as<std::string>();
         }
     }
+
+    msg->messages = parseMessages(json);
 
     result.frameInfo = std::move(msg);
     return result;
