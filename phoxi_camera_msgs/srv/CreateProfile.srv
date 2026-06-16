@@ -1,4 +1,6 @@
-string name
+# Save the current device settings as a new named profile.
+
+string name     # Name for the new profile. Must be unique among existing profiles.
 ---
-bool success
-string message
+bool success    # True if the profile was created successfully.
+string message  # Error description if success is false.

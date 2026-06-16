@@ -1,4 +1,6 @@
-string name
+# Activate a saved profile by name on the connected device.
+
+string name     # Name of the profile to activate.
 ---
-bool success
-string message
+bool success    # True if the profile was activated successfully.
+string message  # Error description if success is false.

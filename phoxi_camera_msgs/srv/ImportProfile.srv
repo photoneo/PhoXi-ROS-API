@@ -1,5 +1,7 @@
-string name
-uint8[] content
+# Import a profile from binary content previously obtained via ExportProfile.
+
+string name     # Name to assign to the imported profile.
+uint8[] content # Binary profile content as returned by ExportProfile.
 ---
-bool success
-string message
+bool success    # True if the profile was imported successfully.
+string message  # Error description if success is false.

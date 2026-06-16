@@ -1,4 +1,7 @@
-bool wait_grabbing_end
+# Manually trigger a single frame acquisition.
+# The node must be in the active lifecycle state.
+
+bool wait_grabbing_end  # If true, the call blocks until frame grabbing completes on the device (before transfer and publishing).
 ---
-bool success
-string message
+bool success    # True if the frame was triggered successfully.
+string message  # Error description if success is false.

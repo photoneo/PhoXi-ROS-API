@@ -1,4 +1,6 @@
+# Get the name of the currently active profile on the connected device.
+
 ---
-bool success
-string message
-string name
+bool success    # True if the active profile name was retrieved successfully.
+string message  # Error description if success is false.
+string name     # Name of the currently active profile.

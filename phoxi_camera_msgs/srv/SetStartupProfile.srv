@@ -1,4 +1,6 @@
-string name
+# Set the profile that will be loaded automatically on device startup.
+
+string name     # Name of the profile to use as the startup profile.
 ---
-bool success
-string message
+bool success    # True if the startup profile was set successfully.
+string message  # Error description if success is false.

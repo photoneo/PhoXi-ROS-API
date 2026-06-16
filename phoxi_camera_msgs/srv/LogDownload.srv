@@ -1,5 +1,8 @@
-string logfile_path
-bool overwrite
+# Download the diagnostic log file from the device to the local filesystem.
+# Does not require an active device connection.
+
+string logfile_path  # Absolute path on the local filesystem where the log file will be saved.
+bool overwrite       # If true, an existing file at logfile_path will be overwritten.
 ---
-bool success
-string message
+bool success    # True if the log was downloaded successfully.
+string message  # Error description if success is false.

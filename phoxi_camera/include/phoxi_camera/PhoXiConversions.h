@@ -1,3 +1,7 @@
+/**
+ * @file PhoXiConversions.h
+ * @brief Conversion helpers from `pho::api::PhoXiDeviceInformation` to the ROS-layer type.
+ */
 #ifndef PHOXI_CAMERA_PHOXICONVERSIONS_H
 #define PHOXI_CAMERA_PHOXICONVERSIONS_H
 
@@ -6,6 +10,15 @@
 #include "PhoXi.h"
 #include "phoxi_camera/PhoXiDeviceInformation.h"
 
+/**
+ * @brief Convert a single API device-information record to the ROS-layer type.
+ *
+ * Maps fields, derives the connection status from the API `Status` flags, and
+ * queries optional device features (Alpha, Color, Blue).
+ *
+ * @param phoXiDeviceInformation     Source: API device information.
+ * @param phoXiCameraDeviceInformation Destination: ROS-layer device information (overwritten).
+ */
 inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformation& phoXiDeviceInformation,
     phoxi_camera::PhoXiDeviceInformation& phoXiCameraDeviceInformation) {
     phoXiCameraDeviceInformation.name = phoXiDeviceInformation.Name;
@@ -51,6 +64,14 @@ inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformatio
     }
 }
 
+/**
+ * @brief Convert a list of API device-information records to the ROS-layer type.
+ *
+ * The destination vector is cleared and resized before conversion.
+ *
+ * @param phoXiDeviceInformation      Source list of API device information records.
+ * @param phoXiCameraDeviceInformation Destination list (overwritten).
+ */
 inline void toPhoXiCameraDeviceInformation(const std::vector<pho::api::PhoXiDeviceInformation>& phoXiDeviceInformation,
     std::vector<phoxi_camera::PhoXiDeviceInformation>& phoXiCameraDeviceInformation) {
     phoXiCameraDeviceInformation.clear();

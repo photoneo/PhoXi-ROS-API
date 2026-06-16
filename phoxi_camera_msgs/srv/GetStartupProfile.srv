@@ -1,4 +1,6 @@
+# Get the name of the profile that is loaded automatically on device startup.
+
 ---
-bool success
-string message
-string name
+bool success    # True if the startup profile name was retrieved successfully.
+string message  # Error description if success is false.
+string name     # Name of the startup profile.

@@ -1,5 +1,7 @@
+# Export the currently active profile as binary content that can be stored or transferred.
+
 ---
-bool success
-string message
-string name
-uint8[] content
+bool success    # True if the profile was exported successfully.
+string message  # Error description if success is false.
+string name     # Name of the exported profile.
+uint8[] content # Binary profile content that can be passed to ImportProfile.

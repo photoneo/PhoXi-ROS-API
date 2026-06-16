@@ -1,5 +1,7 @@
+# Retrieve the list of saved profiles on the connected device.
+
 ---
-bool success
-string message
-string[] names
-bool[] is_factory
+bool success      # True if the profile list was retrieved successfully.
+string message    # Error description if success is false.
+string[] names    # Names of all saved profiles, in device-defined order.
+bool[] is_factory # True for each entry that is a factory (read-only) profile.
