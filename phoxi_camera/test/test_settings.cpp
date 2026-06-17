@@ -4,7 +4,42 @@
 
 #include "gtest/gtest.h"
 #include "hardware_test_fixture.h"
+#include "phoxi_camera/PhoXiInterface.h"
 #include "rclcpp/exceptions.hpp"
+
+class DirectInterfaceTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        mInterface.connectCamera(DeviceRequiredTest::deviceId(), [](const phoxi_camera::PhoXiFrame&) {});
+    }
+
+    void TearDown() override {
+        mInterface.disconnectCamera();
+    }
+
+    phoxi_camera::PhoXiInterface mInterface;
+};
+
+TEST_F(DirectInterfaceTest, GetSettings_EmptyInput_ReturnsNonEmpty) {
+    const auto result = mInterface.getSettings({});
+    EXPECT_FALSE(result.empty()) << "getSettings({}) returned no settings";
+}
+
+TEST_F(DirectInterfaceTest, GetFrameOutputSettings_EmptyInput_ReturnsNonEmpty) {
+    const auto result = mInterface.getFrameOutputSettings({});
+    EXPECT_FALSE(result.empty()) << "getFrameOutputSettings({}) returned no components";
+}
+
+TEST_F(DirectInterfaceTest, GetSettings_ExplicitKeys_ReturnsOnlyRequestedKeys) {
+    const auto all = mInterface.getSettings({});
+    if (all.size() < 2) {
+        GTEST_SKIP() << "device exposes fewer than 2 settings";
+    }
+    const std::string targetKey = all.begin()->first;
+    const auto result = mInterface.getSettings({targetKey});
+    EXPECT_EQ(result.size(), 1u) << "requesting one key should return exactly one entry";
+    EXPECT_TRUE(result.count(targetKey) > 0);
+}
 
 namespace {
 bool isParamDeclared(rclcpp_lifecycle::LifecycleNode& node, const std::string& key) {

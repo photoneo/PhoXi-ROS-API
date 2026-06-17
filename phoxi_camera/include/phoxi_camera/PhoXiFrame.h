@@ -28,8 +28,8 @@ struct PhoXiFrame
     const phoxi_frame_record_t* depthMap = nullptr;       ///< Orthogonal distance from camera; float per pixel in mm.
     const phoxi_frame_record_t* confidenceMap = nullptr;  ///< Measurement confidence; float per pixel in [0, 1].
     const phoxi_frame_record_t* eventMap = nullptr;       ///< Time of measurement; float per pixel (MotionCam Camera mode only).
-    const phoxi_frame_record_t* texture = nullptr;        ///< Grayscale structured-light texture; FLOAT_32F per pixel in [0, 2047].
-    const phoxi_frame_record_t* textureRgb = nullptr;     ///< RGB structured-light texture; uint16_t[3] per pixel in [0, 1023].
+    const phoxi_frame_record_t* texture = nullptr;        ///< Grayscale texture; FLOAT_32F per pixel in [0, 2047].
+    const phoxi_frame_record_t* textureRgb = nullptr;     ///< RGB texture; uint16_t[3] per pixel in [0, 1023].
     const phoxi_frame_record_t* colorCamera = nullptr;    ///< Color camera image; uint16_t[3] per pixel in [0, 1023].
 };
 

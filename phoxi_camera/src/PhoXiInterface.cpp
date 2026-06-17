@@ -471,6 +471,7 @@ void PhoXiInterface::disconnectCamera() {
     mPhoXiDevice.Reset();
     mSchemaTypeCache.clear();
     mSettingInfos.clear();
+    mFrameComponentInfos.clear();
 
     {
         std::lock_guard<std::mutex> lock(mFrameCallbackMutex);
@@ -686,6 +687,7 @@ void PhoXiInterface::setFrameOutputSettings(const std::vector<std::pair<std::str
 void PhoXiInterface::loadDeviceSchema() {
     mSchemaTypeCache.clear();
     mSettingInfos.clear();
+    mFrameComponentInfos.clear();
 
     const std::string deviceId = mPhoXiDevice->HardwareIdentification.GetStoredValue();
     auto req = createDeviceCommand("schema", deviceId);
@@ -707,50 +709,102 @@ void PhoXiInterface::loadDeviceSchema() {
         return;
     }
 
-    if (!schema.contains("device_settings")) {
+    if (schema.contains("device_settings")) {
+        const auto& ds = schema["device_settings"];
+
+        std::map<std::string, pho_jsoncons::json> getSchemaProps;
+        if (ds.contains("get")) {
+            const auto& getSchema = ds["get"];
+            if (getSchema.contains("response")) {
+                const auto& resp = getSchema["response"];
+                if (resp.contains("$defs") && resp["$defs"].contains("settings") && resp["$defs"]["settings"].contains("properties")) {
+                    for (const auto& kv : resp["$defs"]["settings"]["properties"].object_range()) {
+                        getSchemaProps[kv.key()] = kv.value();
+                    }
+                }
+            }
+        }
+
+        std::set<std::string> settableKeys;
+        if (ds.contains("set")) {
+            const auto& setSchema = ds["set"];
+            if (setSchema.contains("request")) {
+                const auto& req2 = setSchema["request"];
+                if (req2.contains("$defs") && req2["$defs"].contains("settings") && req2["$defs"]["settings"].contains("properties")) {
+                    for (const auto& kv : req2["$defs"]["settings"]["properties"].object_range()) {
+                        settableKeys.insert(kv.key());
+                    }
+                }
+            }
+        }
+
+        for (const auto& [key, schemaNode] : getSchemaProps) {
+            const auto type = classifySettingType(schemaNode);
+            mSchemaTypeCache[key] = type;
+            mSettingInfos.push_back({key, type, settableKeys.count(key) > 0});
+        }
+    }
+
+    if (!schema.contains("frame_settings")) {
         return;
     }
+    const auto& fs = schema["frame_settings"];
 
-    const auto& ds = schema["device_settings"];
-
-    std::map<std::string, pho_jsoncons::json> getSchemaProps;
-    if (ds.contains("get")) {
-        const auto& getSchema = ds["get"];
-        if (getSchema.contains("response")) {
-            const auto& resp = getSchema["response"];
-            if (resp.contains("$defs") && resp["$defs"].contains("settings") && resp["$defs"]["settings"].contains("properties")) {
-                for (const auto& kv : resp["$defs"]["settings"]["properties"].object_range()) {
-                    getSchemaProps[kv.key()] = kv.value();
-                }
-            }
-        }
-    }
-
-    std::set<std::string> settableKeys;
-    if (ds.contains("set")) {
-        const auto& setSchema = ds["set"];
+    std::set<std::string> settableComponents;
+    if (fs.contains("set")) {
+        const auto& setSchema = fs["set"];
         if (setSchema.contains("request")) {
             const auto& req2 = setSchema["request"];
-            if (req2.contains("$defs") && req2["$defs"].contains("settings") && req2["$defs"]["settings"].contains("properties")) {
-                for (const auto& kv : req2["$defs"]["settings"]["properties"].object_range()) {
-                    settableKeys.insert(kv.key());
+            if (req2.contains("$defs") && req2["$defs"].contains("components") &&
+                req2["$defs"]["components"].contains("properties")) {
+                for (const auto& kv : req2["$defs"]["components"]["properties"].object_range()) {
+                    settableComponents.insert(kv.key());
                 }
             }
         }
     }
 
-    for (const auto& [key, schemaNode] : getSchemaProps) {
-        const auto type = classifySettingType(schemaNode);
-        mSchemaTypeCache[key] = type;
-        mSettingInfos.push_back({key, type, settableKeys.count(key) > 0});
+    if (fs.contains("get")) {
+        const auto& getSchema = fs["get"];
+        if (getSchema.contains("response")) {
+            const auto& resp = getSchema["response"];
+            if (resp.contains("$defs") && resp["$defs"].contains("components") &&
+                resp["$defs"]["components"].contains("properties")) {
+                for (const auto& kv : resp["$defs"]["components"]["properties"].object_range()) {
+                    mFrameComponentInfos.push_back({kv.key(), settableComponents.count(kv.key()) > 0});
+                }
+            }
+        }
     }
+}
+
+std::map<std::string, bool> PhoXiInterface::getFrameOutputSettings(const std::vector<std::string>& componentNames) {
+    isOk();
+
+    const std::string deviceId = mPhoXiDevice->HardwareIdentification.GetStoredValue();
+    auto req = createDeviceCommand("frame_settings", deviceId, "get");
+    pho_jsoncons::json componentsArr(pho_jsoncons::json_array_arg);
+    for (const auto& name : componentNames) {
+        componentsArr.push_back(name);
+    }
+    req["params"].insert_or_assign("components", std::move(componentsArr));
+
+    const auto resp = executeCommand(req);
+
+    std::map<std::string, bool> result;
+    if (!resp.contains("components") || !resp["components"].is_object()) {
+        return result;
+    }
+    for (const auto& kv : resp["components"].object_range()) {
+        if (kv.value().is_bool()) {
+            result[kv.key()] = kv.value().as_bool();
+        }
+    }
+    return result;
 }
 
 std::map<std::string, SettingValue> PhoXiInterface::getSettings(const std::vector<std::string>& keys) {
     isOk();
-    if (keys.empty()) {
-        return {};
-    }
 
     const std::string deviceId = mPhoXiDevice->HardwareIdentification.GetStoredValue();
     auto req = createDeviceCommand("device_settings", deviceId, "get");
@@ -772,16 +826,17 @@ std::map<std::string, SettingValue> PhoXiInterface::getSettings(const std::vecto
         return result;
     }
 
-    for (const auto& key : keys) {
-        if (!settings.contains(key)) {
+    const std::set<std::string> keyFilter(keys.begin(), keys.end());
+    for (const auto& kv : settings.object_range()) {
+        if (!keyFilter.empty() && keyFilter.count(kv.key()) == 0) {
             continue;
         }
-        auto typeIt = mSchemaTypeCache.find(key);
+        auto typeIt = mSchemaTypeCache.find(kv.key());
         if (typeIt == mSchemaTypeCache.end()) {
             continue;
         }
         try {
-            result[key] = jsonToSettingValue(typeIt->second, settings[key]);
+            result[kv.key()] = jsonToSettingValue(typeIt->second, kv.value());
         } catch (const std::exception&) {
         }
     }

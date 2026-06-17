@@ -18,9 +18,6 @@ static constexpr char PARAM_SEP = '.';
 static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings";
 static constexpr std::string_view DEVICE_INFO_PREFIX = "deviceInfo";
 static constexpr std::string_view FRAME_SETTINGS_PREFIX = "frameSettings";
-static constexpr std::array<std::string_view, 7> COMPONENTS = {
-    "PointCloud", "NormalMap", "DepthMap", "Texture", "ConfidenceMap", "ColorCameraImage", "EventMap"
-};
 
 static std::string connectionStatusToString(PhoXiDeviceInformation::PhoXiConnectionStatus status) {
     switch (status) {
@@ -122,18 +119,9 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     }
 
     try {
-        std::vector<std::pair<std::string, bool>> components;
-        for (const auto& componentName : COMPONENTS) {
-            const auto param = get_parameter(std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + std::string(componentName));
-            if (param.get_type() != rclcpp::PARAMETER_NOT_SET) {
-                components.emplace_back(std::string(componentName), param.as_bool());
-            }
-        }
-        if (!components.empty()) {
-            mPhoXiInterface->setFrameOutputSettings(components);
-        }
+        declareFrameSettingParameters();
     } catch (const PhoXiInterfaceException& e) {
-        RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
+        RCLCPP_ERROR(get_logger(), "Configuration failed (frame settings): %s", e.what());
         try {
             mPhoXiInterface->disconnectCamera();
         } catch (...) {
@@ -267,11 +255,6 @@ void PhoXiCamera::declareParameters() {
     declare_parameter<std::string>("device_id", mDeviceId);
     declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
     declare_parameter<bool>("publish_combined", false);
-    rcl_interfaces::msg::ParameterDescriptor dynamicDesc;
-    dynamicDesc.dynamic_typing = true;
-    for (const auto& componentName : COMPONENTS) {
-        declare_parameter(std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + std::string(componentName), rclcpp::ParameterValue{}, dynamicDesc);
-    }
 
     mParamCallbackHandle = add_on_set_parameters_callback(std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
 
@@ -467,6 +450,64 @@ void PhoXiCamera::declareSettingParams(const SettingDescriptor& desc, const std:
             declP(base + PARAM_SEP + "cv_type", rclcpp::ParameterValue((int64_t)0));
             break;
         }
+    }
+}
+
+void PhoXiCamera::declareFrameSettingParameters() {
+    const auto componentInfos = mPhoXiInterface->getFrameComponentInfos();
+    if (componentInfos.empty()) {
+        return;
+    }
+
+    std::vector<std::string> names;
+    names.reserve(componentInfos.size());
+    for (const auto& info : componentInfos) {
+        names.push_back(info.name);
+    }
+
+    const auto deviceValues = mPhoXiInterface->getFrameOutputSettings(names);
+
+    std::vector<std::pair<std::string, bool>> overrides;
+
+    mDeclaringDeviceSettings = true;
+
+    for (const auto& info : componentInfos) {
+        const auto it = deviceValues.find(info.name);
+        if (it == deviceValues.end()) {
+            continue;
+        }
+
+        const std::string paramName = std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + info.name;
+        try {
+            declare_parameter(paramName, it->second);
+        } catch (const rclcpp::exceptions::ParameterAlreadyDeclaredException&) {
+            // Already declared from a previous configure — keep the stored value.
+        }
+    }
+
+    mDeclaringDeviceSettings = false;
+
+    for (const auto& info : componentInfos) {
+        if (!info.isSettable) {
+            continue;
+        }
+        const auto it = deviceValues.find(info.name);
+        if (it == deviceValues.end()) {
+            continue;
+        }
+        const std::string paramName = std::string(FRAME_SETTINGS_PREFIX) + PARAM_SEP + info.name;
+        try {
+            const bool currentParam = get_parameter(paramName).as_bool();
+            if (currentParam != it->second) {
+                overrides.push_back({info.name, currentParam});
+            }
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "Could not compare frame setting '%s': %s", info.name.c_str(), e.what());
+        }
+    }
+
+    if (!overrides.empty()) {
+        mPhoXiInterface->setFrameOutputSettings(overrides);
     }
 }
 

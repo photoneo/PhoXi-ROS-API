@@ -12,16 +12,18 @@
  *
  * **Parameters**
  *
- * Declared on node creation — available in all lifecycle states:
+ * Node parameters (declared on node creation):
  * - `device_id` (string, default `""`): Hardware identification of the target device.
  * - `frame_id` (string, default `"phoxi_camera_sensor"`): TF frame ID stamped on all published messages.
  * - `publish_combined` (bool, default `false`): Publish only `point_cloud` instead of individual topics.
- * - `frameSettings.<Component>` (bool, unset by default): Enable/disable individual frame output components.
- *   Valid component names: `PointCloud`, `NormalMap`, `DepthMap`, `Texture`, `ConfidenceMap`, `ColorCameraImage`, `EventMap`.
- *   Changes are forwarded to the device immediately when connected.
  *
- * Declared during `configure` — available from the configured state onwards:
- * - `deviceSettings.*` (various types): Device-setting parameters read from the device schema on connect.
+ * Frame output settings (declared during `configure` from the device schema):
+ * - `frameSettings.<Component>` (bool): Enable/disable individual frame output components.
+ *   Available components are discovered from the device at configure time.
+ *   Values pre-supplied via launch file or parameter overrides are applied as overrides during configure.
+ *
+ * Device settings (declared during `configure` from the device schema):
+ * - `deviceSettings.*` (various types): Device-setting parameters. Applied to the device on every write.
  *   Parameters flagged as read-only by the device reject writes.
  * - `deviceInfo.*` (various types): Device identity information (name, type, IP address, firmware version, etc.).
  *   Read-only.
@@ -44,7 +46,7 @@
  * - `confidence` (`sensor_msgs/Image`, 32FC1): Measurement confidence.
  * - `event` (`sensor_msgs/Image`, 32FC1): Time-of-measurement (MotionCam only).
  * - `intensity` (`sensor_msgs/Image`, 32FC1): Grayscale texture.
- * - `texture` (`sensor_msgs/Image`, rgb8): RGB structured-light texture.
+ * - `texture` (`sensor_msgs/Image`, rgb8): RGB texture.
  * - `color_camera_image` (`sensor_msgs/Image`, rgb8): Color camera image.
  *
  * **Services**
@@ -196,12 +198,14 @@ private:
 
     /** @brief Block until any in-progress frame callback has returned. */
     void drainFrameCallback();
-    /** @brief Declare static parameters (device_id, frame_id, frameSettings.*) and register callbacks. */
+    /** @brief Declare static parameters (device_id, frame_id, publish_combined) and register callbacks. */
     void declareParameters();
     /** @brief Populate mSettingDescriptors and mParamToDescriptor from the device schema. */
     void loadDeviceSettingDescriptors();
     /** @brief Declare `deviceSettings.*` parameters from the current device values and apply any overrides. */
     void declareDeviceSettingParameters();
+    /** @brief Declare `frameSettings.*` parameters from the device schema and apply any pre-configure overrides. */
+    void declareFrameSettingParameters();
     /** @brief Declare read-only `deviceInfo.*` parameters from the connected device. */
     void declareDeviceInfoParameters();
     /** @brief Activate the publishers selected by the `publish_combined` parameter. */
@@ -322,7 +326,7 @@ private:
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mConfidenceMapPub;           ///< topic: `confidence` (32FC1)
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mEventMapPub;                ///< topic: `event` (32FC1, MotionCam only)
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mTexturePub;                 ///< topic: `intensity` (32FC1 grayscale)
-    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mTextureRgbPub;              ///< topic: `texture` (rgb8 structured-light)
+    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mTextureRgbPub;              ///< topic: `texture` (rgb8)
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mColorCameraImagePub;        ///< topic: `color_camera_image` (rgb8)
     // Services
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mRebootService;             ///< service: `~/reboot`

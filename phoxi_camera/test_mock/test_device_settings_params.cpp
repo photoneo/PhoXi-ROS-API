@@ -60,6 +60,54 @@ TEST_F(DeviceSettingsParamsTest, SchemaWithMultipleTypes_AllParamsDeclaredCorrec
     ASSERT_TRUE(cleanup());
 }
 
+TEST_F(DeviceSettingsParamsTest, Configure_WithOverride_WhileConnected_CalledExactlyOnce) {
+    // isConnected()=true simulates real post-connect state. Without the mDeclaringDeviceSettings
+    // guard, each declare_parameter fires onParametersChanged → setSettings, so with two
+    // declared params and one override the call count would be 3 instead of 1.
+    // The override must be supplied via NodeOptions because deviceSettings.* are not declared
+    // until configure — set_parameter would throw before that.
+    std::vector<SettingInfo> schema = {
+        {"gain", SettingValueType::DOUBLE, true},
+        {"mode", SettingValueType::STRING, true},
+    };
+    SettingValueMap deviceVals = {
+        {"gain", SettingValue{2.5}},
+        {"mode", SettingValue{std::string{"auto"}}},
+    };
+
+    testing::Mock::VerifyAndClearExpectations(mockInterface);
+    executor_.remove_node(lcNode->get_node_base_interface());
+    lcNode->shutdown();
+    lcNode.reset();
+
+    rclcpp::NodeOptions options;
+    options.parameter_overrides({rclcpp::Parameter("deviceSettings.gain", 9.0)});
+    auto node2 = std::make_shared<TestableNode>(mDeviceId, options, std::make_unique<MockPhoXiInterface>());
+    MockPhoXiInterface* mock2 = node2->getMock();
+    testing::Mock::AllowLeak(mock2);
+    executor_.add_node(node2->get_node_base_interface());
+
+    EXPECT_CALL(*mock2, isConnected()).WillRepeatedly(Return(true));
+    EXPECT_CALL(*mock2, isAcquiring()).WillRepeatedly(Return(false));
+    EXPECT_CALL(*mock2, getDeviceInfo()).WillRepeatedly(Return(phoxi_camera::PhoXiDeviceInformation{}));
+    EXPECT_CALL(*mock2, getSettingInfos()).WillRepeatedly(Return(schema));
+    EXPECT_CALL(*mock2, getSettings(_)).WillRepeatedly(Return(deviceVals));
+    EXPECT_CALL(*mock2, getFrameComponentInfos()).WillRepeatedly(Return(std::vector<phoxi_camera::FrameComponentInfo>{}));
+    EXPECT_CALL(*mock2, connectCamera(mDeviceId, _)).Times(1);
+    EXPECT_CALL(*mock2, setSettings(_)).Times(1);
+
+    auto client = clientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
+    ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(2)));
+    auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
+    req->transition.id = lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE;
+    auto future = client->async_send_request(req);
+    ASSERT_EQ(executor_.spin_until_future_complete(future), rclcpp::FutureReturnCode::SUCCESS);
+    EXPECT_TRUE(future.get()->success);
+
+    executor_.remove_node(node2->get_node_base_interface());
+    node2->shutdown();
+}
+
 TEST_F(DeviceSettingsParamsTest, YamlOverride_AppliedToDeviceViaSetSettings) {
     const std::string key = "gain";
     std::vector<SettingInfo> schema = {{"gain", SettingValueType::DOUBLE, true}};
@@ -297,6 +345,24 @@ TEST_F(DeviceSettingsParamsTest, ObjectTypeParamChange_WhenConnected_GetSettingC
     EXPECT_EQ(static_cast<int32_t>(sent.Height), 1200);
 
     ASSERT_TRUE(cleanup());
+}
+
+TEST(GetSettingsEmptyTest, EmptyInput_ReturnsAllSettings) {
+    MockPhoXiInterface mock;
+    const SettingValueMap allSettings = {
+        {"CapturingSettings/LaserPower", SettingValue{int64_t{1024}}},
+        {"CapturingSettings/LEDPower",   SettingValue{int64_t{512}}},
+        {"ScanMultiplier",               SettingValue{int64_t{1}}},
+        {"Resolution",                   SettingValue{std::string{"High"}}},
+    };
+    EXPECT_CALL(mock, getSettings(testing::IsEmpty())).WillOnce(testing::Return(allSettings));
+
+    const auto result = mock.getSettings({});
+
+    EXPECT_EQ(result.size(), allSettings.size());
+    for (const auto& [key, _] : allSettings) {
+        EXPECT_TRUE(result.count(key) > 0) << "Missing key: " << key;
+    }
 }
 
 int main(int argc, char** argv) {

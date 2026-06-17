@@ -97,7 +97,7 @@ std::unique_ptr<sensor_msgs::msg::Image> eventMapToRosMsg(const phoxi_frame_reco
 std::unique_ptr<sensor_msgs::msg::Image> textureToRosMsg(const phoxi_frame_record_t& record);
 
 /**
- * @brief Convert a structured-light RGB texture record to an rgb8 ROS Image.
+ * @brief Convert an RGB texture record to an rgb8 ROS Image.
  *
  * Raw API uint16 values are in [0, 1023]; output values are 8-bit scaled to [0, 255].
  *

@@ -28,9 +28,13 @@ public:
 
 class CameraTestFixture : public ::testing::Test {
 protected:
-    void SetUpBase(const std::string& deviceId, const std::string& clientNodeName) {
+    void SetUpBase(const std::string& deviceId, const std::string& clientNodeName,
+                   std::vector<rclcpp::Parameter> paramOverrides = {}) {
         mDeviceId = deviceId;
         rclcpp::NodeOptions options;
+        if (!paramOverrides.empty()) {
+            options.parameter_overrides(paramOverrides);
+        }
         lcNode = std::make_shared<TestableNode>(mDeviceId, options,
                                                 std::make_unique<MockPhoXiInterface>());
         mockInterface = lcNode->getMock();
@@ -43,12 +47,17 @@ protected:
             .WillRepeatedly(testing::Return(std::vector<phoxi_camera::SettingInfo>{}));
         EXPECT_CALL(*mockInterface, getSettings(testing::_))
             .WillRepeatedly(testing::Return(SettingValueMap{}));
+        EXPECT_CALL(*mockInterface, getFrameComponentInfos())
+            .WillRepeatedly(testing::Return(std::vector<phoxi_camera::FrameComponentInfo>{}));
         clientNode = std::make_shared<rclcpp::Node>(clientNodeName);
         executor_.add_node(lcNode->get_node_base_interface());
         executor_.add_node(clientNode);
     }
 
     void TearDown() override {
+        if (!lcNode) {
+            return;
+        }
         testing::Mock::VerifyAndClearExpectations(mockInterface);
         lcNode->shutdown();
         executor_.remove_node(lcNode->get_node_base_interface());

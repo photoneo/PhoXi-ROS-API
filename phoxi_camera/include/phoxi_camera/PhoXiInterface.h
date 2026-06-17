@@ -79,6 +79,12 @@ struct SettingInfo {
     bool isSettable;       ///< False if the device reports this setting as read-only.
 };
 
+/** @brief Metadata for a single frame output component returned by the API schema. */
+struct FrameComponentInfo {
+    std::string name;  ///< Component name (e.g. `"PointCloud"`, `"NormalMap"`).
+    bool isSettable;   ///< False if the device reports this component as read-only.
+};
+
 /**
  * @brief Virtual interface to the Photoneo PhoXi API.
  *
@@ -332,6 +338,21 @@ public:
     virtual std::vector<SettingInfo> getSettingInfos() const { return mSettingInfos; }
 
     /**
+     * Return the frame output component descriptors built when connectCamera() succeeded.
+     * Empty if the device does not expose a frame_settings schema or the camera is not connected.
+     */
+    virtual std::vector<FrameComponentInfo> getFrameComponentInfos() const { return mFrameComponentInfos; }
+
+    /**
+     * Get the current enabled/disabled state of the given frame output components.
+     *
+     * \param componentNames Component names to query (e.g. `"PointCloud"`, `"NormalMap"`).
+     * \throw PhoXiDeviceNotConnected when no device is connected
+     * \throw PhoXiInterfaceException on API error
+     */
+    virtual std::map<std::string, bool> getFrameOutputSettings(const std::vector<std::string>& componentNames);
+
+    /**
      * Get a single device setting value.
      *
      * \throw PhoXiDeviceNotConnected when no device is connected
@@ -377,7 +398,8 @@ private:
     mutable std::mutex mFrameCallbackMutex;  ///< Guards mFrameCallback against concurrent access.
     GetFrameCallback mFrameCallback;         ///< User-supplied callback invoked on each frame.
     std::map<std::string, SettingValueType> mSchemaTypeCache; ///< Cached type mapping from the device schema.
-    std::vector<SettingInfo> mSettingInfos;  ///< All settings discovered from the device schema on connect.
+    std::vector<SettingInfo> mSettingInfos;          ///< All settings discovered from the device schema on connect.
+    std::vector<FrameComponentInfo> mFrameComponentInfos; ///< Frame output components discovered from the schema on connect.
 };
 }  // namespace phoxi_camera
 
