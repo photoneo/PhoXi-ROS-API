@@ -47,8 +47,6 @@ protected:
             .WillRepeatedly(testing::Return(std::vector<phoxi_camera::SettingInfo>{}));
         EXPECT_CALL(*mockInterface, getSettings(testing::_))
             .WillRepeatedly(testing::Return(SettingValueMap{}));
-        EXPECT_CALL(*mockInterface, getFrameComponentInfos())
-            .WillRepeatedly(testing::Return(std::vector<phoxi_camera::FrameComponentInfo>{}));
         clientNode = std::make_shared<rclcpp::Node>(clientNodeName);
         executor_.add_node(lcNode->get_node_base_interface());
         executor_.add_node(clientNode);

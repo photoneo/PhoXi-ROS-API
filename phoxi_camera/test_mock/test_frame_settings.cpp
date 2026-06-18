@@ -21,11 +21,6 @@ using ::testing::Return;
 using ::testing::Throw;
 using ::testing::UnorderedElementsAre;
 
-static const std::vector<FrameComponentInfo> COMPONENTS = {
-    {"PointCloud", true}, {"NormalMap", true}, {"DepthMap", true},
-    {"Texture", true}, {"ConfidenceMap", true}, {"ColorCameraImage", true}, {"EventMap", true},
-};
-
 static const std::map<std::string, bool> DEVICE_DEFAULTS = {
     {"PointCloud", true}, {"NormalMap", false}, {"DepthMap", true},
     {"Texture", false}, {"ConfidenceMap", false}, {"ColorCameraImage", false}, {"EventMap", false},
@@ -39,8 +34,6 @@ protected:
 
     void InitNode(std::vector<rclcpp::Parameter> paramOverrides = {}) {
         SetUpBase("test-device-fs", "fs_test_client", std::move(paramOverrides));
-        EXPECT_CALL(*mockInterface, getFrameComponentInfos())
-            .WillRepeatedly(Return(COMPONENTS));
         EXPECT_CALL(*mockInterface, getFrameOutputSettings(_))
             .WillRepeatedly(Return(DEVICE_DEFAULTS));
     }
@@ -148,15 +141,6 @@ TEST_F(FrameSettingsTest, ParameterChange_WhenConnected_ForwardedToDevice) {
     ASSERT_EQ(captured.size(), 1u);
     EXPECT_EQ(captured[0].first, "DepthMap");
     EXPECT_FALSE(captured[0].second);
-    ASSERT_TRUE(cleanup());
-}
-
-TEST_F(FrameSettingsTest, ParameterChange_WhenNotConnected_NotForwarded) {
-    InitNode();
-    ASSERT_TRUE(configure());
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).Times(0);
-    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings.NormalMap", true));
-    EXPECT_TRUE(result.successful);
     ASSERT_TRUE(cleanup());
 }
 

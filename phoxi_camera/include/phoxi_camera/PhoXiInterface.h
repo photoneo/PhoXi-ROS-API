@@ -135,8 +135,18 @@ public:
 
     /**
      * Disconnect from camera if connected to any.
+     *
+     * Equivalent to disconnectCamera(true, true)
      */
     virtual void disconnectCamera();
+
+    /**
+     * Disconnect from camera if connected to any.
+     *
+     * \param logoutDevice - logout device from PhoXi Control application on disconnect
+     * \param stopDeviceAcquisition - stop device acquisition on device disconnect
+     */
+    virtual void disconnectCamera(bool logoutDevice, bool stopDeviceAcquisition);
 
     /**
      * Trigger new image.
@@ -338,12 +348,6 @@ public:
     virtual std::vector<SettingInfo> getSettingInfos() const { return mSettingInfos; }
 
     /**
-     * Return the frame output component descriptors built when connectCamera() succeeded.
-     * Empty if the device does not expose a frame_settings schema or the camera is not connected.
-     */
-    virtual std::vector<FrameComponentInfo> getFrameComponentInfos() const { return mFrameComponentInfos; }
-
-    /**
      * Get the current enabled/disabled state of the given frame output components.
      *
      * \param componentNames Component names to query (e.g. `"PointCloud"`, `"NormalMap"`).
@@ -399,7 +403,6 @@ private:
     GetFrameCallback mFrameCallback;         ///< User-supplied callback invoked on each frame.
     std::map<std::string, SettingValueType> mSchemaTypeCache; ///< Cached type mapping from the device schema.
     std::vector<SettingInfo> mSettingInfos;          ///< All settings discovered from the device schema on connect.
-    std::vector<FrameComponentInfo> mFrameComponentInfos; ///< Frame output components discovered from the schema on connect.
 };
 }  // namespace phoxi_camera
 

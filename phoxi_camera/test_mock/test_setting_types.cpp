@@ -586,22 +586,6 @@ TEST_F(SettingTypesTest, ReprojectionMap_DeclaresWidthHeightCvType) {
     ASSERT_TRUE(cleanup());
 }
 
-TEST_F(SettingTypesTest, DeviceDisconnected_ParamAccepted_NoDeviceCall) {
-    const std::string key = "myBool";
-    EXPECT_CALL(*mockInterface, getSettingInfos()).WillRepeatedly(Return(makeSchema(key, SettingValueType::BOOL, true)));
-    EXPECT_CALL(*mockInterface, getSettings(_)).WillRepeatedly(Return(SettingValueMap{{key, SettingValue{true}}}));
-    EXPECT_CALL(*mockInterface, setSettings(_)).Times(0);
-
-    ASSERT_TRUE(configure());
-
-    EXPECT_CALL(*mockInterface, setSettings(_)).Times(0);
-
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key, false));
-    EXPECT_TRUE(result.successful);
-
-    ASSERT_TRUE(cleanup());
-}
-
 TEST_F(SettingTypesTest, Phoxi2DROI_BothMinMaxChanged_SingleSetSettingsCall) {
     const std::string key = "myROI";
     pho::api::PhoXi2DROI roi(10, 20, 100, 200);

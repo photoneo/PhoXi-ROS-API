@@ -463,15 +463,18 @@ void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCallback
 }
 
 void PhoXiInterface::disconnectCamera() {
+    disconnectCamera(true, true);
+}
+
+void PhoXiInterface::disconnectCamera(bool logoutDevice, bool stopDeviceAcquisition) {
     if (mPhoXiDevice) {
         phoxi_aframe_disable(mPhoXiDevice->HardwareIdentification.GetStoredValue().c_str());
-        mPhoXiDevice->Disconnect(true, true);
+        mPhoXiDevice->Disconnect(logoutDevice, stopDeviceAcquisition);
     }
 
     mPhoXiDevice.Reset();
     mSchemaTypeCache.clear();
     mSettingInfos.clear();
-    mFrameComponentInfos.clear();
 
     {
         std::lock_guard<std::mutex> lock(mFrameCallbackMutex);
@@ -687,7 +690,6 @@ void PhoXiInterface::setFrameOutputSettings(const std::vector<std::pair<std::str
 void PhoXiInterface::loadDeviceSchema() {
     mSchemaTypeCache.clear();
     mSettingInfos.clear();
-    mFrameComponentInfos.clear();
 
     const std::string deviceId = mPhoXiDevice->HardwareIdentification.GetStoredValue();
     auto req = createDeviceCommand("schema", deviceId);
@@ -742,38 +744,6 @@ void PhoXiInterface::loadDeviceSchema() {
             const auto type = classifySettingType(schemaNode);
             mSchemaTypeCache[key] = type;
             mSettingInfos.push_back({key, type, settableKeys.count(key) > 0});
-        }
-    }
-
-    if (!schema.contains("frame_settings")) {
-        return;
-    }
-    const auto& fs = schema["frame_settings"];
-
-    std::set<std::string> settableComponents;
-    if (fs.contains("set")) {
-        const auto& setSchema = fs["set"];
-        if (setSchema.contains("request")) {
-            const auto& req2 = setSchema["request"];
-            if (req2.contains("$defs") && req2["$defs"].contains("components") &&
-                req2["$defs"]["components"].contains("properties")) {
-                for (const auto& kv : req2["$defs"]["components"]["properties"].object_range()) {
-                    settableComponents.insert(kv.key());
-                }
-            }
-        }
-    }
-
-    if (fs.contains("get")) {
-        const auto& getSchema = fs["get"];
-        if (getSchema.contains("response")) {
-            const auto& resp = getSchema["response"];
-            if (resp.contains("$defs") && resp["$defs"].contains("components") &&
-                resp["$defs"]["components"].contains("properties")) {
-                for (const auto& kv : resp["$defs"]["components"]["properties"].object_range()) {
-                    mFrameComponentInfos.push_back({kv.key(), settableComponents.count(kv.key()) > 0});
-                }
-            }
         }
     }
 }

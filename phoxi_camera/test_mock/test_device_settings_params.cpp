@@ -92,7 +92,6 @@ TEST_F(DeviceSettingsParamsTest, Configure_WithOverride_WhileConnected_CalledExa
     EXPECT_CALL(*mock2, getDeviceInfo()).WillRepeatedly(Return(phoxi_camera::PhoXiDeviceInformation{}));
     EXPECT_CALL(*mock2, getSettingInfos()).WillRepeatedly(Return(schema));
     EXPECT_CALL(*mock2, getSettings(_)).WillRepeatedly(Return(deviceVals));
-    EXPECT_CALL(*mock2, getFrameComponentInfos()).WillRepeatedly(Return(std::vector<phoxi_camera::FrameComponentInfo>{}));
     EXPECT_CALL(*mock2, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mock2, setSettings(_)).Times(1);
 

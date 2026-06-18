@@ -238,8 +238,9 @@ private:
      * @param desc      Descriptor for the setting.
      * @param baseParam ROS2 parameter name prefix (e.g. `deviceSettings.Scanning.Mode`).
      * @param devVal    Initial value read from the device, used as the default.
+     * @return `True` if initial value was overridden, otherwise `False`
      */
-    void declareSettingParams(const SettingDescriptor& desc, const std::string& baseParam, const SettingValue& devVal);
+    bool declareSettingParam(const SettingDescriptor& desc, const std::string& baseParam, const SettingValue& devVal);
 
     /**
      * @brief Reconstruct a `SettingValue` from the currently declared ROS2 parameters.
@@ -362,7 +363,10 @@ private:
      * (e.g. `"x_min"`).
      */
     std::map<std::string, std::pair<size_t, std::string>> mParamToDescriptor;
+    std::vector<std::string> mFrameOutputComponents;
     bool mDeclaringDeviceSettings = false; ///< Set to true during declareDeviceSettingParameters to suppress device calls.
+    bool mLogoutOnExit = true;
+    bool mStopAcquisitionOnExit = true;
 };
 
 }  // namespace phoxi_camera
