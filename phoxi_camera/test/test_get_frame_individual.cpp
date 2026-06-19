@@ -89,31 +89,27 @@ protected:
     void setupSync2() {
         resetSyncs();
         mSync2 = std::make_unique<Sync2>(message_filters::sync_policies::ExactTime<PC2, Img>(5), mPointsSub, mDepthSub);
-        mSync2->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth) { mLatestFrame = {std::move(pts), std::move(depth), nullptr, nullptr, nullptr}; });
+        mSync2->registerCallback(std::bind(&IndividualTopicsFrameTest::onSync2, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void setupSync3Laser() {
         resetSyncs();
         mSync3 = std::make_unique<Sync3>(message_filters::sync_policies::ExactTime<PC2, Img, Img>(5), mPointsSub, mDepthSub, mIntensitySub);
-        mSync3->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth, Img::ConstSharedPtr intensity) {
-            mLatestFrame = {std::move(pts), std::move(depth), std::move(intensity), nullptr, nullptr};
-        });
+        mSync3->registerCallback(std::bind(&IndividualTopicsFrameTest::onSync3Laser, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     }
 
     void setupSync4Laser() {
         resetSyncs();
         mSync4 = std::make_unique<Sync4>(message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>(5), mPointsSub, mDepthSub, mIntensitySub, mColorCameraSub);
-        mSync4->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth, Img::ConstSharedPtr intensity, Img::ConstSharedPtr colorCam) {
-            mLatestFrame = {std::move(pts), std::move(depth), std::move(intensity), nullptr, std::move(colorCam)};
-        });
+        mSync4->registerCallback(
+                std::bind(&IndividualTopicsFrameTest::onSync4Laser, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     }
 
     void setupSync4Color() {
         resetSyncs();
         mSync4 = std::make_unique<Sync4>(message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>(5), mPointsSub, mDepthSub, mTextureSub, mColorCameraSub);
-        mSync4->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth, Img::ConstSharedPtr texture, Img::ConstSharedPtr colorCam) {
-            mLatestFrame = {std::move(pts), std::move(depth), nullptr, std::move(texture), std::move(colorCam)};
-        });
+        mSync4->registerCallback(
+                std::bind(&IndividualTopicsFrameTest::onSync4Color, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4));
     }
 
     void SetUp() override {
@@ -123,11 +119,11 @@ protected:
         ASSERT_TRUE(mTriggerClient->wait_for_service(5s));
 
         const auto qos = rclcpp::SystemDefaultsQoS();
-        mPointsSub.subscribe(mClientNode, "/points", qos);
-        mDepthSub.subscribe(mClientNode, "/depth", qos);
-        mIntensitySub.subscribe(mClientNode, "/intensity", qos);
-        mTextureSub.subscribe(mClientNode, "/texture", qos);
-        mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
+        mPointsSub.subscribe(mClientNode, "/points", qos.get_rmw_qos_profile());
+        mDepthSub.subscribe(mClientNode, "/depth", qos.get_rmw_qos_profile());
+        mIntensitySub.subscribe(mClientNode, "/intensity", qos.get_rmw_qos_profile());
+        mTextureSub.subscribe(mClientNode, "/texture", qos.get_rmw_qos_profile());
+        mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos.get_rmw_qos_profile());
         mFrameInfoSub = mClientNode->create_subscription<FI>("/frame_info", qos, [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
         mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
         mColorCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
@@ -203,6 +199,21 @@ protected:
     FI::ConstSharedPtr mLatestFrameInfo;
     CI::ConstSharedPtr mLatestPrimaryCameraInfo;
     CI::ConstSharedPtr mLatestColorCameraInfo;
+
+private:
+    void onSync2(const PC2::ConstSharedPtr& pts, const Img::ConstSharedPtr& depth) { mLatestFrame = {pts, depth, nullptr, nullptr, nullptr}; }
+
+    void onSync3Laser(const PC2::ConstSharedPtr& pts, const Img::ConstSharedPtr& depth, const Img::ConstSharedPtr& intensity) {
+        mLatestFrame = {pts, depth, intensity, nullptr, nullptr};
+    }
+
+    void onSync4Laser(const PC2::ConstSharedPtr& pts, const Img::ConstSharedPtr& depth, const Img::ConstSharedPtr& intensity, const Img::ConstSharedPtr& colorCam) {
+        mLatestFrame = {pts, depth, intensity, nullptr, colorCam};
+    }
+
+    void onSync4Color(const PC2::ConstSharedPtr& pts, const Img::ConstSharedPtr& depth, const Img::ConstSharedPtr& texture, const Img::ConstSharedPtr& colorCam) {
+        mLatestFrame = {pts, depth, nullptr, texture, colorCam};
+    }
 };
 
 // /points and /depth are always produced regardless of camera type or texture config.

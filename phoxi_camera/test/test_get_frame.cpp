@@ -72,14 +72,14 @@ protected:
     void usePointCloudOnly() {
         mSync2.reset();
         mLatestFrame = {};
-        mDirectConn = mPointCloudSub.registerCallback([this](const PC2::ConstSharedPtr& msg) { mLatestFrame = {msg, nullptr}; });
+        mDirectConn = mPointCloudSub.registerCallback(std::bind(&FrameTest::onPointCloud, this, std::placeholders::_1));
     }
 
     void useColorCameraSync() {
         mDirectConn.disconnect();
         mLatestFrame = {};
         mSync2 = std::make_unique<Sync2>(message_filters::sync_policies::ExactTime<PC2, Img>(5), mPointCloudSub, mColorCameraSub);
-        mSync2->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr colorCam) { mLatestFrame = {std::move(pts), std::move(colorCam)}; });
+        mSync2->registerCallback(std::bind(&FrameTest::onPointCloudColorCamera, this, std::placeholders::_1, std::placeholders::_2));
     }
 
     void SetUp() override {
@@ -89,8 +89,8 @@ protected:
         ASSERT_TRUE(mTriggerClient->wait_for_service(5s));
 
         const auto qos = rclcpp::SystemDefaultsQoS();
-        mPointCloudSub.subscribe(mClientNode, "/point_cloud", qos);
-        mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
+        mPointCloudSub.subscribe(mClientNode, "/point_cloud", qos.get_rmw_qos_profile());
+        mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos.get_rmw_qos_profile());
         mFrameInfoSub = mClientNode->create_subscription<FI>("/frame_info", qos, [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
         mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
         mColorCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
@@ -153,6 +153,11 @@ protected:
     FI::ConstSharedPtr mLatestFrameInfo;
     CI::ConstSharedPtr mLatestPrimaryCameraInfo;
     CI::ConstSharedPtr mLatestColorCameraInfo;
+
+private:
+    void onPointCloud(const PC2::ConstSharedPtr& pts) { mLatestFrame = {pts, nullptr}; }
+
+    void onPointCloudColorCamera(const PC2::ConstSharedPtr& pts, const Img::ConstSharedPtr& colorCam) { mLatestFrame = {pts, colorCam}; }
 };
 
 // Combined point cloud must always be produced with correct geometry and depth field.
