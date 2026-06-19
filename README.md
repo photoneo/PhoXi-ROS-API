@@ -19,7 +19,7 @@ A ROS 2 driver for [Photoneo](https://www.photoneo.com) PhoXi 3D sensors. Provid
 
 ## Prerequisites
 
-- **ROS 2** Jazzy or Rolling, installed and sourced
+- **ROS 2** Humble, Jazzy, Kilted or newer, installed and sourced
 - **PhoXi Control** installed and running — download from [photoneo.com/downloads/phoxi-control](https://www.photoneo.com/downloads/phoxi-control)
 
 ```bash
@@ -107,7 +107,7 @@ ros2 param set /phoxi_camera deviceSettings.CapturingSettings.LaserPower 1024
 
 ## `phoxi_camera` Node
 
-`phoxi_camera` is a [ROS 2 lifecycle node](https://docs.ros.org/en/jazzy/Concepts/About-Lifecycle-Nodes.html). The device connection and all publishers are tied to lifecycle transitions — nothing is active until the node is explicitly configured and activated.
+`phoxi_camera` is a [ROS 2 lifecycle node](https://docs.ros.org/en/kilted/Concepts/About-Lifecycle-Nodes.html). The device connection and all publishers are tied to lifecycle transitions — nothing is active until the node is explicitly configured and activated.
 
 ### Lifecycle
 
@@ -152,6 +152,8 @@ ros2 service call /phoxi_camera/change_state lifecycle_msgs/srv/ChangeState \
 | `device_id` | string | `""` | Hardware serial number or network ID of the target device. Set before `configure`. |
 | `frame_id` | string | `"phoxi_camera_sensor"` | TF frame ID stamped on all published messages. |
 | `publish_combined` | bool | `false` | `true`: publish a single `point_cloud` with all fields. `false`: publish individual topics. |
+| `logout_on_exit` | bool | `true` | Log out from the device on node shutdown or cleanup. Set to `false` to keep the device connected to PhoXi Control after the node exits (useful for quick restarts). |
+| `stop_acquisition_on_exit` | bool | `true` | Stop acquisition on node shutdown or cleanup. Set to `false` to leave acquisition running in PhoXi Control after the node exits. |
 
 **Frame output settings** (declared during `configure` from the device schema; applied on every write thereafter):
 
@@ -336,79 +338,15 @@ Custom interfaces used by the driver. The package is separate so other packages 
 
 ## Examples
 
-The `phoxi_camera_example` package contains three self-contained examples with ready-to-run launch files.
+The `phoxi_camera_example` package contains three self-contained examples with ready-to-run launch files:
 
-### Simple Node Example
+| Example | Launch file | Description |
+|---------|-------------|-------------|
+| Simple Node | `run_simple_node_example.launch.py` | Configure → activate → trigger → receive → cleanup. |
+| Settings | `run_settings_example.launch.py` | Configure `frameSettings.*` / `deviceSettings.*` overrides and change a live setting. |
+| Composition | `run_composition_example.launch.py` | Composable node container with zero-copy intra-process communication. |
 
-Demonstrates the basic driver workflow: configure → activate → trigger → receive → cleanup.
-
-Two executables run alongside the driver:
-
-- **`simple_node_service_caller`** — drives the lifecycle, calls `trigger_frame`, and exits when done.
-- **`simple_node_topic_listener`** — subscribes to `point_cloud` and logs the first received message.
-
-```bash
-ros2 launch phoxi_camera_example run_simple_node_example.launch.py \
-    sensor_sn:='<your-serial-number>'
-```
-
-The launch file opens RViz with a pre-configured view and shuts everything down automatically when the service caller exits.
-
-> With the default `sensor_sn` (`InstalledExamples-basic-example`) the example runs against a file camera bundled with PhoXi Control — no hardware required.
-
-### Settings Example
-
-Demonstrates configuring `frameSettings.*` and `deviceSettings.*` before and after `configure`, and changing a live setting while the camera is running.
-
-```bash
-ros2 launch phoxi_camera_example run_settings_example.launch.py \
-    sensor_sn:='<your-serial-number>'
-```
-
-Pass device and frame setting overrides directly in the launch file — they are applied during `on_configure`:
-
-```python
-parameters=[{
-    'device_id':                                   LaunchConfiguration('sensor_sn'),
-    'frameSettings.PointCloud':                    True,
-    'frameSettings.NormalMap':                     False,
-    'deviceSettings.CapturingSettings.LaserPower': 2,
-    'deviceSettings.ScanMultiplier':               1,
-}]
-```
-
-The `settings_example_caller` node then:
-1. Sets additional `frameSettings.*` via the parameter service before configure.
-2. Triggers configure — the driver connects to the device and applies all overrides.
-3. Lists all declared `deviceSettings.*` and `frameSettings.*` parameters.
-4. Activates the camera.
-5. Changes `LaserPower` live via the parameter service.
-
-### Composition Example
-
-Runs `phoxi_camera` and a client node as composable components inside a shared multi-threaded container, enabling zero-copy intra-process communication.
-
-```bash
-# Start the container with both components
-export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
-ros2 launch phoxi_camera_example run_composition_example.launch.py
-```
-
-Then in separate terminals:
-
-```bash
-# Drive the lifecycle
-ros2 lifecycle set /phoxi_camera configure
-ros2 lifecycle set /phoxi_camera activate
-
-# Start the back-to-back trigger loop
-ros2 service call /phoxi_camera_composition_example/start std_srvs/srv/Trigger '{}'
-
-# Stop the loop
-ros2 service call /phoxi_camera_composition_example/stop std_srvs/srv/Trigger '{}'
-```
-
-The `CompositionExample` node drives a tight acquire-publish-retrigger loop and logs FPS and frame-to-frame timing on each received point cloud.
+For full instructions see the **[Examples README](./phoxi_camera_example/README.md)**.
 
 ---
 
@@ -453,7 +391,7 @@ docker run \
     -v "$(pwd)":/workspace/src/PhoXi-ROS-API \
     -e DISPLAY=$DISPLAY \
     -it \
-    osrf/ros:jazzy-desktop \
+    osrf/ros:kilted-desktop \
     /bin/bash
 ```
 
@@ -488,9 +426,9 @@ docker exec \
     -e PHOXI_CONTROL_PATH=${PHOXI_CONTROL_PATH} \
     phoxi_camera_container \
     /bin/bash -c "
-        source /opt/ros/jazzy/setup.bash \
+        source /opt/ros/kilted/setup.bash \
             && cd /workspace \
-            && rosdep update --rosdistro jazzy \
+            && rosdep update --rosdistro kilted \
             && rosdep install --from-paths src --ignore-src -r -y \
             && colcon build
     "
@@ -503,7 +441,7 @@ docker exec \
     /bin/bash
 
 # inside the container:
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/kilted/setup.bash
 cd /workspace && source install/local_setup.bash
 ```
 
@@ -519,7 +457,7 @@ docker run \
     -v "${PHOXI_CONTROL_PATH}":"${PHOXI_CONTROL_PATH}":rw \
     -e PHOXI_CONTROL_PATH="${PHOXI_CONTROL_PATH}" \
     -it \
-    osrf/ros:jazzy-desktop \
+    osrf/ros:kilted-desktop \
     /bin/bash
 ```
 
@@ -529,23 +467,20 @@ Build and enter the container the same way as above.
 
 ## Testing
 
-The `phoxi_camera` package includes a layered test suite covering data conversions, ROS interface behaviour (mock-based), and hardware integration.
+The `phoxi_camera` package includes a layered test suite:
 
-For full instructions see the **[Testing README](./phoxi_camera/test/README.md)**.
+- **[Mock tests](./phoxi_camera/test_mock/README.md)** — GTest/GMock, no hardware required. Cover ROS interface behaviour, parameter declaration, and setting-type conversions.
+- **[Hardware tests](./phoxi_camera/test/README.md)** — Require a connected PhoXi device (`PHO_TEST_DEVICE_ID`). Cover full lifecycle, frame acquisition, topic publishing, and live device settings.
 
 ```bash
-# Build and run all tests
+# Build
 colcon build --packages-select phoxi_camera
-colcon test  --packages-select phoxi_camera
+source install/setup.bash
+
+# Run all tests (set PHO_TEST_DEVICE_ID to also run hardware tests)
+export PHO_TEST_DEVICE_ID='<your-serial-number>'
+colcon test --packages-select phoxi_camera
 colcon test-result --verbose
-
-# Run only the fast mock-based tests
-colcon test --packages-select phoxi_camera \
-    --ctest-args "-R 'ros_interface_test|conversion_test'"
-
-# Run only the hardware integration test (requires a connected device)
-colcon test --packages-select phoxi_camera \
-    --ctest-args "-R hardware_integration_test"
 ```
 
 ---

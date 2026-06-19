@@ -1,111 +1,112 @@
-# PhoXi Camera ROS 2 Driver - Examples
+# PhoXi Camera ROS 2 Driver — Examples
+
+The `phoxi_camera_example` package contains three self-contained examples with ready-to-run launch files demonstrating how to interact with the `phoxi_camera` driver.
 
 ## Prerequisites
 
-- You must have the `phoxi_camera` package and all its dependencies built in your workspace.
-- **Hardware:** To run this example, a real PhoXi device must be powered on and connected to the network, and the PhoXi Control software must be running.
+- The `phoxi_camera` package and all its dependencies must be built in your workspace.
+- **PhoXi Control** must be installed and running.
+- Set `LD_LIBRARY_PATH` before running any example:
+  ```bash
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PHOXI_CONTROL_PATH/API/lib:/opt/ros/<distro>/lib
+  ```
 
-## Simple node example
+---
 
-This package provides a simple C++ node that demonstrates the correct workflow for interacting with the main `phoxi_camera` driver node.
+## Simple Node Example
 
-The example node performs the following sequence of actions:
-1.  Waits for the `phoxi_camera` services to become available.
-2.  Calls the `~/connect` service to connect to the device.
-3.  Calls the `~/trigger_frame` service to request a new scan.
-4.  Subscribes to the `/point_cloud` topic and waits to receive one message.
-5.  Calls the `~/disconnect` service.
+Demonstrates the basic driver workflow: configure → activate → trigger → receive → cleanup.
 
-### How to Run the Example
+Two executables run alongside the driver:
 
-This example is best run using the provided launch file, which starts the main camera driver, RViz, and the example client node all at once.
+- **`simple_node_service_caller`** — drives the lifecycle and calls `trigger_frame`. It performs the following sequence:
+  1. Waits for the `phoxi_camera` services to become available.
+  2. Configures and activates the node (lifecycle transitions).
+  3. Calls `~/trigger_frame` to request a scan.
+  4. Waits for a point cloud to be received.
+  5. Deactivates and cleans up the node.
+- **`simple_node_topic_listener`** — subscribes to `points` and logs the first received message.
 
-1.  **Source your ROS 2 workspace:**
-    ```bash
-    source /path/to/your/ros2_ws/install/setup.bash
-    ```
+```bash
+ros2 launch phoxi_camera_example run_simple_node_example.launch.py \
+    sensor_sn:='<your-serial-number>'
+```
 
-2. **Update `LD_LIBRARY_PATH`**
-    ```bash
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Photoneo/PhoXiControl-x.xx.x/API/lib/:/opt/ros/{your-ros-distro}/lib/
-    ```
+The launch file opens RViz with a pre-configured view and shuts everything down automatically when the service caller exits.
 
-3.  **Run the launch file:** You can provide the serial number of your device as an argument, otherwise the example will connect to `basic-example` file camera.
-    ```bash
-    ros2 launch phoxi_camera_example run_simple_node_example.launch.py sensor_sn:='your-sensor-sn-goes-here'
-    ```
-
-### What to Expect
-
-- **Terminal Output:** You will see log messages from both the `phoxi_camera` node and the `simple_node_service_caller` node, showing the sequence of service calls and the confirmation of receiving a point cloud message.
-- **RViz:** The RViz window will open, and you should see the triggered point cloud appear.
-- **Shutdown:** Once the example node's workflow is complete, it will shut down, and the launch file will automatically terminate all other nodes, including the driver and RViz.
-
-## Settings example
-
-This example demonstrates how to configure device and frame settings from code.
-
-The example performs the following sequence:
-1. Sets `frameSettings.*` from code via the parameter service before configure.
-2. Triggers configure — the camera node connects to the device and applies both the frame settings set above and the `deviceSettings.*` overrides supplied in the launch file.
-3. Lists all declared device and frame settings parameters.
-4. Activates the camera to start acquisition.
-5. Changes `LaserPower` live via the parameter service while the camera is running.
-
-### How to Run the Settings Example
-
-1.  **Source your ROS 2 workspace:**
-    ```bash
-    source /path/to/your/ros2_ws/install/setup.bash
-    ```
-
-2. **Update `LD_LIBRARY_PATH`**
-    ```bash
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/Photoneo/PhoXiControl-x.xx.x/API/lib/:/opt/ros/{your-ros-distro}/lib/
-    ```
-
-3.  **Run the launch file:**
-    ```bash
-    ros2 launch phoxi_camera_example run_settings_example.launch.py sensor_sn:='your-sensor-sn-goes-here'
-    ```
+> With the default `sensor_sn` (`InstalledExamples-basic-example`) the example runs against a file camera bundled with PhoXi Control — no hardware required.
 
 ### What to Expect
 
-- **Terminal Output:** The `settings_example_caller` logs all declared `deviceSettings.*` and `frameSettings.*` parameters after configure, then confirms the live `LaserPower` change.
+- **Terminal output:** Log messages from both the `phoxi_camera` node and `simple_node_service_caller`, showing lifecycle transitions, the trigger call, and confirmation of receiving a point cloud.
+- **RViz:** The triggered point cloud appears in the pre-configured view.
+- **Shutdown:** Once the service caller exits, the launch file automatically terminates the driver and RViz.
+
+---
+
+## Settings Example
+
+Demonstrates configuring `frameSettings.*` and `deviceSettings.*` before and after `configure`, and changing a live setting while the camera is active.
+
+```bash
+ros2 launch phoxi_camera_example run_settings_example.launch.py \
+    sensor_sn:='<your-serial-number>'
+```
+
+Pass device and frame setting overrides directly in the launch file — they are applied to the device during `on_configure`:
+
+```python
+parameters=[{
+    'device_id':                                   LaunchConfiguration('sensor_sn'),
+    'frameSettings.PointCloud':                    True,
+    'frameSettings.NormalMap':                     False,
+    'deviceSettings.CapturingSettings.LaserPower': 2,
+    'deviceSettings.ScanMultiplier':               1,
+}]
+```
+
+The `settings_example_caller` node then:
+1. Triggers configure — the driver connects to the device and applies all overrides.
+2. Lists all declared `deviceSettings.*` and `frameSettings.*` parameters.
+3. Activates the camera.
+4. Changes `LaserPower` live via the parameter service while the camera is running.
+
+### What to Expect
+
+- **Terminal output:** The caller logs all declared `deviceSettings.*` and `frameSettings.*` parameters after configure, then confirms the live `LaserPower` change.
 - **Shutdown:** Once the caller's workflow is complete it shuts down, and the launch file automatically terminates the camera node.
 
-## Composition example
+---
 
-The `composition` example demonstrates how to use the `phoxi_camera` driver node as a component within a
-[composable node architecture]. This allows for more efficient resource usage and easier integration with other nodes
-in a larger system.
+## Composition Example
 
-### How to Run the Composition Example
+Runs `phoxi_camera` and a client node as composable components inside a shared multi-threaded container, enabling zero-copy intra-process communication. This allows for more efficient resource usage and easier integration with other nodes in a larger system.
 
-1. Launch the composition example, which starts a container and loads the `phoxi_camera` node as a component.
-   Set the `ROS_AUTOMATIC_DISCOVERY_RANGE` environment variable to a value that suits your needs, according to
-   the rules of [dynamic discovery] in ROS 2.
-    ```bash
-    export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
-    ros2 launch phoxi_camera_example run_composition_example.launch.py
-    ```
-2. In another terminal, configure and activate the `phoxi_camera` node and then connect to the device
-    ```bash
-    ros2 lifecycle set /phoxi_camera configure
-    ros2 lifecycle set /phoxi_camera activate
-    ros2 service call /phoxi_camera/connect phoxi_camera_msgs/srv/Connect \
-        "{sn: '<device-serial-number>'}"
-    ```
-3. Start the acquisition loop
-    ```bash
-    ros2 service call /phoxi_camera_composition_example/start std_srvs/srv/Trigger
-    ```
-4. Stop the loop at any time
-   ```bash
-   ros2 service call /phoxi_camera_composition_example/stop std_srvs/srv/Trigger
-   ```
+```bash
+# Start the container with both components
+export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+ros2 launch phoxi_camera_example run_composition_example.launch.py
+```
 
-ROS_AUTOMATIC_DISCOVERY_RANGE=
+Then in separate terminals:
 
-[composable node architecture]: https://docs.ros.org/en/rolling/Tutorials/Intermediate/Composition.html
-[dynamic discovery]: https://docs.ros.org/en/rolling/Tutorials/Advanced/Improved-Dynamic-Discovery.html
+```bash
+# Drive the lifecycle
+ros2 lifecycle set /phoxi_camera configure
+ros2 lifecycle set /phoxi_camera activate
+
+# Start the back-to-back trigger loop
+ros2 service call /phoxi_camera_composition_example/start std_srvs/srv/Trigger '{}'
+
+# Stop the loop at any time
+ros2 service call /phoxi_camera_composition_example/stop std_srvs/srv/Trigger '{}'
+```
+
+### What to Expect
+
+The `CompositionExample` node drives a tight acquire-publish-retrigger loop: each arriving `PointCloud2` message immediately re-triggers the next scan, achieving the highest sustainable frame rate. It logs FPS and frame-to-frame timing on every received point cloud.
+
+For background on composable nodes see the [ROS 2 Composition tutorial][composable] and [dynamic discovery][dynamic-discovery].
+
+[composable]: https://docs.ros.org/en/kilted/Tutorials/Intermediate/Composition.html
+[dynamic-discovery]: https://docs.ros.org/en/kilted/Tutorials/Advanced/Improved-Dynamic-Discovery.html
