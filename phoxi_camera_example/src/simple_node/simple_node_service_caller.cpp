@@ -4,7 +4,6 @@
 
 #include "lifecycle_msgs/srv/change_state.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
-#include "rcl_interfaces/srv/set_parameters.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 using namespace std::chrono_literals;
@@ -25,49 +24,10 @@ bool changeLifecycleState(std::shared_ptr<rclcpp::Node> node, uint8_t transition
     return true;
 }
 
-// Set parameters on the phoxi_camera node via the parameter service.
-// Call before configure to have them applied in on_configure, or after
-// configure (while connected) to apply them immediately to the device.
-bool setParameters(std::shared_ptr<rclcpp::Node> node, const std::vector<rclcpp::Parameter>& params) {
-    auto client = node->create_client<rcl_interfaces::srv::SetParameters>("/phoxi_camera/set_parameters");
-    if (!client->wait_for_service(3s)) {
-        RCLCPP_ERROR(node->get_logger(), "Parameter service not available.");
-        return false;
-    }
-    auto request = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
-    for (const auto& param : params) {
-        request->parameters.push_back(param.to_parameter_msg());
-    }
-    auto result = client->async_send_request(request).get();
-    if (!result) {
-        RCLCPP_ERROR(node->get_logger(), "Set parameters call failed.");
-        return false;
-    }
-    for (const auto& r : result->results) {
-        if (!r.successful) {
-            RCLCPP_ERROR(node->get_logger(), "Failed to set parameter: %s", r.reason.c_str());
-            return false;
-        }
-    }
-    return true;
-}
-
 void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
-    // 1. Set frame output settings before configure so on_configure applies them.
-    RCLCPP_INFO(node->get_logger(), "Setting initial frame output settings.");
-    if (!setParameters(node, {
-                                     rclcpp::Parameter("frame_settings.PointCloud", true),
-                                     rclcpp::Parameter("frame_settings.NormalMap", false),
-                                     rclcpp::Parameter("frame_settings.DepthMap", true),
-                                     rclcpp::Parameter("frame_settings.Texture", true),
-                                     rclcpp::Parameter("frame_settings.ConfidenceMap", false),
-                                     rclcpp::Parameter("frame_settings.ColorCameraImage", false),
-                             })) {
-        rclcpp::shutdown();
-        return;
-    }
+    // Settings are supplied via the launch file.
 
-    // 2. Configure (connects to device) and activate (starts acquisition).
+    // Configure (connects to device) and activate (starts acquisition).
     RCLCPP_INFO(node->get_logger(), "Configuring.");
     if (!changeLifecycleState(node, lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE)) {
         rclcpp::shutdown();
@@ -79,7 +39,7 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
         return;
     }
 
-    // 3. Trigger a first frame — listener receives PointCloud, DepthMap and Texture.
+    // Trigger a first frame — listener receives PointCloud, DepthMap and Texture.
     auto triggerClient = node->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
     if (!triggerClient->wait_for_service(5s)) {
         RCLCPP_ERROR(node->get_logger(), "Trigger frame service not available.");
