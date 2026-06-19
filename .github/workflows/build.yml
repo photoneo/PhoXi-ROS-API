@@ -107,10 +107,10 @@ jobs:
             source /opt/ros/${{ matrix.ros_distro }}/setup.bash
 
             # Run linters
-            ament_clang_format --config .clang-format --xunit-file /ros2_ws/build/lint_reports/clang_format.xml src/ include/ test/
+            ament_clang_format --config .clang-format --xunit-file /ros2_ws/build/lint_reports/clang_format.xml src/ include/ test/ test_mock/
             export AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS=1
-            ament_cppcheck --language=c++ --xunit-file /ros2_ws/build/lint_reports/cppcheck.xml src/ include/ test/
-            ament_cpplint src/ include/ test/ 2>&1 | tee /ros2_ws/build/lint_reports/cpplint.log
+            ament_cppcheck --language=c++ --xunit-file /ros2_ws/build/lint_reports/cppcheck.xml src/ include/ test/ test_mock/
+            ament_cpplint src/ include/ test/ test_mock/ 2>&1 | tee /ros2_ws/build/lint_reports/cpplint.log
           "
 
       - name: 'Start PhoXi Control'
