@@ -141,7 +141,8 @@ jobs:
               cd /ros2_ws
               colcon build --cmake-args -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
               source ./install/local_setup.bash
-              colcon test
+              # Run mock tests only
+              colcon test --ctest-args -R "_mock_"
             "
 
       - name: 'Publish Test Report'

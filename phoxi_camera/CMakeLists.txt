@@ -98,58 +98,58 @@ if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
     find_package(ament_cmake_gmock REQUIRED)
 
-    ament_add_gmock(${PROJECT_NAME}_ros_interface_test
+    ament_add_gmock(${PROJECT_NAME}_mock_ros_interface_test
             test_mock/test_ros_interface.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_ros_interface_test
+    target_link_libraries(${PROJECT_NAME}_mock_ros_interface_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_ros_interface_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+    target_include_directories(${PROJECT_NAME}_mock_ros_interface_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
-    ament_add_gtest(${PROJECT_NAME}_conversions_test
+    ament_add_gtest(${PROJECT_NAME}_mock_conversions_test
             test/test_conversions.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_conversions_test
+    target_link_libraries(${PROJECT_NAME}_mock_conversions_test
             ${PROJECT_NAME}_Ros_Interface
     )
 
-    ament_add_gmock(${PROJECT_NAME}_frame_settings_test
+    ament_add_gmock(${PROJECT_NAME}_mock_frame_settings_test
             test_mock/test_frame_settings.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_frame_settings_test
+    target_link_libraries(${PROJECT_NAME}_mock_frame_settings_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_frame_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+    target_include_directories(${PROJECT_NAME}_mock_frame_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
-    ament_add_gmock(${PROJECT_NAME}_setting_types_test
+    ament_add_gmock(${PROJECT_NAME}_mock_setting_types_test
             test_mock/test_setting_types.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_setting_types_test
+    target_link_libraries(${PROJECT_NAME}_mock_setting_types_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_setting_types_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+    target_include_directories(${PROJECT_NAME}_mock_setting_types_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
-    ament_add_gmock(${PROJECT_NAME}_device_settings_params_test
+    ament_add_gmock(${PROJECT_NAME}_mock_device_settings_params_test
             test_mock/test_device_settings_params.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_device_settings_params_test
+    target_link_libraries(${PROJECT_NAME}_mock_device_settings_params_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_device_settings_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+    target_include_directories(${PROJECT_NAME}_mock_device_settings_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
-    ament_add_gmock(${PROJECT_NAME}_device_info_params_test
+    ament_add_gmock(${PROJECT_NAME}_mock_device_info_params_test
             test_mock/test_device_info_params.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_device_info_params_test
+    target_link_libraries(${PROJECT_NAME}_mock_device_info_params_test
             ${PROJECT_NAME}_Ros_Interface
     )
-    target_include_directories(${PROJECT_NAME}_device_info_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+    target_include_directories(${PROJECT_NAME}_mock_device_info_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
     ament_add_gtest(${PROJECT_NAME}_hardware_integration_test
             test/test_hardware_integration.cpp
