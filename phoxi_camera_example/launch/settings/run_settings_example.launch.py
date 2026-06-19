@@ -25,16 +25,16 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'device_id':                                    LaunchConfiguration('sensor_sn'),
-            'frameSettings.PointCloud':                     True,
-            'frameSettings.NormalMap':                      False,
-            'frameSettings.DepthMap':                       True,
-            'frameSettings.Texture':                        True,
-            'frameSettings.ConfidenceMap':                  False,
-            'frameSettings.ColorCameraImage':               False,
-            'frameSettings.EventMap':                       False,
-            'deviceSettings.CapturingSettings.LaserPower':  2,
-            'deviceSettings.ScanMultiplier':                1,
             'trigger_mode':                                 'Software',
+            'frame_settings.PointCloud':                     True,
+            'frame_settings.NormalMap':                      False,
+            'frame_settings.DepthMap':                       True,
+            'frame_settings.Texture':                        True,
+            'frame_settings.ConfidenceMap':                  False,
+            'frame_settings.ColorCameraImage':               False,
+            'frame_settings.EventMap':                       False,
+            'device_settings.CapturingSettings.LaserPower':  2,
+            'device_settings.ScanMultiplier':                1,
         }]
     )
 

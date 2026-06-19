@@ -103,7 +103,7 @@ TEST_F(RosInterfaceTest, LifecycleTransitions) {
     EXPECT_CALL(*mockInterface, stopAcquisition()).Times(1);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE));
 
-    EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP));
 }
 

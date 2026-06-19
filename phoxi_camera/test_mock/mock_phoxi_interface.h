@@ -16,6 +16,7 @@ class MockPhoXiInterface : public phoxi_camera::PhoXiInterface {
 public:
     MOCK_METHOD(void, connectCamera, (const std::string&, GetFrameCallback&&), (override));
     MOCK_METHOD(void, disconnectCamera, (), (override));
+    MOCK_METHOD(void, disconnectCamera, (bool, bool), (override));
     MOCK_METHOD(void, triggerFrame, (bool), (override));
     MOCK_METHOD(void, startAcquisition, (), (override));
     MOCK_METHOD(void, stopAcquisition, (), (override));

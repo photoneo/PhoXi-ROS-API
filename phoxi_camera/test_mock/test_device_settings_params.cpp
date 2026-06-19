@@ -141,7 +141,7 @@ TEST_F(DeviceSettingsParamsTest, YamlOverride_AppliedToDeviceViaSetSettings) {
     EXPECT_DOUBLE_EQ(std::get<double>(captured[0].second), 5.0);
 
     testing::Mock::VerifyAndClearExpectations(mock2);
-    EXPECT_CALL(*mock2, disconnectCamera()).Times(testing::AtLeast(1));
+    EXPECT_CALL(*mock2, disconnectCamera(testing::_, testing::_)).Times(testing::AtLeast(1));
     changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP);
 
     executor_.remove_node(node2->get_node_base_interface());
@@ -180,7 +180,7 @@ TEST_F(DeviceSettingsParamsTest, GetSettingsThrows_ConfigureFails_CameraDisconne
     EXPECT_CALL(*mockInterface, getSettingInfos()).WillRepeatedly(Return(schema));
     EXPECT_CALL(*mockInterface, getSettings(_)).WillOnce(Throw(PhoXiInterfaceException("device error")));
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
-    EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
     EXPECT_CALL(*mockInterface, setSettings(_)).Times(0);
 
     EXPECT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
@@ -206,7 +206,7 @@ TEST_F(DeviceSettingsParamsTest, SetSettingsThrowsDuringYamlOverride_ConfigureFa
     EXPECT_CALL(*mock2, getSettingInfos()).WillRepeatedly(Return(schema));
     EXPECT_CALL(*mock2, getSettings(_)).WillRepeatedly(Return(deviceVals));
     EXPECT_CALL(*mock2, connectCamera(mDeviceId, _)).Times(1);
-    EXPECT_CALL(*mock2, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mock2, disconnectCamera(testing::_, testing::_)).Times(1);
     EXPECT_CALL(*mock2, setSettings(_)).WillOnce(Throw(PhoXiInterfaceException("write error")));
 
     EXPECT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
@@ -304,7 +304,7 @@ TEST_F(DeviceSettingsParamsTest, AfterFailedConfigure_SuccessfulReconfigurePossi
 
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mockInterface, getSettings(_)).WillOnce(Throw(PhoXiInterfaceException("transient")));
-    EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
     ASSERT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);

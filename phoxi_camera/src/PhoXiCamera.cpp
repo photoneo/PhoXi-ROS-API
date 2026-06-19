@@ -15,9 +15,9 @@ namespace phoxi_camera {
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 static constexpr char PARAM_SEP = '.';
-static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings";
-static constexpr std::string_view DEVICE_INFO_PREFIX = "deviceInfo";
-static constexpr std::string_view FRAME_SETTINGS_PREFIX = "frameSettings";
+static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "device_settings";
+static constexpr std::string_view DEVICE_INFO_PREFIX = "device_info";
+static constexpr std::string_view FRAME_SETTINGS_PREFIX = "frame_settings";
 
 static pho::api::PhoXiTriggerMode parseTriggerMode(const std::string& modeStr) {
     if (modeStr == "Software") {
@@ -129,7 +129,7 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
         try {
-            mPhoXiInterface->disconnectCamera();
+            mPhoXiInterface->disconnectCamera(mLogoutOnExit, mStopAcquisitionOnExit);
         } catch (...) {
         }
         return CallbackReturn::FAILURE;
@@ -219,7 +219,7 @@ CallbackReturn PhoXiCamera::on_cleanup(const rclcpp_lifecycle::State& /*previous
     mParamToDescriptor.clear();
 
     try {
-        mPhoXiInterface->disconnectCamera();
+        mPhoXiInterface->disconnectCamera(mLogoutOnExit, mStopAcquisitionOnExit);
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_WARN(get_logger(), "Failed to disconnect during cleanup: %s", e.what());
     }
@@ -241,7 +241,7 @@ CallbackReturn PhoXiCamera::on_shutdown(const rclcpp_lifecycle::State& /*previou
     }
     if (mPhoXiInterface->isConnected()) {
         try {
-            mPhoXiInterface->disconnectCamera();
+            mPhoXiInterface->disconnectCamera(mLogoutOnExit, mStopAcquisitionOnExit);
         } catch (const PhoXiInterfaceException& e) {
             RCLCPP_WARN(get_logger(), "Failed to disconnect during shutdown: %s", e.what());
         }

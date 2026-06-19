@@ -109,7 +109,7 @@ TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_ReturnsFailure)
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce(Throw(PhoXiInterfaceException("device rejected component")));
-    EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
     EXPECT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 }
 
@@ -118,7 +118,7 @@ TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_CanReconfigureS
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce(Throw(PhoXiInterfaceException("transient error")));
-    EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
     ASSERT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);

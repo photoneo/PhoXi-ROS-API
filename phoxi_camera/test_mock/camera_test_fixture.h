@@ -84,7 +84,7 @@ protected:
     }
 
     bool cleanup() {
-        EXPECT_CALL(*mockInterface, disconnectCamera()).Times(testing::AtLeast(1));
+        EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(testing::AtLeast(1));
         return changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP);
     }
 

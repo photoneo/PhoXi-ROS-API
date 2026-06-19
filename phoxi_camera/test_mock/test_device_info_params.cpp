@@ -80,7 +80,7 @@ TEST_F(DeviceInfoParamsTest, GetDeviceInfoThrows_ConfigureFails) {
     EXPECT_CALL(*mockInterface, getDeviceInfo())
         .WillOnce(Throw(PhoXiInterfaceException("device error")));
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, testing::_)).Times(1);
-    EXPECT_CALL(*mockInterface, disconnectCamera()).Times(1);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
 
     EXPECT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 }
