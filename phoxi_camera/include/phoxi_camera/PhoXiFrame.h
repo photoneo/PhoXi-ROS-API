@@ -7,8 +7,7 @@
 
 #include "phoxi/phoxi_c_api.h"
 
-namespace phoxi_camera
-{
+namespace phoxi_camera {
 
 /**
  * @brief Typed view into a single frame delivered by the PhoXi API.
@@ -20,8 +19,7 @@ namespace phoxi_camera
  * The API TEXTURE record is split here into `texture` (FLOAT_32F grayscale) and
  * `textureRgb` (RGB_16); at most one of them is non-null per frame.
  */
-struct PhoXiFrame
-{
+struct PhoXiFrame {
     const phoxi_frame_record_t* frameInfo = nullptr;      ///< JSON frame metadata and status (FRAME_INFO record).
     const phoxi_frame_record_t* pointCloud = nullptr;     ///< 3D point cloud; float[3] per pixel in mm.
     const phoxi_frame_record_t* normalMap = nullptr;      ///< Per-pixel surface normal vectors; float[3] per pixel.

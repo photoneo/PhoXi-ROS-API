@@ -28,6 +28,11 @@ jobs:
           - ros_distro: kilted
             PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
             PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
+
+          # ROS 2 Kilted (Ubuntu 24.04)
+          - ros_distro: lyrical
+            PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
+            PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
           
           # ROS 2 Rolling (Ubuntu 24.04)
           - ros_distro: rolling

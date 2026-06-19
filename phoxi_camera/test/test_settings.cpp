@@ -13,9 +13,7 @@ protected:
         mInterface.connectCamera(DeviceRequiredTest::deviceId(), [](const phoxi_camera::PhoXiFrame&) {});
     }
 
-    void TearDown() override {
-        mInterface.disconnectCamera();
-    }
+    void TearDown() override { mInterface.disconnectCamera(); }
 
     phoxi_camera::PhoXiInterface mInterface;
 };
@@ -81,9 +79,7 @@ TEST_F(DeviceRequiredTest, SetSettings_LaserPower_ChangePersists) {
 }
 
 TEST_F(DeviceRequiredTest, GetSettings_UnknownKey_NotDeclared) {
-    EXPECT_THROW(
-        mLcNode->get_parameter("device_settings.NonExistent.FooBar"),
-        rclcpp::exceptions::ParameterNotDeclaredException);
+    EXPECT_THROW(mLcNode->get_parameter("device_settings.NonExistent.FooBar"), rclcpp::exceptions::ParameterNotDeclaredException);
 }
 
 TEST_F(DeviceRequiredTest, SetSettings_WrongType_Rejected) {

@@ -6,8 +6,7 @@
 
 #include "phoxi/details/jsoncons/json.hpp"
 
-namespace phoxi_camera
-{
+namespace phoxi_camera {
 static constexpr float MAX_TEXTURE = 2047.0f;
 static constexpr float MAX_RGB_CHANNEL = 1023.0f;
 static constexpr float RGB_SCALE = 255.0f / MAX_RGB_CHANNEL;
@@ -15,8 +14,7 @@ static constexpr float INV_MM = 1.f / 1000.f;
 static constexpr float INV_MAX_TEXTURE = 1.f / MAX_TEXTURE;
 
 
-void addField(const std::string& name, int datatype, uint32_t size, uint32_t& offset,
-    const std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg) {
+void addField(const std::string& name, int datatype, uint32_t size, uint32_t& offset, const std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg) {
     sensor_msgs::msg::PointField field;
     field.name = name;
     field.offset = offset;
@@ -35,14 +33,10 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const PhoXiFra
     const int height = frame.pointCloud->height;
     const int width = frame.pointCloud->width;
     const auto* points = static_cast<const float(*)[3]>(frame.pointCloud->data);
-    const auto* normals =
-        frame.normalMap ? static_cast<const float(*)[3]>(frame.normalMap->data) : nullptr;
-    const auto* rgbTexture =
-        frame.textureRgb ? static_cast<const uint16_t(*)[3]>(frame.textureRgb->data) : nullptr;
-    const auto* texture =
-        (!rgbTexture && frame.texture) ? static_cast<const float*>(frame.texture->data) : nullptr;
-    const auto* confidence =
-        frame.confidenceMap ? static_cast<const float*>(frame.confidenceMap->data) : nullptr;
+    const auto* normals = frame.normalMap ? static_cast<const float(*)[3]>(frame.normalMap->data) : nullptr;
+    const auto* rgbTexture = frame.textureRgb ? static_cast<const uint16_t(*)[3]>(frame.textureRgb->data) : nullptr;
+    const auto* texture = (!rgbTexture && frame.texture) ? static_cast<const float*>(frame.texture->data) : nullptr;
+    const auto* confidence = frame.confidenceMap ? static_cast<const float*>(frame.confidenceMap->data) : nullptr;
     const auto* depth = frame.depthMap ? static_cast<const float*>(frame.depthMap->data) : nullptr;
     const auto* event = frame.eventMap ? static_cast<const float*>(frame.eventMap->data) : nullptr;
 
@@ -133,8 +127,7 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const PhoXiFra
         }
     } else if (texture) {
         for (int i = 0; i < nPixels; ++i) {
-            *reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + intensityOff) =
-                texture[i] * INV_MAX_TEXTURE;
+            *reinterpret_cast<float*>(dataPtr + static_cast<size_t>(i) * step + intensityOff) = texture[i] * INV_MAX_TEXTURE;
         }
     }
 
@@ -192,8 +185,7 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> pointsToRosMsg(const PhoXiFrame& 
 }
 
 template <typename SrcT, typename DstT, typename Transform>
-static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame_record_t& record,
-    const std::string& encoding, uint32_t channels, Transform transform) {
+static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame_record_t& record, const std::string& encoding, uint32_t channels, Transform transform) {
     assert(record.data);
     auto msg = std::make_unique<sensor_msgs::msg::Image>();
     msg->height = static_cast<uint32_t>(record.height);
@@ -212,9 +204,7 @@ static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame
     return msg;
 }
 
-template <typename T>
-static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame_record_t& record,
-    const std::string& encoding, uint32_t channels) {
+template <typename T> static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame_record_t& record, const std::string& encoding, uint32_t channels) {
     return recordToRosMsg<T, T>(record, encoding, channels, [](T v) { return v; });
 }
 
@@ -235,13 +225,11 @@ std::unique_ptr<sensor_msgs::msg::Image> eventMapToRosMsg(const phoxi_frame_reco
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> textureToRosMsg(const phoxi_frame_record_t& record) {
-    return recordToRosMsg<float, float>(record, "32FC1", 1,
-        [](float v) { return v / MAX_TEXTURE; });
+    return recordToRosMsg<float, float>(record, "32FC1", 1, [](float v) { return v / MAX_TEXTURE; });
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_record_t& record) {
-    return recordToRosMsg<uint16_t, uint8_t>(record, "rgb8", 3,
-        [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
+    return recordToRosMsg<uint16_t, uint8_t>(record, "rgb8", 3, [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record) {
@@ -274,10 +262,7 @@ static std::array<double, 3> readXyz(const pho_jsoncons::json& info, const std::
     return {o["x"].as<double>(), o["y"].as<double>(), o["z"].as<double>()};
 }
 
-static std::unique_ptr<sensor_msgs::msg::CameraInfo> tryBuildCameraInfo(
-    const pho_jsoncons::json& info,
-    const char* matKey, const char* distKey, const char* resKey)
-{
+static std::unique_ptr<sensor_msgs::msg::CameraInfo> tryBuildCameraInfo(const pho_jsoncons::json& info, const char* matKey, const char* distKey, const char* resKey) {
     if (!info.contains(matKey) || !info.contains(distKey) || !info.contains(resKey)) {
         return nullptr;
     }
@@ -342,14 +327,10 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
         return result;
     }
     const auto& info = json["info"];
-    result.currentCamera = tryBuildCameraInfo(info,
-        "current_camera/PerspectiveSettings/CameraMatrix",
-        "current_camera/PerspectiveSettings/DistortionCoefficients",
-        "current_camera/Resolution");
-    result.currentColorCamera = tryBuildCameraInfo(info,
-        "current_color_camera/PerspectiveSettings/CameraMatrix",
-        "current_color_camera/PerspectiveSettings/DistortionCoefficients",
-        "current_color_camera/Resolution");
+    result.currentCamera =
+            tryBuildCameraInfo(info, "current_camera/PerspectiveSettings/CameraMatrix", "current_camera/PerspectiveSettings/DistortionCoefficients", "current_camera/Resolution");
+    result.currentColorCamera = tryBuildCameraInfo(
+            info, "current_color_camera/PerspectiveSettings/CameraMatrix", "current_color_camera/PerspectiveSettings/DistortionCoefficients", "current_color_camera/Resolution");
 
     auto msg = std::make_unique<phoxi_camera_msgs::msg::FrameInfo>();
 
@@ -430,4 +411,4 @@ ParsedFrameInfo parseFrameInfo(const phoxi_frame_record_t& record) {
     return result;
 }
 
-} // namespace phoxi_camera
+}  // namespace phoxi_camera

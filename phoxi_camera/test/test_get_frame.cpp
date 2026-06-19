@@ -7,8 +7,8 @@
 #include "message_filters/subscriber.hpp"
 #include "message_filters/sync_policies/exact_time.hpp"
 #include "message_filters/synchronizer.hpp"
-#include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
+#include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -26,7 +26,7 @@ protected:
 
     struct ReceivedFrame {
         PC2::ConstSharedPtr pointCloud;
-        Img::ConstSharedPtr colorCamera; // /color_camera_image; only set for COLOR devices
+        Img::ConstSharedPtr colorCamera;  // /color_camera_image; only set for COLOR devices
         explicit operator bool() const { return pointCloud != nullptr; }
     };
 
@@ -49,21 +49,16 @@ protected:
         if (sLcNode->has_parameter(opModeParam)) {
             sCameraType = CameraType::MOTIONCAM;
             auto result = sLcNode->set_parameter(rclcpp::Parameter(opModeParam, "Camera"));
-            ASSERT_TRUE(result.successful)
-                << "Failed to set MotionCam Camera mode: " << result.reason;
+            ASSERT_TRUE(result.successful) << "Failed to set MotionCam Camera mode: " << result.reason;
         }
         // frame_settings.ColorCameraImage is only declared for cameras with a color camera.
         sIsColorDevice = sLcNode->has_parameter("frame_settings.ColorCameraImage");
     }
 
-    static void TearDownTestSuite() {
-        suiteTearDown();
-    }
+    static void TearDownTestSuite() { suiteTearDown(); }
 
     std::string textureSourceParam() const {
-        return (sCameraType == CameraType::MOTIONCAM)
-            ? "device_settings.CameraMode.TextureSource"
-            : "device_settings.CapturingSettings.TextureSource";
+        return (sCameraType == CameraType::MOTIONCAM) ? "device_settings.CameraMode.TextureSource" : "device_settings.CapturingSettings.TextureSource";
     }
 
     bool setTextureSource(const std::string& value) {
@@ -77,44 +72,28 @@ protected:
     void usePointCloudOnly() {
         mSync2.reset();
         mLatestFrame = {};
-        mDirectConn = mPointCloudSub.registerCallback(
-            [this](const PC2::ConstSharedPtr& msg) {
-                mLatestFrame = {msg, nullptr};
-            });
+        mDirectConn = mPointCloudSub.registerCallback([this](const PC2::ConstSharedPtr& msg) { mLatestFrame = {msg, nullptr}; });
     }
 
     void useColorCameraSync() {
         mDirectConn.disconnect();
         mLatestFrame = {};
-        mSync2 = std::make_unique<Sync2>(
-            message_filters::sync_policies::ExactTime<PC2, Img>(5),
-            mPointCloudSub, mColorCameraSub);
-        mSync2->registerCallback(
-            [this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr colorCam) {
-                mLatestFrame = {std::move(pts), std::move(colorCam)};
-            });
+        mSync2 = std::make_unique<Sync2>(message_filters::sync_policies::ExactTime<PC2, Img>(5), mPointCloudSub, mColorCameraSub);
+        mSync2->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr colorCam) { mLatestFrame = {std::move(pts), std::move(colorCam)}; });
     }
 
     void SetUp() override {
         DeviceRequiredTest::SetUp();
-        ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, 30s))
-            << "Failed to activate";
-        mTriggerClient = mClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>(
-            "/phoxi_camera/trigger_frame");
+        ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, 30s)) << "Failed to activate";
+        mTriggerClient = mClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
         ASSERT_TRUE(mTriggerClient->wait_for_service(5s));
 
         const auto qos = rclcpp::SystemDefaultsQoS();
         mPointCloudSub.subscribe(mClientNode, "/point_cloud", qos);
         mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
-        mFrameInfoSub = mClientNode->create_subscription<FI>(
-            "/frame_info", qos,
-            [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
-        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>(
-            "/frame_info/current_camera", qos,
-            [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
-        mColorCameraInfoSub = mClientNode->create_subscription<CI>(
-            "/frame_info/current_color_camera", qos,
-            [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
+        mFrameInfoSub = mClientNode->create_subscription<FI>("/frame_info", qos, [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
+        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
+        mColorCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
     }
 
     void TearDown() override {
@@ -184,13 +163,9 @@ TEST_F(FrameTest, SoftwareTrigger_PointCloudReceived) {
     EXPECT_GT(frame.pointCloud->width, 0u);
     EXPECT_GT(frame.pointCloud->height, 0u);
     EXPECT_GT(frame.pointCloud->point_step, 0u);
-    EXPECT_EQ(frame.pointCloud->data.size(),
-              static_cast<size_t>(
-                  frame.pointCloud->width * frame.pointCloud->height *
-                  frame.pointCloud->point_step));
+    EXPECT_EQ(frame.pointCloud->data.size(), static_cast<size_t>(frame.pointCloud->width * frame.pointCloud->height * frame.pointCloud->point_step));
     EXPECT_NE(frame.pointCloud->header.frame_id, "");
-    EXPECT_TRUE(frame.pointCloud->header.stamp.sec > 0 ||
-                frame.pointCloud->header.stamp.nanosec > 0u);
+    EXPECT_TRUE(frame.pointCloud->header.stamp.sec > 0 || frame.pointCloud->header.stamp.nanosec > 0u);
     EXPECT_TRUE(hasField(*frame.pointCloud, "x"));
     EXPECT_TRUE(hasField(*frame.pointCloud, "y"));
     EXPECT_TRUE(hasField(*frame.pointCloud, "z"));
@@ -212,8 +187,7 @@ TEST_F(FrameTest, LaserTexture_PointCloudHasIntensityField) {
     auto frame = triggerAndReceive();
     ASSERT_NE(frame.pointCloud, nullptr);
     EXPECT_TRUE(hasField(*frame.pointCloud, "depth")) << "depth field missing";
-    EXPECT_TRUE(hasField(*frame.pointCloud, "intensity"))
-        << "intensity field missing for Laser texture source";
+    EXPECT_TRUE(hasField(*frame.pointCloud, "intensity")) << "intensity field missing for Laser texture source";
     if (sIsColorDevice) {
         ASSERT_NE(frame.colorCamera, nullptr) << "/color_camera_image not received";
         EXPECT_GT(frame.colorCamera->width, 0u);
@@ -229,14 +203,12 @@ TEST_F(FrameTest, ColorTexture_PointCloudHasRgbFieldAndColorCameraImageReceived)
     if (!sIsColorDevice) {
         GTEST_SKIP() << "Not a COLOR device";
     }
-    ASSERT_TRUE(setTextureSource("Color"))
-        << "Color texture source not accepted on COLOR device";
+    ASSERT_TRUE(setTextureSource("Color")) << "Color texture source not accepted on COLOR device";
     useColorCameraSync();
     auto frame = triggerAndReceive();
     ASSERT_NE(frame.pointCloud, nullptr);
     EXPECT_TRUE(hasField(*frame.pointCloud, "depth")) << "depth field missing";
-    EXPECT_TRUE(hasField(*frame.pointCloud, "rgb"))
-        << "rgb field missing for Color texture source";
+    EXPECT_TRUE(hasField(*frame.pointCloud, "rgb")) << "rgb field missing for Color texture source";
     ASSERT_NE(frame.colorCamera, nullptr) << "/color_camera_image not received";
     EXPECT_GT(frame.colorCamera->width, 0u);
     EXPECT_GT(frame.colorCamera->height, 0u);
@@ -280,8 +252,7 @@ TEST_F(FrameTest, FrameInfo_CameraInfoReceived) {
     EXPECT_GT(mLatestPrimaryCameraInfo->k[0], 0.0);  // fx
     EXPECT_GT(mLatestPrimaryCameraInfo->k[4], 0.0);  // fy
     EXPECT_NE(mLatestPrimaryCameraInfo->header.frame_id, "");
-    EXPECT_TRUE(mLatestPrimaryCameraInfo->header.stamp.sec > 0 ||
-                mLatestPrimaryCameraInfo->header.stamp.nanosec > 0u);
+    EXPECT_TRUE(mLatestPrimaryCameraInfo->header.stamp.sec > 0 || mLatestPrimaryCameraInfo->header.stamp.nanosec > 0u);
 
     if (sIsColorDevice) {
         ASSERT_NE(mLatestColorCameraInfo, nullptr) << "No color camera info received";

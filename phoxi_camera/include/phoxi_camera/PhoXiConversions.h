@@ -19,8 +19,7 @@
  * @param phoXiDeviceInformation     Source: API device information.
  * @param phoXiCameraDeviceInformation Destination: ROS-layer device information (overwritten).
  */
-inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformation& phoXiDeviceInformation,
-    phoxi_camera::PhoXiDeviceInformation& phoXiCameraDeviceInformation) {
+inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformation& phoXiDeviceInformation, phoxi_camera::PhoXiDeviceInformation& phoXiCameraDeviceInformation) {
     phoXiCameraDeviceInformation.name = phoXiDeviceInformation.Name;
     phoXiCameraDeviceInformation.type = phoXiDeviceInformation.Type;
     phoXiCameraDeviceInformation.hwIdentification = phoXiDeviceInformation.HWIdentification;
@@ -72,8 +71,8 @@ inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformatio
  * @param phoXiDeviceInformation      Source list of API device information records.
  * @param phoXiCameraDeviceInformation Destination list (overwritten).
  */
-inline void toPhoXiCameraDeviceInformation(const std::vector<pho::api::PhoXiDeviceInformation>& phoXiDeviceInformation,
-    std::vector<phoxi_camera::PhoXiDeviceInformation>& phoXiCameraDeviceInformation) {
+inline void toPhoXiCameraDeviceInformation(
+        const std::vector<pho::api::PhoXiDeviceInformation>& phoXiDeviceInformation, std::vector<phoxi_camera::PhoXiDeviceInformation>& phoXiCameraDeviceInformation) {
     phoXiCameraDeviceInformation.clear();
     phoXiCameraDeviceInformation.resize(phoXiDeviceInformation.size());
     for (int i = 0; i < phoXiDeviceInformation.size(); ++i) {

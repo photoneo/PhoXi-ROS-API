@@ -12,8 +12,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-inline const sensor_msgs::msg::PointField* findField(
-    const sensor_msgs::msg::PointCloud2& msg, const std::string& name) {
+inline const sensor_msgs::msg::PointField* findField(const sensor_msgs::msg::PointCloud2& msg, const std::string& name) {
     for (const auto& f : msg.fields) {
         if (f.name == name) {
             return &f;
@@ -45,9 +44,7 @@ protected:
         suiteSetUp(options);
     }
 
-    static void TearDownTestSuite() {
-        suiteTearDown();
-    }
+    static void TearDownTestSuite() { suiteTearDown(); }
 
     // Helper for derived-class SetUpTestSuite implementations.
     // Creates the shared executor and node, then runs CONFIGURE (device connect).
@@ -58,15 +55,12 @@ protected:
         sClientNode = std::make_shared<rclcpp::Node>("hw_test_client");
         sExecutor->add_node(sLcNode->get_node_base_interface());
         sExecutor->add_node(sClientNode);
-        auto client = sClientNode->create_client<lifecycle_msgs::srv::ChangeState>(
-            "/phoxi_camera/change_state");
+        auto client = sClientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
         ASSERT_TRUE(client->wait_for_service(std::chrono::seconds(5)));
         auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
         req->transition.id = lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE;
         auto future = client->async_send_request(req);
-        ASSERT_EQ(sExecutor->spin_until_future_complete(future, std::chrono::seconds(120)),
-                  rclcpp::FutureReturnCode::SUCCESS)
-            << "Configure timed out for device: " << deviceId();
+        ASSERT_EQ(sExecutor->spin_until_future_complete(future, std::chrono::seconds(120)), rclcpp::FutureReturnCode::SUCCESS) << "Configure timed out for device: " << deviceId();
         ASSERT_TRUE(future.get()->success) << "Failed to configure device: " << deviceId();
     }
 
@@ -75,8 +69,7 @@ protected:
             return;
         }
         // Best-effort cleanup; the node may already be unconfigured if a test ran CLEANUP.
-        auto client = sClientNode->create_client<lifecycle_msgs::srv::ChangeState>(
-            "/phoxi_camera/change_state");
+        auto client = sClientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
         if (client->wait_for_service(std::chrono::seconds(5))) {
             auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
             req->transition.id = lifecycle_msgs::msg::Transition::TRANSITION_CLEANUP;
@@ -106,33 +99,26 @@ protected:
         mClientNode.reset();
     }
 
-    bool changeLcState(uint8_t transition,
-                       std::chrono::seconds timeout = std::chrono::seconds(10)) {
-        auto client = mClientNode->create_client<lifecycle_msgs::srv::ChangeState>(
-            "/phoxi_camera/change_state");
+    bool changeLcState(uint8_t transition, std::chrono::seconds timeout = std::chrono::seconds(10)) {
+        auto client = mClientNode->create_client<lifecycle_msgs::srv::ChangeState>("/phoxi_camera/change_state");
         if (!client->wait_for_service(std::chrono::seconds(5))) {
             return false;
         }
         auto req = std::make_shared<lifecycle_msgs::srv::ChangeState::Request>();
         req->transition.id = transition;
         auto future = client->async_send_request(req);
-        return mExecutor.spin_until_future_complete(future, timeout) ==
-                   rclcpp::FutureReturnCode::SUCCESS &&
-               future.get()->success;
+        return mExecutor.spin_until_future_complete(future, timeout) == rclcpp::FutureReturnCode::SUCCESS && future.get()->success;
     }
 
     template <typename SrvT>
     typename SrvT::Response::SharedPtr callService(
-        const std::string& name,
-        typename SrvT::Request::SharedPtr req = std::make_shared<typename SrvT::Request>(),
-        std::chrono::seconds timeout = std::chrono::seconds(30)) {
+            const std::string& name, typename SrvT::Request::SharedPtr req = std::make_shared<typename SrvT::Request>(), std::chrono::seconds timeout = std::chrono::seconds(30)) {
         auto client = mClientNode->create_client<SrvT>(name);
         if (!client->wait_for_service(std::chrono::seconds(5))) {
             return nullptr;
         }
         auto future = client->async_send_request(req);
-        if (mExecutor.spin_until_future_complete(future, timeout) !=
-            rclcpp::FutureReturnCode::SUCCESS) {
+        if (mExecutor.spin_until_future_complete(future, timeout) != rclcpp::FutureReturnCode::SUCCESS) {
             return nullptr;
         }
         return future.get();

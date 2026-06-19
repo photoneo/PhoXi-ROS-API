@@ -92,7 +92,6 @@
 #include "phoxi_camera_msgs/msg/frame_error.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "phoxi_camera_msgs/srv/connect.hpp"
-#include "phoxi_camera_msgs/srv/log_download.hpp"
 #include "phoxi_camera_msgs/srv/create_profile.hpp"
 #include "phoxi_camera_msgs/srv/delete_profile.hpp"
 #include "phoxi_camera_msgs/srv/export_profile.hpp"
@@ -100,6 +99,7 @@
 #include "phoxi_camera_msgs/srv/get_profile_list.hpp"
 #include "phoxi_camera_msgs/srv/get_startup_profile.hpp"
 #include "phoxi_camera_msgs/srv/import_profile.hpp"
+#include "phoxi_camera_msgs/srv/log_download.hpp"
 #include "phoxi_camera_msgs/srv/set_active_profile.hpp"
 #include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
@@ -286,18 +286,11 @@ private:
      */
     SettingValue applyFieldUpdate(const SettingValue& current, SettingValueType type, const std::string& field, const rclcpp::Parameter& param) const;
 
-    void rebootCallback(
-            const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-            const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
-    void shutdownCallback(
-            const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-            const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
-    void factoryResetCallback(
-            const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request,
-            const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void rebootCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void shutdownCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
+    void factoryResetCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
     void logDownloadCallback(
-            const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request,
-            const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response);
+            const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response);
     /** @deprecated Use the lifecycle `configure` transition instead. */
     void connectCallback(
             const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response);
@@ -342,33 +335,33 @@ private:
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mTextureRgbPub;              ///< topic: `texture` (rgb8)
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mColorCameraImagePub;        ///< topic: `color_camera_image` (rgb8)
     // Services
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mRebootService;             ///< service: `~/reboot`
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mShutdownService;           ///< service: `~/shutdown`
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mFactoryResetService;       ///< service: `~/factory_reset`
-    rclcpp::Service<phoxi_camera_msgs::srv::LogDownload>::SharedPtr mLogDownloadService;   ///< service: `~/log_download`
-    rclcpp::Service<phoxi_camera_msgs::srv::Connect>::SharedPtr mConnectService;           ///< service: `~/connect` (deprecated — prefer lifecycle configure)
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mDisconnectService;                 ///< service: `~/disconnect` (deprecated — prefer lifecycle cleanup)
-    rclcpp::Service<phoxi_camera_msgs::srv::TriggerFrame>::SharedPtr mTriggerFrameService; ///< service: `~/trigger_frame`
-    rclcpp::Service<phoxi_camera_msgs::srv::GetProfileList>::SharedPtr mGetProfileListService;     ///< service: `~/profiles/list`
-    rclcpp::Service<phoxi_camera_msgs::srv::GetActiveProfile>::SharedPtr mGetActiveProfileService; ///< service: `~/profiles/get_active`
-    rclcpp::Service<phoxi_camera_msgs::srv::SetActiveProfile>::SharedPtr mSetActiveProfileService; ///< service: `~/profiles/set_active`
-    rclcpp::Service<phoxi_camera_msgs::srv::CreateProfile>::SharedPtr mCreateProfileService;       ///< service: `~/profiles/create`
-    rclcpp::Service<phoxi_camera_msgs::srv::DeleteProfile>::SharedPtr mDeleteProfileService;       ///< service: `~/profiles/delete`
-    rclcpp::Service<phoxi_camera_msgs::srv::UpdateProfile>::SharedPtr mUpdateProfileService;       ///< service: `~/profiles/update`
-    rclcpp::Service<phoxi_camera_msgs::srv::GetStartupProfile>::SharedPtr mGetStartupProfileService; ///< service: `~/profiles/get_startup`
-    rclcpp::Service<phoxi_camera_msgs::srv::SetStartupProfile>::SharedPtr mSetStartupProfileService; ///< service: `~/profiles/set_startup`
-    rclcpp::Service<phoxi_camera_msgs::srv::ExportProfile>::SharedPtr mExportProfileService;         ///< service: `~/profiles/export`
-    rclcpp::Service<phoxi_camera_msgs::srv::ImportProfile>::SharedPtr mImportProfileService;         ///< service: `~/profiles/import`
-    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mResetActiveProfileService;                   ///< service: `~/profiles/reset`
-    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr mParamCallbackHandle; ///< Handle for the on-set-parameters callback.
-    rclcpp::PreShutdownCallbackHandle mShutdownCallbackHandle; ///< Triggers lifecycle shutdown before the context is destroyed.
-    std::mutex mFrameMutex;     ///< Guards onFrameCallback; used by drainFrameCallback to wait for in-flight callbacks.
-    std::mutex mDeviceIdMutex;  ///< Guards mDeviceId which may be read from service callbacks.
-    std::string mDeviceId;      ///< Hardware identification of the current or target device.
-    std::string mFrameId;       ///< TF frame ID stamped on all published messages.
-    bool mPublishCombined = false; ///< When true, publish `point_cloud` only; otherwise publish individual topics.
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mRebootService;                                ///< service: `~/reboot`
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mShutdownService;                              ///< service: `~/shutdown`
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mFactoryResetService;                          ///< service: `~/factory_reset`
+    rclcpp::Service<phoxi_camera_msgs::srv::LogDownload>::SharedPtr mLogDownloadService;              ///< service: `~/log_download`
+    rclcpp::Service<phoxi_camera_msgs::srv::Connect>::SharedPtr mConnectService;                      ///< service: `~/connect` (deprecated — prefer lifecycle configure)
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mDisconnectService;                            ///< service: `~/disconnect` (deprecated — prefer lifecycle cleanup)
+    rclcpp::Service<phoxi_camera_msgs::srv::TriggerFrame>::SharedPtr mTriggerFrameService;            ///< service: `~/trigger_frame`
+    rclcpp::Service<phoxi_camera_msgs::srv::GetProfileList>::SharedPtr mGetProfileListService;        ///< service: `~/profiles/list`
+    rclcpp::Service<phoxi_camera_msgs::srv::GetActiveProfile>::SharedPtr mGetActiveProfileService;    ///< service: `~/profiles/get_active`
+    rclcpp::Service<phoxi_camera_msgs::srv::SetActiveProfile>::SharedPtr mSetActiveProfileService;    ///< service: `~/profiles/set_active`
+    rclcpp::Service<phoxi_camera_msgs::srv::CreateProfile>::SharedPtr mCreateProfileService;          ///< service: `~/profiles/create`
+    rclcpp::Service<phoxi_camera_msgs::srv::DeleteProfile>::SharedPtr mDeleteProfileService;          ///< service: `~/profiles/delete`
+    rclcpp::Service<phoxi_camera_msgs::srv::UpdateProfile>::SharedPtr mUpdateProfileService;          ///< service: `~/profiles/update`
+    rclcpp::Service<phoxi_camera_msgs::srv::GetStartupProfile>::SharedPtr mGetStartupProfileService;  ///< service: `~/profiles/get_startup`
+    rclcpp::Service<phoxi_camera_msgs::srv::SetStartupProfile>::SharedPtr mSetStartupProfileService;  ///< service: `~/profiles/set_startup`
+    rclcpp::Service<phoxi_camera_msgs::srv::ExportProfile>::SharedPtr mExportProfileService;          ///< service: `~/profiles/export`
+    rclcpp::Service<phoxi_camera_msgs::srv::ImportProfile>::SharedPtr mImportProfileService;          ///< service: `~/profiles/import`
+    rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr mResetActiveProfileService;                    ///< service: `~/profiles/reset`
+    rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr mParamCallbackHandle;           ///< Handle for the on-set-parameters callback.
+    rclcpp::PreShutdownCallbackHandle mShutdownCallbackHandle;                                        ///< Triggers lifecycle shutdown before the context is destroyed.
+    std::mutex mFrameMutex;         ///< Guards onFrameCallback; used by drainFrameCallback to wait for in-flight callbacks.
+    std::mutex mDeviceIdMutex;      ///< Guards mDeviceId which may be read from service callbacks.
+    std::string mDeviceId;          ///< Hardware identification of the current or target device.
+    std::string mFrameId;           ///< TF frame ID stamped on all published messages.
+    bool mPublishCombined = false;  ///< When true, publish `point_cloud` only; otherwise publish individual topics.
 
-    std::vector<SettingDescriptor> mSettingDescriptors; ///< One entry per device setting exposed as a ROS2 parameter.
+    std::vector<SettingDescriptor> mSettingDescriptors;  ///< One entry per device setting exposed as a ROS2 parameter.
     /** @brief Maps each ROS2 parameter name to its setting descriptor index and sub-field name.
      *
      * Sub-field name is empty for scalar types; for object types (e.g. ROI) it names the field
@@ -376,10 +369,10 @@ private:
      */
     std::map<std::string, std::pair<size_t, std::string>> mParamToDescriptor;
     std::vector<std::string> mFrameOutputComponents;
-    bool mDeclaringDeviceSettings = false; ///< Set to true during declareDeviceSettingParameters to suppress device calls.
+    bool mDeclaringDeviceSettings = false;  ///< Set to true during declareDeviceSettingParameters to suppress device calls.
     bool mLogoutOnExit = true;
     bool mStopAcquisitionOnExit = true;
-    std::string mTriggerMode = "Software"; ///< Trigger mode applied at configure and forwarded live on every write.
+    std::string mTriggerMode = "Software";  ///< Trigger mode applied at configure and forwarded live on every write.
 };
 
 }  // namespace phoxi_camera

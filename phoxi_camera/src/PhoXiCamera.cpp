@@ -55,25 +55,23 @@ static bool settingValuesEqual(const SettingValue& a, const SettingValue& b) {
     if (a.index() != b.index()) {
         return false;
     }
-    return std::visit([&b](const auto& av) -> bool {
-        const auto* bv = std::get_if<std::decay_t<decltype(av)>>(&b);
-        return bv && (av == *bv);
-    }, a);
+    return std::visit(
+            [&b](const auto& av) -> bool {
+                const auto* bv = std::get_if<std::decay_t<decltype(av)>>(&b);
+                return bv && (av == *bv);
+            },
+            a);
 }
 
 PhoXiCamera::PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options)
-    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
-      mPhoXiInterface(std::make_unique<PhoXiInterface>()),
-      mDeviceId(std::move(deviceId)) {
+    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()), mDeviceId(std::move(deviceId)) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node for device: %s", mDeviceId.c_str());
     declareParameters();
     get_parameter("logout_on_exit", mLogoutOnExit);
     get_parameter("stop_acquisition_on_exit", mStopAcquisitionOnExit);
 }
 
-PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options)
-    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
-      mPhoXiInterface(std::make_unique<PhoXiInterface>()) {
+PhoXiCamera::PhoXiCamera(const rclcpp::NodeOptions& options) : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node.");
     declareParameters();
     get_parameter("device_id", mDeviceId);
@@ -149,10 +147,8 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>("texture", rclcpp::SystemDefaultsQoS());
     mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>("color_camera_image", rclcpp::SystemDefaultsQoS());
 
-    mConnectService = create_service<phoxi_camera_msgs::srv::Connect>(
-        "~/connect", std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mDisconnectService = create_service<std_srvs::srv::Trigger>(
-        "~/disconnect", std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mConnectService = create_service<phoxi_camera_msgs::srv::Connect>("~/connect", std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mDisconnectService = create_service<std_srvs::srv::Trigger>("~/disconnect", std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
     mTriggerFrameService = create_service<phoxi_camera_msgs::srv::TriggerFrame>(
             "~/trigger_frame", std::bind(&PhoXiCamera::triggerFrameCallback, this, std::placeholders::_1, std::placeholders::_2));
     mGetProfileListService = create_service<phoxi_camera_msgs::srv::GetProfileList>(
@@ -175,8 +171,8 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
             "~/profiles/export", std::bind(&PhoXiCamera::exportProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mImportProfileService = create_service<phoxi_camera_msgs::srv::ImportProfile>(
             "~/profiles/import", std::bind(&PhoXiCamera::importProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mResetActiveProfileService = create_service<std_srvs::srv::Trigger>(
-        "~/profiles/reset", std::bind(&PhoXiCamera::resetActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mResetActiveProfileService =
+            create_service<std_srvs::srv::Trigger>("~/profiles/reset", std::bind(&PhoXiCamera::resetActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     RCLCPP_INFO(get_logger(), "Configuration complete. Connected to device: %s", mDeviceId.c_str());
     return CallbackReturn::SUCCESS;
 }
@@ -271,14 +267,12 @@ void PhoXiCamera::declareParameters() {
 
     mShutdownCallbackHandle = get_node_base_interface()->get_context()->add_pre_shutdown_callback([this]() { rclcpp_lifecycle::LifecycleNode::shutdown(); });
 
-    mRebootService = create_service<std_srvs::srv::Trigger>(
-            "~/reboot", std::bind(&PhoXiCamera::rebootCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mShutdownService = create_service<std_srvs::srv::Trigger>(
-            "~/shutdown", std::bind(&PhoXiCamera::shutdownCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mFactoryResetService = create_service<std_srvs::srv::Trigger>(
-            "~/factory_reset", std::bind(&PhoXiCamera::factoryResetCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mLogDownloadService = create_service<phoxi_camera_msgs::srv::LogDownload>(
-            "~/log_download", std::bind(&PhoXiCamera::logDownloadCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mRebootService = create_service<std_srvs::srv::Trigger>("~/reboot", std::bind(&PhoXiCamera::rebootCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mShutdownService = create_service<std_srvs::srv::Trigger>("~/shutdown", std::bind(&PhoXiCamera::shutdownCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mFactoryResetService =
+            create_service<std_srvs::srv::Trigger>("~/factory_reset", std::bind(&PhoXiCamera::factoryResetCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mLogDownloadService =
+            create_service<phoxi_camera_msgs::srv::LogDownload>("~/log_download", std::bind(&PhoXiCamera::logDownloadCallback, this, std::placeholders::_1, std::placeholders::_2));
 }
 
 void PhoXiCamera::loadDeviceSettingDescriptors() {
@@ -415,9 +409,7 @@ bool PhoXiCamera::declareSettingParam(const SettingDescriptor& desc, const std::
         }
         case SettingValueType::SCANNING_VOLUME: {
             const auto& geom = std::get<pho::api::ProjectionGeometry_64f>(devVal);
-            auto toArr = [](const pho::api::Point3_64f& pt) -> std::vector<double> {
-                return {pt.x, pt.y, pt.z};
-            };
+            auto toArr = [](const pho::api::Point3_64f& pt) -> std::vector<double> { return {pt.x, pt.y, pt.z}; };
             auto toContourArr = [&](const std::vector<pho::api::Point3_64f>& pts) {
                 std::vector<double> arr;
                 for (const auto& pt : pts) {
@@ -943,9 +935,7 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             message.header.stamp = rosStamp;
         };
 
-        auto shouldPublish = [](const auto& pub) {
-            return pub->is_activated() && pub->get_subscription_count() > 0;
-        };
+        auto shouldPublish = [](const auto& pub) { return pub->is_activated() && pub->get_subscription_count() > 0; };
 
         std::optional<ParsedFrameInfo> parsedFrameInfo;
         if (frame.frameInfo) {
@@ -1043,8 +1033,7 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
     }
 }
 
-void PhoXiCamera::rebootCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+void PhoXiCamera::rebootCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     const std::string deviceId = [this] {
         std::lock_guard<std::mutex> lock(mDeviceIdMutex);
         return mDeviceId;
@@ -1065,8 +1054,7 @@ void PhoXiCamera::rebootCallback(const std::shared_ptr<const std_srvs::srv::Trig
     }
 }
 
-void PhoXiCamera::shutdownCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+void PhoXiCamera::shutdownCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     const std::string deviceId = [this] {
         std::lock_guard<std::mutex> lock(mDeviceIdMutex);
         return mDeviceId;
@@ -1087,8 +1075,8 @@ void PhoXiCamera::shutdownCallback(const std::shared_ptr<const std_srvs::srv::Tr
     }
 }
 
-void PhoXiCamera::factoryResetCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+void PhoXiCamera::factoryResetCallback(
+        const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     const std::string deviceId = [this] {
         std::lock_guard<std::mutex> lock(mDeviceIdMutex);
         return mDeviceId;
@@ -1109,8 +1097,8 @@ void PhoXiCamera::factoryResetCallback(const std::shared_ptr<const std_srvs::srv
     }
 }
 
-void PhoXiCamera::logDownloadCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response) {
+void PhoXiCamera::logDownloadCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::LogDownload::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::LogDownload::Response>& response) {
     const std::string deviceId = [this] {
         std::lock_guard<std::mutex> lock(mDeviceIdMutex);
         return mDeviceId;
@@ -1120,8 +1108,7 @@ void PhoXiCamera::logDownloadCallback(const std::shared_ptr<const phoxi_camera_m
         response->message = "No device_id configured.";
         return;
     }
-    RCLCPP_INFO(get_logger(), "Downloading log from device '%s' to '%s'.",
-            deviceId.c_str(), request->logfile_path.c_str());
+    RCLCPP_INFO(get_logger(), "Downloading log from device '%s' to '%s'.", deviceId.c_str(), request->logfile_path.c_str());
     try {
         mPhoXiInterface->downloadDeviceLog(deviceId, request->logfile_path, request->overwrite);
         response->success = true;
@@ -1132,11 +1119,10 @@ void PhoXiCamera::logDownloadCallback(const std::shared_ptr<const phoxi_camera_m
     }
 }
 
-void PhoXiCamera::connectCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response) {
+void PhoXiCamera::connectCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::Connect::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::Connect::Response>& response) {
     auto stateId = get_current_state().id();
-    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE &&
-        stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
         RCLCPP_WARN(get_logger(), "Node must be in active or inactive state to connect.");
         response->success = false;
         response->message = "Node is not in active or inactive state.";
@@ -1177,11 +1163,9 @@ void PhoXiCamera::connectCallback(const std::shared_ptr<const phoxi_camera_msgs:
     response->success = true;
 }
 
-void PhoXiCamera::disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+void PhoXiCamera::disconnectCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     auto stateId = get_current_state().id();
-    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE
-        && stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
+    if (stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE && stateId != lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE) {
         RCLCPP_WARN(get_logger(), "Node must be in active or inactive state to disconnect.");
         response->success = false;
         response->message = "Node is not in active or inactive state.";
@@ -1198,8 +1182,8 @@ void PhoXiCamera::disconnectCallback(const std::shared_ptr<const std_srvs::srv::
     response->success = true;
 }
 
-void PhoXiCamera::triggerFrameCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request,
-        const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response) {
+void PhoXiCamera::triggerFrameCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::TriggerFrame::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::TriggerFrame::Response>& response) {
     if (get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
         RCLCPP_WARN(get_logger(), "Node is not active. Cannot trigger frame.");
         response->success = false;
@@ -1221,7 +1205,7 @@ void PhoXiCamera::triggerFrameCallback(const std::shared_ptr<const phoxi_camera_
 }
 
 void PhoXiCamera::getProfileListCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetProfileList::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response) {
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetProfileList::Response>& response) {
     RCLCPP_INFO(get_logger(), "Getting profile list.");
     try {
         auto profiles = mPhoXiInterface->getProfileList();
@@ -1238,7 +1222,7 @@ void PhoXiCamera::getProfileListCallback(const std::shared_ptr<const phoxi_camer
 }
 
 void PhoXiCamera::getActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetActiveProfile::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response) {
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetActiveProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Getting active profile.");
     try {
         response->name = mPhoXiInterface->getActiveProfile();
@@ -1251,7 +1235,7 @@ void PhoXiCamera::getActiveProfileCallback(const std::shared_ptr<const phoxi_cam
 }
 
 void PhoXiCamera::setActiveProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetActiveProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response) {
+        const std::shared_ptr<phoxi_camera_msgs::srv::SetActiveProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Setting active profile to '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->setActiveProfile(request->name);
@@ -1263,8 +1247,8 @@ void PhoXiCamera::setActiveProfileCallback(const std::shared_ptr<const phoxi_cam
     }
 }
 
-void PhoXiCamera::createProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response) {
+void PhoXiCamera::createProfileCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::CreateProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::CreateProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Creating profile '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->createProfile(request->name);
@@ -1276,8 +1260,8 @@ void PhoXiCamera::createProfileCallback(const std::shared_ptr<const phoxi_camera
     }
 }
 
-void PhoXiCamera::deleteProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response) {
+void PhoXiCamera::deleteProfileCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::DeleteProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::DeleteProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Deleting profile '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->deleteProfile(request->name);
@@ -1289,8 +1273,8 @@ void PhoXiCamera::deleteProfileCallback(const std::shared_ptr<const phoxi_camera
     }
 }
 
-void PhoXiCamera::updateProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response) {
+void PhoXiCamera::updateProfileCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::UpdateProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::UpdateProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Updating profile '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->updateProfile(request->name);
@@ -1303,7 +1287,7 @@ void PhoXiCamera::updateProfileCallback(const std::shared_ptr<const phoxi_camera
 }
 
 void PhoXiCamera::getStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::GetStartupProfile::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response) {
+        const std::shared_ptr<phoxi_camera_msgs::srv::GetStartupProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Getting startup profile.");
     try {
         response->name = mPhoXiInterface->getStartupProfile();
@@ -1316,7 +1300,7 @@ void PhoXiCamera::getStartupProfileCallback(const std::shared_ptr<const phoxi_ca
 }
 
 void PhoXiCamera::setStartupProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::SetStartupProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response) {
+        const std::shared_ptr<phoxi_camera_msgs::srv::SetStartupProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Setting startup profile to '%s'.", request->name.c_str());
     try {
         mPhoXiInterface->setStartupProfile(request->name);
@@ -1329,7 +1313,7 @@ void PhoXiCamera::setStartupProfileCallback(const std::shared_ptr<const phoxi_ca
 }
 
 void PhoXiCamera::exportProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ExportProfile::Request>& /*request*/,
-    const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response) {
+        const std::shared_ptr<phoxi_camera_msgs::srv::ExportProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Exporting active profile.");
     try {
         auto content = mPhoXiInterface->exportProfile();
@@ -1343,8 +1327,8 @@ void PhoXiCamera::exportProfileCallback(const std::shared_ptr<const phoxi_camera
     }
 }
 
-void PhoXiCamera::importProfileCallback(const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request,
-    const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) {
+void PhoXiCamera::importProfileCallback(
+        const std::shared_ptr<const phoxi_camera_msgs::srv::ImportProfile::Request>& request, const std::shared_ptr<phoxi_camera_msgs::srv::ImportProfile::Response>& response) {
     RCLCPP_INFO(get_logger(), "Importing profile '%s'.", request->name.c_str());
     try {
         pho::api::PhoXiProfileContent content;
@@ -1359,8 +1343,8 @@ void PhoXiCamera::importProfileCallback(const std::shared_ptr<const phoxi_camera
     }
 }
 
-void PhoXiCamera::resetActiveProfileCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/,
-    const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
+void PhoXiCamera::resetActiveProfileCallback(
+        const std::shared_ptr<const std_srvs::srv::Trigger::Request>& /*request*/, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response) {
     RCLCPP_INFO(get_logger(), "Resetting active profile to factory defaults.");
     try {
         mPhoXiInterface->resetActiveProfile();
@@ -1371,6 +1355,6 @@ void PhoXiCamera::resetActiveProfileCallback(const std::shared_ptr<const std_srv
         response->message = e.what();
     }
 }
-} // namespace phoxi_camera
+}  // namespace phoxi_camera
 
 RCLCPP_COMPONENTS_REGISTER_NODE(phoxi_camera::PhoXiCamera)

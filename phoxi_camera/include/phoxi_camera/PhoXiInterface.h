@@ -33,20 +33,20 @@ namespace phoxi_camera {
  * Each enumerator maps to the corresponding C++ type held by `SettingValue`.
  */
 enum class SettingValueType {
-    BOOL,              ///< `bool`
-    INT,               ///< `int64_t`
-    DOUBLE,            ///< `double`
-    STRING,            ///< `std::string`
-    DOUBLE_ARRAY,      ///< `std::vector<double>`
-    PHOXI_SIZE,        ///< `pho::api::PhoXiSize` — integer {Width, Height}
-    PHOXI_SIZE_64F,    ///< `pho::api::PhoXiSize_64f` — floating-point {Width, Height}
-    PHOXI_2DROI,       ///< `pho::api::PhoXi2DROI` — 2D region of interest
-    AXIS_VOLUME_64F,   ///< `pho::api::AxisVolume_64f` — axis-aligned 3D bounding box
-    POINT3_64F,        ///< `pho::api::Point3_64f` — 3D point / RGB triplet
-    CUTTING_PLANES,    ///< `std::vector<pho::api::Plane_64f>` — list of cutting planes
-    SCANNING_VOLUME,   ///< `pho::api::ProjectionGeometry_64f` — scanning volume geometry
-    SCANNING_VOLUME_MESH, ///< `pho::api::PhoXiMesh` — scanning volume as a mesh
-    REPROJECTION_MAP,  ///< `pho::api::PhoXiReprojectionMap` — pixel-to-3D reprojection map
+    BOOL,                  ///< `bool`
+    INT,                   ///< `int64_t`
+    DOUBLE,                ///< `double`
+    STRING,                ///< `std::string`
+    DOUBLE_ARRAY,          ///< `std::vector<double>`
+    PHOXI_SIZE,            ///< `pho::api::PhoXiSize` — integer {Width, Height}
+    PHOXI_SIZE_64F,        ///< `pho::api::PhoXiSize_64f` — floating-point {Width, Height}
+    PHOXI_2DROI,           ///< `pho::api::PhoXi2DROI` — 2D region of interest
+    AXIS_VOLUME_64F,       ///< `pho::api::AxisVolume_64f` — axis-aligned 3D bounding box
+    POINT3_64F,            ///< `pho::api::Point3_64f` — 3D point / RGB triplet
+    CUTTING_PLANES,        ///< `std::vector<pho::api::Plane_64f>` — list of cutting planes
+    SCANNING_VOLUME,       ///< `pho::api::ProjectionGeometry_64f` — scanning volume geometry
+    SCANNING_VOLUME_MESH,  ///< `pho::api::PhoXiMesh` — scanning volume as a mesh
+    REPROJECTION_MAP,      ///< `pho::api::PhoXiReprojectionMap` — pixel-to-3D reprojection map
 };
 
 /**
@@ -55,28 +55,14 @@ enum class SettingValueType {
  * The active alternative is identified by the matching `SettingValueType` enumerator.
  * Use `std::get<T>()` or `std::visit()` to access the value.
  */
-using SettingValue = std::variant<
-    bool,
-    int64_t,
-    double,
-    std::string,
-    std::vector<double>,
-    pho::api::PhoXiSize,
-    pho::api::PhoXiSize_64f,
-    pho::api::PhoXi2DROI,
-    pho::api::AxisVolume_64f,
-    pho::api::Point3_64f,
-    std::vector<pho::api::Plane_64f>,
-    pho::api::ProjectionGeometry_64f,
-    pho::api::PhoXiMesh,
-    pho::api::PhoXiReprojectionMap
->;
+using SettingValue = std::variant<bool, int64_t, double, std::string, std::vector<double>, pho::api::PhoXiSize, pho::api::PhoXiSize_64f, pho::api::PhoXi2DROI,
+        pho::api::AxisVolume_64f, pho::api::Point3_64f, std::vector<pho::api::Plane_64f>, pho::api::ProjectionGeometry_64f, pho::api::PhoXiMesh, pho::api::PhoXiReprojectionMap>;
 
 /** @brief Metadata for a single device setting returned by the API schema. */
 struct SettingInfo {
-    std::string key;       ///< API-side slash-separated path (e.g. `"Scanning/Mode"`).
-    SettingValueType type; ///< Value type discriminator.
-    bool isSettable;       ///< False if the device reports this setting as read-only.
+    std::string key;        ///< API-side slash-separated path (e.g. `"Scanning/Mode"`).
+    SettingValueType type;  ///< Value type discriminator.
+    bool isSettable;        ///< False if the device reports this setting as read-only.
 };
 
 /** @brief Metadata for a single frame output component returned by the API schema. */
@@ -389,20 +375,20 @@ public:
      */
     virtual void setSettings(const std::vector<std::pair<std::string, SettingValue>>& keyValues);
 
-    pho::api::PPhoXi mPhoXiDevice; ///< API device handle; valid after a successful `connectCamera()`.
+    pho::api::PPhoXi mPhoXiDevice;  ///< API device handle; valid after a successful `connectCamera()`.
 
 protected:
-    pho::api::PhoXiFactory mPhoXiFactory; ///< API factory used for device discovery and construction.
+    pho::api::PhoXiFactory mPhoXiFactory;  ///< API factory used for device discovery and construction.
 
 private:
     static void frameAcceptor(const phoxi_frame_record_t* records, void* userData);
     void loadDeviceSchema();
 
-    const int CONNECTION_TIMEOUT_MS = 60000; ///< Maximum time in ms to wait for a device connection.
-    mutable std::mutex mFrameCallbackMutex;  ///< Guards mFrameCallback against concurrent access.
-    GetFrameCallback mFrameCallback;         ///< User-supplied callback invoked on each frame.
-    std::map<std::string, SettingValueType> mSchemaTypeCache; ///< Cached type mapping from the device schema.
-    std::vector<SettingInfo> mSettingInfos;          ///< All settings discovered from the device schema on connect.
+    const int CONNECTION_TIMEOUT_MS = 60000;                   ///< Maximum time in ms to wait for a device connection.
+    mutable std::mutex mFrameCallbackMutex;                    ///< Guards mFrameCallback against concurrent access.
+    GetFrameCallback mFrameCallback;                           ///< User-supplied callback invoked on each frame.
+    std::map<std::string, SettingValueType> mSchemaTypeCache;  ///< Cached type mapping from the device schema.
+    std::vector<SettingInfo> mSettingInfos;                    ///< All settings discovered from the device schema on connect.
 };
 }  // namespace phoxi_camera
 

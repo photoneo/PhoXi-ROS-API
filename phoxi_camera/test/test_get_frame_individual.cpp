@@ -7,8 +7,8 @@
 #include "message_filters/subscriber.hpp"
 #include "message_filters/sync_policies/exact_time.hpp"
 #include "message_filters/synchronizer.hpp"
-#include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
+#include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -27,9 +27,9 @@ protected:
     struct SyncedFrame {
         PC2::ConstSharedPtr points;
         Img::ConstSharedPtr depth;
-        Img::ConstSharedPtr intensity;   // /intensity: grayscale laser texture
-        Img::ConstSharedPtr texture;     // /texture: color texture
-        Img::ConstSharedPtr colorCamera; // /color_camera_image
+        Img::ConstSharedPtr intensity;    // /intensity: grayscale laser texture
+        Img::ConstSharedPtr texture;      // /texture: color texture
+        Img::ConstSharedPtr colorCamera;  // /color_camera_image
         explicit operator bool() const { return points != nullptr && depth != nullptr; }
     };
 
@@ -41,8 +41,7 @@ protected:
 
     using Sync2 = message_filters::Synchronizer<message_filters::sync_policies::ExactTime<PC2, Img>>;
     using Sync3 = message_filters::Synchronizer<message_filters::sync_policies::ExactTime<PC2, Img, Img>>;
-    using Sync4 = message_filters::Synchronizer<
-        message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>>;
+    using Sync4 = message_filters::Synchronizer<message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>>;
 
     static inline CameraType sCameraType = CameraType::SCANNER;
     static inline bool sIsColorDevice = false;
@@ -60,21 +59,16 @@ protected:
         if (sLcNode->has_parameter(opModeParam)) {
             sCameraType = CameraType::MOTIONCAM;
             auto result = sLcNode->set_parameter(rclcpp::Parameter(opModeParam, "Camera"));
-            ASSERT_TRUE(result.successful)
-                << "Failed to set MotionCam Camera mode: " << result.reason;
+            ASSERT_TRUE(result.successful) << "Failed to set MotionCam Camera mode: " << result.reason;
         }
         // frame_settings.ColorCameraImage is only declared for cameras with a color camera.
         sIsColorDevice = sLcNode->has_parameter("frame_settings.ColorCameraImage");
     }
 
-    static void TearDownTestSuite() {
-        suiteTearDown();
-    }
+    static void TearDownTestSuite() { suiteTearDown(); }
 
     std::string textureSourceParam() const {
-        return (sCameraType == CameraType::MOTIONCAM)
-            ? "device_settings.CameraMode.TextureSource"
-            : "device_settings.CapturingSettings.TextureSource";
+        return (sCameraType == CameraType::MOTIONCAM) ? "device_settings.CameraMode.TextureSource" : "device_settings.CapturingSettings.TextureSource";
     }
 
     bool setTextureSource(const std::string& value) {
@@ -94,59 +88,38 @@ protected:
 
     void setupSync2() {
         resetSyncs();
-        mSync2 = std::make_unique<Sync2>(
-            message_filters::sync_policies::ExactTime<PC2, Img>(5), mPointsSub, mDepthSub);
-        mSync2->registerCallback(
-            [this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth) {
-                mLatestFrame = {std::move(pts), std::move(depth), nullptr, nullptr, nullptr};
-            });
+        mSync2 = std::make_unique<Sync2>(message_filters::sync_policies::ExactTime<PC2, Img>(5), mPointsSub, mDepthSub);
+        mSync2->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth) { mLatestFrame = {std::move(pts), std::move(depth), nullptr, nullptr, nullptr}; });
     }
 
     void setupSync3Laser() {
         resetSyncs();
-        mSync3 = std::make_unique<Sync3>(
-            message_filters::sync_policies::ExactTime<PC2, Img, Img>(5),
-            mPointsSub, mDepthSub, mIntensitySub);
-        mSync3->registerCallback(
-            [this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth,
-                   Img::ConstSharedPtr intensity) {
-                mLatestFrame = {std::move(pts), std::move(depth), std::move(intensity),
-                                nullptr, nullptr};
-            });
+        mSync3 = std::make_unique<Sync3>(message_filters::sync_policies::ExactTime<PC2, Img, Img>(5), mPointsSub, mDepthSub, mIntensitySub);
+        mSync3->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth, Img::ConstSharedPtr intensity) {
+            mLatestFrame = {std::move(pts), std::move(depth), std::move(intensity), nullptr, nullptr};
+        });
     }
 
     void setupSync4Laser() {
         resetSyncs();
-        mSync4 = std::make_unique<Sync4>(
-            message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>(5),
-            mPointsSub, mDepthSub, mIntensitySub, mColorCameraSub);
-        mSync4->registerCallback(
-            [this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth,
-                   Img::ConstSharedPtr intensity, Img::ConstSharedPtr colorCam) {
-                mLatestFrame = {std::move(pts), std::move(depth), std::move(intensity),
-                                nullptr, std::move(colorCam)};
-            });
+        mSync4 = std::make_unique<Sync4>(message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>(5), mPointsSub, mDepthSub, mIntensitySub, mColorCameraSub);
+        mSync4->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth, Img::ConstSharedPtr intensity, Img::ConstSharedPtr colorCam) {
+            mLatestFrame = {std::move(pts), std::move(depth), std::move(intensity), nullptr, std::move(colorCam)};
+        });
     }
 
     void setupSync4Color() {
         resetSyncs();
-        mSync4 = std::make_unique<Sync4>(
-            message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>(5),
-            mPointsSub, mDepthSub, mTextureSub, mColorCameraSub);
-        mSync4->registerCallback(
-            [this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth,
-                   Img::ConstSharedPtr texture, Img::ConstSharedPtr colorCam) {
-                mLatestFrame = {std::move(pts), std::move(depth), nullptr,
-                                std::move(texture), std::move(colorCam)};
-            });
+        mSync4 = std::make_unique<Sync4>(message_filters::sync_policies::ExactTime<PC2, Img, Img, Img>(5), mPointsSub, mDepthSub, mTextureSub, mColorCameraSub);
+        mSync4->registerCallback([this](PC2::ConstSharedPtr pts, Img::ConstSharedPtr depth, Img::ConstSharedPtr texture, Img::ConstSharedPtr colorCam) {
+            mLatestFrame = {std::move(pts), std::move(depth), nullptr, std::move(texture), std::move(colorCam)};
+        });
     }
 
     void SetUp() override {
         DeviceRequiredTest::SetUp();
-        ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, 30s))
-            << "Failed to activate";
-        mTriggerClient = mClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>(
-            "/phoxi_camera/trigger_frame");
+        ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE, 30s)) << "Failed to activate";
+        mTriggerClient = mClientNode->create_client<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame");
         ASSERT_TRUE(mTriggerClient->wait_for_service(5s));
 
         const auto qos = rclcpp::SystemDefaultsQoS();
@@ -155,15 +128,9 @@ protected:
         mIntensitySub.subscribe(mClientNode, "/intensity", qos);
         mTextureSub.subscribe(mClientNode, "/texture", qos);
         mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
-        mFrameInfoSub = mClientNode->create_subscription<FI>(
-            "/frame_info", qos,
-            [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
-        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>(
-            "/frame_info/current_camera", qos,
-            [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
-        mColorCameraInfoSub = mClientNode->create_subscription<CI>(
-            "/frame_info/current_color_camera", qos,
-            [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
+        mFrameInfoSub = mClientNode->create_subscription<FI>("/frame_info", qos, [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
+        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
+        mColorCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
     }
 
     void TearDown() override {
@@ -247,17 +214,14 @@ TEST_F(IndividualTopicsFrameTest, PointCloudAndDepthMap_AlwaysReceived) {
     EXPECT_GT(frame.points->width, 0u);
     EXPECT_GT(frame.points->height, 0u);
     EXPECT_GT(frame.points->point_step, 0u);
-    EXPECT_EQ(frame.points->data.size(),
-              static_cast<size_t>(
-                  frame.points->width * frame.points->height * frame.points->point_step));
+    EXPECT_EQ(frame.points->data.size(), static_cast<size_t>(frame.points->width * frame.points->height * frame.points->point_step));
     EXPECT_TRUE(hasField(*frame.points, "x"));
     EXPECT_TRUE(hasField(*frame.points, "y"));
     EXPECT_TRUE(hasField(*frame.points, "z"));
     EXPECT_GT(frame.depth->width, 0u);
     EXPECT_GT(frame.depth->height, 0u);
     EXPECT_GT(frame.depth->step, 0u);
-    EXPECT_EQ(frame.depth->data.size(),
-              static_cast<size_t>(frame.depth->height * frame.depth->step));
+    EXPECT_EQ(frame.depth->data.size(), static_cast<size_t>(frame.depth->height * frame.depth->step));
     EXPECT_EQ(frame.points->width, frame.depth->width);
     EXPECT_EQ(frame.points->height, frame.depth->height);
 }
@@ -339,8 +303,7 @@ TEST_F(IndividualTopicsFrameTest, FrameInfo_CameraInfoReceived) {
     EXPECT_GT(mLatestPrimaryCameraInfo->k[0], 0.0);  // fx
     EXPECT_GT(mLatestPrimaryCameraInfo->k[4], 0.0);  // fy
     EXPECT_NE(mLatestPrimaryCameraInfo->header.frame_id, "");
-    EXPECT_TRUE(mLatestPrimaryCameraInfo->header.stamp.sec > 0 ||
-                mLatestPrimaryCameraInfo->header.stamp.nanosec > 0u);
+    EXPECT_TRUE(mLatestPrimaryCameraInfo->header.stamp.sec > 0 || mLatestPrimaryCameraInfo->header.stamp.nanosec > 0u);
 
     if (sIsColorDevice) {
         ASSERT_NE(mLatestColorCameraInfo, nullptr) << "No color camera info received";

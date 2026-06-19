@@ -19,9 +19,7 @@ protected:
         suiteSetUp(options);
     }
 
-    static void TearDownTestSuite() {
-        suiteTearDown();
-    }
+    static void TearDownTestSuite() { suiteTearDown(); }
 };
 
 TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
@@ -31,22 +29,16 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
     bool frameErrorReceived = false;
     sensor_msgs::msg::PointCloud2::SharedPtr receivedMsg;
 
-    auto pcSub = mClientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "/point_cloud", 1,
-        [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-            pointCloudReceived = true;
-            receivedMsg = msg;
-        });
+    auto pcSub = mClientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/point_cloud", 1, [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+        pointCloudReceived = true;
+        receivedMsg = msg;
+    });
     auto errSub = mClientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-        "/frameError", 1,
-        [&](phoxi_camera_msgs::msg::FrameError::SharedPtr) {
-            frameErrorReceived = true;
-        });
+            "/frameError", 1, [&](phoxi_camera_msgs::msg::FrameError::SharedPtr) { frameErrorReceived = true; });
 
     auto req = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
     req->wait_grabbing_end = true;
-    auto resp =
-        callService<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame", req, 30s);
+    auto resp = callService<phoxi_camera_msgs::srv::TriggerFrame>("/phoxi_camera/trigger_frame", req, 30s);
     ASSERT_NE(resp, nullptr);
     ASSERT_TRUE(resp->success);
 
@@ -55,8 +47,7 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
         mExecutor.spin_some(10ms);
     }
 
-    ASSERT_TRUE(pointCloudReceived || frameErrorReceived)
-        << "Neither point_cloud nor frameError received within timeout";
+    ASSERT_TRUE(pointCloudReceived || frameErrorReceived) << "Neither point_cloud nor frameError received within timeout";
 
     if (pointCloudReceived) {
         EXPECT_GT(receivedMsg->data.size(), 0u);

@@ -14,15 +14,14 @@
 
 #include "phoxi_camera/PhoXiFrame.h"
 #include "phoxi_camera_msgs/msg/frame_error.hpp"
-#include "phoxi_camera_msgs/msg/frame_message.hpp"
 #include "phoxi_camera_msgs/msg/frame_info.hpp"
+#include "phoxi_camera_msgs/msg/frame_message.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
-namespace phoxi_camera
-{
+namespace phoxi_camera {
 
 /**
  * @brief Append a named field to a PointCloud2 message and advance the byte offset.
@@ -33,8 +32,7 @@ namespace phoxi_camera
  * @param offset   Current byte offset into a point; incremented by `size` on return.
  * @param msg      Message to which the field descriptor is appended.
  */
-void addField(const std::string& name, int datatype, uint32_t size, uint32_t& offset,
-    const std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg);
+void addField(const std::string& name, int datatype, uint32_t size, uint32_t& offset, const std::unique_ptr<sensor_msgs::msg::PointCloud2>& msg);
 
 /**
  * @brief Convert a PhoXi frame to a full PointCloud2 message.
@@ -123,7 +121,7 @@ std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_fr
  * On success the remaining fields are filled in as available from the JSON payload.
  */
 struct ParsedFrameInfo {
-    bool successful = true;                                             ///< False if the API reported a scan failure.
+    bool successful = true;                                            ///< False if the API reported a scan failure.
     std::unique_ptr<phoxi_camera_msgs::msg::FrameError> frameError;    ///< Non-null only when `successful` is false.
     std::unique_ptr<phoxi_camera_msgs::msg::FrameInfo> frameInfo;      ///< Per-frame metadata (index, timing, pose, …).
     std::unique_ptr<sensor_msgs::msg::CameraInfo> currentCamera;       ///< Primary camera intrinsics, if available.
