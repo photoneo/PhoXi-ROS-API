@@ -81,12 +81,12 @@ private:
     rclcpp::CallbackGroup::SharedPtr cb_group_srv_;
     rclcpp::CallbackGroup::SharedPtr cb_group_client_;
 
-    std::atomic<bool> running_{false};       ///< True while the acquisition loop is active.
-    uint64_t frame_count_{0};                ///< Number of frames received since the loop started.
+    std::atomic<bool> running_{false};                       ///< True while the acquisition loop is active.
+    uint64_t frame_count_{0};                                ///< Number of frames received since the loop started.
     std::chrono::steady_clock::time_point loop_start_time_;  ///< Timestamp when the loop was started.
     std::chrono::steady_clock::time_point last_frame_time_;  ///< Timestamp of the previous frame arrival.
-    bool timing_initialized_{false};         ///< True once the first frame has been received.
-    std::string trigger_service_name_;       ///< Resolved name of the phoxi_camera trigger service.
+    bool timing_initialized_{false};                         ///< True once the first frame has been received.
+    std::string trigger_service_name_;                       ///< Resolved name of the phoxi_camera trigger service.
 };
 
 }  // namespace phoxi_camera::composition_example

@@ -31,10 +31,8 @@ bool changeLifecycleState(std::shared_ptr<rclcpp::Node> node, uint8_t transition
 // Set parameters on the phoxi_camera node via the parameter service.
 // Call before configure to have them applied in on_configure, or after
 // configure (while connected) to apply them immediately to the device.
-bool setParameters(std::shared_ptr<rclcpp::Node> node,
-    const std::vector<rclcpp::Parameter>& params) {
-    auto client = node->create_client<rcl_interfaces::srv::SetParameters>(
-        "/phoxi_camera/set_parameters");
+bool setParameters(std::shared_ptr<rclcpp::Node> node, const std::vector<rclcpp::Parameter>& params) {
+    auto client = node->create_client<rcl_interfaces::srv::SetParameters>("/phoxi_camera/set_parameters");
     if (!client->wait_for_service(3s)) {
         RCLCPP_ERROR(node->get_logger(), "Parameter service not available.");
         return false;
@@ -60,10 +58,8 @@ bool setParameters(std::shared_ptr<rclcpp::Node> node,
 // List all declared device_settings.* and frame_settings.* parameters with values.
 // device_settings.* are only declared after configure.
 void listSettings(std::shared_ptr<rclcpp::Node> node) {
-    auto listClient = node->create_client<rcl_interfaces::srv::ListParameters>(
-        "/phoxi_camera/list_parameters");
-    auto getClient = node->create_client<rcl_interfaces::srv::GetParameters>(
-        "/phoxi_camera/get_parameters");
+    auto listClient = node->create_client<rcl_interfaces::srv::ListParameters>("/phoxi_camera/list_parameters");
+    auto getClient = node->create_client<rcl_interfaces::srv::GetParameters>("/phoxi_camera/get_parameters");
     if (!listClient->wait_for_service(3s) || !getClient->wait_for_service(3s)) {
         RCLCPP_ERROR(node->get_logger(), "Parameter service not available.");
         return;
@@ -82,10 +78,8 @@ void listSettings(std::shared_ptr<rclcpp::Node> node) {
 
         RCLCPP_INFO(node->get_logger(), "%s (%zu):", prefix, listResp->result.names.size());
         for (size_t i = 0; i < listResp->result.names.size(); ++i) {
-            const rclcpp::Parameter p(listResp->result.names[i],
-                rclcpp::ParameterValue(getResp->values[i]));
-            RCLCPP_INFO(node->get_logger(), "  %s = %s",
-                p.get_name().c_str(), p.value_to_string().c_str());
+            const rclcpp::Parameter p(listResp->result.names[i], rclcpp::ParameterValue(getResp->values[i]));
+            RCLCPP_INFO(node->get_logger(), "  %s = %s", p.get_name().c_str(), p.value_to_string().c_str());
         }
     }
 }
@@ -95,14 +89,14 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     //    from code before configure; on_configure() reads them and forwards to device.
     RCLCPP_INFO(node->get_logger(), "Setting frame output settings.");
     if (!setParameters(node, {
-            rclcpp::Parameter("frame_settings.PointCloud",       true),
-            rclcpp::Parameter("frame_settings.NormalMap",        false),
-            rclcpp::Parameter("frame_settings.DepthMap",         true),
-            rclcpp::Parameter("frame_settings.Texture",          true),
-            rclcpp::Parameter("frame_settings.ConfidenceMap",    false),
-            rclcpp::Parameter("frame_settings.ColorCameraImage", false),
-            rclcpp::Parameter("frame_settings.EventMap",         false),
-        })) {
+                                     rclcpp::Parameter("frame_settings.PointCloud", true),
+                                     rclcpp::Parameter("frame_settings.NormalMap", false),
+                                     rclcpp::Parameter("frame_settings.DepthMap", true),
+                                     rclcpp::Parameter("frame_settings.Texture", true),
+                                     rclcpp::Parameter("frame_settings.ConfidenceMap", false),
+                                     rclcpp::Parameter("frame_settings.ColorCameraImage", false),
+                                     rclcpp::Parameter("frame_settings.EventMap", false),
+                             })) {
         rclcpp::shutdown();
         return;
     }
@@ -132,8 +126,8 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     std::this_thread::sleep_for(2s);
     RCLCPP_INFO(node->get_logger(), "Setting LaserPower to 3.");
     setParameters(node, {
-        rclcpp::Parameter("device_settings.CapturingSettings.LaserPower", 3),
-    });
+                                rclcpp::Parameter("device_settings.CapturingSettings.LaserPower", 3),
+                        });
 
     rclcpp::shutdown();
 }

@@ -28,10 +28,8 @@ bool changeLifecycleState(std::shared_ptr<rclcpp::Node> node, uint8_t transition
 // Set parameters on the phoxi_camera node via the parameter service.
 // Call before configure to have them applied in on_configure, or after
 // configure (while connected) to apply them immediately to the device.
-bool setParameters(std::shared_ptr<rclcpp::Node> node,
-    const std::vector<rclcpp::Parameter>& params) {
-    auto client = node->create_client<rcl_interfaces::srv::SetParameters>(
-        "/phoxi_camera/set_parameters");
+bool setParameters(std::shared_ptr<rclcpp::Node> node, const std::vector<rclcpp::Parameter>& params) {
+    auto client = node->create_client<rcl_interfaces::srv::SetParameters>("/phoxi_camera/set_parameters");
     if (!client->wait_for_service(3s)) {
         RCLCPP_ERROR(node->get_logger(), "Parameter service not available.");
         return false;
@@ -58,13 +56,13 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     // 1. Set frame output settings before configure so on_configure applies them.
     RCLCPP_INFO(node->get_logger(), "Setting initial frame output settings.");
     if (!setParameters(node, {
-            rclcpp::Parameter("frame_settings.PointCloud",       true),
-            rclcpp::Parameter("frame_settings.NormalMap",        false),
-            rclcpp::Parameter("frame_settings.DepthMap",         true),
-            rclcpp::Parameter("frame_settings.Texture",          true),
-            rclcpp::Parameter("frame_settings.ConfidenceMap",    false),
-            rclcpp::Parameter("frame_settings.ColorCameraImage", false),
-        })) {
+                                     rclcpp::Parameter("frame_settings.PointCloud", true),
+                                     rclcpp::Parameter("frame_settings.NormalMap", false),
+                                     rclcpp::Parameter("frame_settings.DepthMap", true),
+                                     rclcpp::Parameter("frame_settings.Texture", true),
+                                     rclcpp::Parameter("frame_settings.ConfidenceMap", false),
+                                     rclcpp::Parameter("frame_settings.ColorCameraImage", false),
+                             })) {
         rclcpp::shutdown();
         return;
     }
