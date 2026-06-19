@@ -42,7 +42,9 @@ protected:
 
     PhoXiInterface::GetFrameCallback configureActivateCapture() {
         PhoXiInterface::GetFrameCallback cb;
-        EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).WillOnce([&cb](const std::string&, PhoXiInterface::GetFrameCallback&& captured) { cb = std::move(captured); });
+        EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).WillOnce([&cb](const std::string&, PhoXiInterface::GetFrameCallback&& captured) {
+            cb = std::move(captured);
+        });
         if (!changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE))
             return {};
         EXPECT_CALL(*mockInterface, startAcquisition());
@@ -216,7 +218,9 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
 
     EXPECT_CALL(*mockInterface, stopAcquisition()).Times(1);
     PhoXiInterface::GetFrameCallback capturedCb;
-    EXPECT_CALL(*mockInterface, connectCamera("test-sn", _)).WillOnce([&capturedCb](const std::string&, PhoXiInterface::GetFrameCallback&& cb) { capturedCb = std::move(cb); });
+    EXPECT_CALL(*mockInterface, connectCamera("test-sn", _)).WillOnce([&capturedCb](const std::string&, PhoXiInterface::GetFrameCallback&& cb) {
+        capturedCb = std::move(cb);
+    });
 
     auto connectClient = clientNode->create_client<phoxi_camera_msgs::srv::Connect>("/phoxi_camera/connect");
     ASSERT_TRUE(connectClient->wait_for_service(std::chrono::seconds(2)));
@@ -340,8 +344,9 @@ TEST_F(RosInterfaceTest, PointsNotPublishedWhenPointCloudEmpty) {
     ASSERT_TRUE(frameCb);
 
     bool received = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
+        received = true;
+    });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(PhoXiFrame{});  // empty frame — no PointCloud
@@ -360,8 +365,9 @@ TEST_F(RosInterfaceTest, PointCloudNotPublishedWhenNotCombined) {
     frame.pointCloud = &pcRec;
 
     bool received = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "point_cloud", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
+        received = true;
+    });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -381,8 +387,9 @@ TEST_F(RosInterfaceTest, IndividualTopicsNotPublishedWhenCombined) {
     frame.pointCloud = &pcRec;
 
     bool received = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) { received = true; });
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
+        received = true;
+    });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -783,7 +790,9 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFrameInfoNull) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
+            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) {
+                received = true;
+            });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(PhoXiFrame{});
@@ -803,7 +812,9 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFieldsMissing) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
+            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) {
+                received = true;
+            });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -831,7 +842,9 @@ TEST_F(RosInterfaceTest, FrameInfo_ColorCamera_NotPublishedWhenAbsentFromJson) {
 
     bool colorReceived = false;
     auto colorSub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(), [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) { colorReceived = true; });
+            "frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(), [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) {
+                colorReceived = true;
+            });
 
     auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_camera", frame);
 
@@ -918,8 +931,9 @@ TEST_F(RosInterfaceTest, FrameError_PointCloudNotPublishedWhenNotSuccessful) {
     frame.frameInfo = &infoRec;
 
     bool pcReceived = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "point_cloud", rclcpp::SystemDefaultsQoS(), [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) { pcReceived = true; });
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS(), [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) {
+        pcReceived = true;
+    });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -938,7 +952,9 @@ TEST_F(RosInterfaceTest, FrameError_NotPublishedWhenSuccessful) {
 
     bool errorReceived = false;
     auto sub = clientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-            "frame_error", rclcpp::SystemDefaultsQoS(), [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) { errorReceived = true; });
+            "frame_error", rclcpp::SystemDefaultsQoS(), [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) {
+                errorReceived = true;
+            });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);

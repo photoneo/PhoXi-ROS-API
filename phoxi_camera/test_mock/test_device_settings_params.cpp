@@ -131,7 +131,9 @@ TEST_F(DeviceSettingsParamsTest, YamlOverride_AppliedToDeviceViaSetSettings) {
     EXPECT_CALL(*mock2, getSettings(_)).WillRepeatedly(Return(deviceVals));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mock2, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mock2, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
     EXPECT_CALL(*mock2, connectCamera(mDeviceId, _)).Times(1);
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
@@ -330,7 +332,9 @@ TEST_F(DeviceSettingsParamsTest, ObjectTypeParamChange_WhenConnected_GetSettingC
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{sz}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".height", int64_t{1200}));
     EXPECT_TRUE(result.successful);

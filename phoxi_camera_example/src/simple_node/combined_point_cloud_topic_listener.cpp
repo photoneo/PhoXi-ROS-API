@@ -65,17 +65,22 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>(
-            "/frame_info", 10, [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) { printFrameInfo(logger, *msg); });
+    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>("/frame_info", 10, [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) {
+        printFrameInfo(logger, *msg);
+    });
 
-    auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/frame_info/current_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) { printCameraInfo(logger, "frame_info/current_camera", *msg); });
+    auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>("/frame_info/current_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+        printCameraInfo(logger, "frame_info/current_camera", *msg);
+    });
 
-    auto frameInfoColorCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/frame_info/current_color_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) { printCameraInfo(logger, "frame_info/current_color_camera", *msg); });
+    auto frameInfoColorCameraSub =
+            node->create_subscription<sensor_msgs::msg::CameraInfo>("/frame_info/current_color_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+                printCameraInfo(logger, "frame_info/current_color_camera", *msg);
+            });
 
-    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-            "/frame_error", 10, [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) { printFrameError(logger, *msg); });
+    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>("/frame_error", 10, [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) {
+        printFrameError(logger, *msg);
+    });
 
     RCLCPP_INFO(logger, "Listening on /point_cloud (combined mode).");
     rclcpp::spin(node);

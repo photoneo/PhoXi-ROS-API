@@ -33,8 +33,9 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
         pointCloudReceived = true;
         receivedMsg = msg;
     });
-    auto errSub = mClientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-            "/frameError", 1, [&](phoxi_camera_msgs::msg::FrameError::SharedPtr) { frameErrorReceived = true; });
+    auto errSub = mClientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>("/frameError", 1, [&](phoxi_camera_msgs::msg::FrameError::SharedPtr) {
+        frameErrorReceived = true;
+    });
 
     auto req = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
     req->wait_grabbing_end = true;

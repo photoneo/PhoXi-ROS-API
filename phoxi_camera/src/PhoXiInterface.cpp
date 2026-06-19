@@ -173,7 +173,9 @@ phoxi_camera::SettingValueType classifySettingType(const pho_jsoncons::json& nod
         }
 
         const auto propsCount = props.size();
-        auto isInt = [&](const char* k) { return props[k].contains("type") && props[k]["type"].as<std::string>() == "integer"; };
+        auto isInt = [&](const char* k) {
+            return props[k].contains("type") && props[k]["type"].as<std::string>() == "integer";
+        };
 
         if (propsCount == 2 && props.contains("height") && props.contains("width")) {
             return isInt("height") ? SettingValueType::PHOXI_SIZE : SettingValueType::PHOXI_SIZE_64F;
@@ -200,7 +202,9 @@ phoxi_camera::SettingValue jsonToSettingValue(phoxi_camera::SettingValueType typ
     using phoxi_camera::SettingValue;
     using phoxi_camera::SettingValueType;
 
-    auto readPoint3 = [](const pho_jsoncons::json& p) -> pho::api::Point3_64f { return {p["x"].as<double>(), p["y"].as<double>(), p["z"].as<double>()}; };
+    auto readPoint3 = [](const pho_jsoncons::json& p) -> pho::api::Point3_64f {
+        return {p["x"].as<double>(), p["y"].as<double>(), p["z"].as<double>()};
+    };
 
     switch (type) {
         case SettingValueType::BOOL:

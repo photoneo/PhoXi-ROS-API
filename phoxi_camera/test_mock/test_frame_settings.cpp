@@ -72,7 +72,9 @@ TEST_F(FrameSettingsTest, Configure_OverrideSameAsDevice_NotForwarded) {
 TEST_F(FrameSettingsTest, Configure_SingleOverrideEnabled_ForwardedToDevice) {
     InitNode({rclcpp::Parameter("frame_settings.NormalMap", true)});
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
+        captured = c;
+    });
     ASSERT_TRUE(configure());
     ASSERT_EQ(captured.size(), 1u);
     EXPECT_EQ(captured[0].first, "NormalMap");
@@ -83,7 +85,9 @@ TEST_F(FrameSettingsTest, Configure_SingleOverrideEnabled_ForwardedToDevice) {
 TEST_F(FrameSettingsTest, Configure_SingleOverrideDisabled_ForwardedToDevice) {
     InitNode({rclcpp::Parameter("frame_settings.DepthMap", false)});
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
+        captured = c;
+    });
     ASSERT_TRUE(configure());
     ASSERT_EQ(captured.size(), 1u);
     EXPECT_EQ(captured[0].first, "DepthMap");
@@ -98,7 +102,9 @@ TEST_F(FrameSettingsTest, Configure_MultipleOverrides_AllForwarded) {
             rclcpp::Parameter("frame_settings.Texture", true),
     });
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
+        captured = c;
+    });
     ASSERT_TRUE(configure());
     EXPECT_THAT(captured, UnorderedElementsAre(Pair("NormalMap", true), Pair("DepthMap", false), Pair("Texture", true)));
     ASSERT_TRUE(cleanup());
@@ -131,7 +137,9 @@ TEST_F(FrameSettingsTest, ParameterChange_WhenConnected_ForwardedToDevice) {
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
+        captured = c;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("frame_settings.DepthMap", false));
     EXPECT_TRUE(result.successful);
@@ -147,7 +155,9 @@ TEST_F(FrameSettingsTest, ParameterChange_MultipleComponents_AllPassedInSingleCa
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
+        captured = c;
+    });
 
     lcNode->set_parameters_atomically({
             rclcpp::Parameter("frame_settings.PointCloud", true),
@@ -173,7 +183,9 @@ TEST_F(FrameSettingsTest, ParameterChange_MixedParams_OnlyFrameSettingsForwarded
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
     std::vector<std::pair<std::string, bool>> captured;
-    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
+    EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) {
+        captured = c;
+    });
 
     lcNode->set_parameters_atomically({
             rclcpp::Parameter("publish_combined", false),

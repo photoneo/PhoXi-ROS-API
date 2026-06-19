@@ -64,7 +64,9 @@ static bool settingValuesEqual(const SettingValue& a, const SettingValue& b) {
 }
 
 PhoXiCamera::PhoXiCamera(std::string deviceId, const rclcpp::NodeOptions& options)
-    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options), mPhoXiInterface(std::make_unique<PhoXiInterface>()), mDeviceId(std::move(deviceId)) {
+    : rclcpp_lifecycle::LifecycleNode("phoxi_camera", options),
+      mPhoXiInterface(std::make_unique<PhoXiInterface>()),
+      mDeviceId(std::move(deviceId)) {
     RCLCPP_INFO(get_logger(), "Creating PhoXi Camera node for device: %s", mDeviceId.c_str());
     declareParameters();
     get_parameter("logout_on_exit", mLogoutOnExit);
@@ -265,7 +267,9 @@ void PhoXiCamera::declareParameters() {
 
     mParamCallbackHandle = add_on_set_parameters_callback(std::bind(&PhoXiCamera::onParametersChanged, this, std::placeholders::_1));
 
-    mShutdownCallbackHandle = get_node_base_interface()->get_context()->add_pre_shutdown_callback([this]() { rclcpp_lifecycle::LifecycleNode::shutdown(); });
+    mShutdownCallbackHandle = get_node_base_interface()->get_context()->add_pre_shutdown_callback([this]() {
+        rclcpp_lifecycle::LifecycleNode::shutdown();
+    });
 
     mRebootService = create_service<std_srvs::srv::Trigger>("~/reboot", std::bind(&PhoXiCamera::rebootCallback, this, std::placeholders::_1, std::placeholders::_2));
     mShutdownService = create_service<std_srvs::srv::Trigger>("~/shutdown", std::bind(&PhoXiCamera::shutdownCallback, this, std::placeholders::_1, std::placeholders::_2));
@@ -409,7 +413,9 @@ bool PhoXiCamera::declareSettingParam(const SettingDescriptor& desc, const std::
         }
         case SettingValueType::SCANNING_VOLUME: {
             const auto& geom = std::get<pho::api::ProjectionGeometry_64f>(devVal);
-            auto toArr = [](const pho::api::Point3_64f& pt) -> std::vector<double> { return {pt.x, pt.y, pt.z}; };
+            auto toArr = [](const pho::api::Point3_64f& pt) -> std::vector<double> {
+                return {pt.x, pt.y, pt.z};
+            };
             auto toContourArr = [&](const std::vector<pho::api::Point3_64f>& pts) {
                 std::vector<double> arr;
                 for (const auto& pt : pts) {
@@ -935,7 +941,9 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             message.header.stamp = rosStamp;
         };
 
-        auto shouldPublish = [](const auto& pub) { return pub->is_activated() && pub->get_subscription_count() > 0; };
+        auto shouldPublish = [](const auto& pub) {
+            return pub->is_activated() && pub->get_subscription_count() > 0;
+        };
 
         std::optional<ParsedFrameInfo> parsedFrameInfo;
         if (frame.frameInfo) {

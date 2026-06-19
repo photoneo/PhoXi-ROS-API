@@ -67,7 +67,9 @@ TEST_P(SimpleScalarTest, ParameterChange_CallsSetSettings) {
     setConnected();
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key, tc.newValue));
     EXPECT_TRUE(result.successful);
@@ -89,45 +91,65 @@ INSTANTIATE_TEST_SUITE_P(AllScalars, SimpleScalarTest,
                                   SettingValueType::BOOL,
                                   SettingValue{true},
                                   rclcpp::PARAMETER_BOOL,
-                                  [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_bool(), true); },
+                                  [](const rclcpp::Parameter& p) {
+                                      EXPECT_EQ(p.as_bool(), true);
+                                  },
                                   rclcpp::ParameterValue(false),
-                                  [](const SettingValue& v) { EXPECT_EQ(std::get<bool>(v), false); },
+                                  [](const SettingValue& v) {
+                                      EXPECT_EQ(std::get<bool>(v), false);
+                                  },
                           },
                 SimpleScalarCase{
                         "Int",
                         SettingValueType::INT,
                         SettingValue{int64_t{42}},
                         rclcpp::PARAMETER_INTEGER,
-                        [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_int(), 42); },
+                        [](const rclcpp::Parameter& p) {
+                            EXPECT_EQ(p.as_int(), 42);
+                        },
                         rclcpp::ParameterValue(int64_t{99}),
-                        [](const SettingValue& v) { EXPECT_EQ(std::get<int64_t>(v), int64_t{99}); },
+                        [](const SettingValue& v) {
+                            EXPECT_EQ(std::get<int64_t>(v), int64_t{99});
+                        },
                 },
                 SimpleScalarCase{
                         "Double",
                         SettingValueType::DOUBLE,
                         SettingValue{3.14},
                         rclcpp::PARAMETER_DOUBLE,
-                        [](const rclcpp::Parameter& p) { EXPECT_DOUBLE_EQ(p.as_double(), 3.14); },
+                        [](const rclcpp::Parameter& p) {
+                            EXPECT_DOUBLE_EQ(p.as_double(), 3.14);
+                        },
                         rclcpp::ParameterValue(2.71828),
-                        [](const SettingValue& v) { EXPECT_DOUBLE_EQ(std::get<double>(v), 2.71828); },
+                        [](const SettingValue& v) {
+                            EXPECT_DOUBLE_EQ(std::get<double>(v), 2.71828);
+                        },
                 },
                 SimpleScalarCase{
                         "String",
                         SettingValueType::STRING,
                         SettingValue{std::string{"hello"}},
                         rclcpp::PARAMETER_STRING,
-                        [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_string(), "hello"); },
+                        [](const rclcpp::Parameter& p) {
+                            EXPECT_EQ(p.as_string(), "hello");
+                        },
                         rclcpp::ParameterValue(std::string{"new"}),
-                        [](const SettingValue& v) { EXPECT_EQ(std::get<std::string>(v), "new"); },
+                        [](const SettingValue& v) {
+                            EXPECT_EQ(std::get<std::string>(v), "new");
+                        },
                 },
                 SimpleScalarCase{
                         "DoubleArray",
                         SettingValueType::DOUBLE_ARRAY,
                         SettingValue{std::vector<double>{1.0, 2.0, 3.0}},
                         rclcpp::PARAMETER_DOUBLE_ARRAY,
-                        [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_double_array(), (std::vector<double>{1.0, 2.0, 3.0})); },
+                        [](const rclcpp::Parameter& p) {
+                            EXPECT_EQ(p.as_double_array(), (std::vector<double>{1.0, 2.0, 3.0}));
+                        },
                         rclcpp::ParameterValue(std::vector<double>{7.0, 8.0, 9.0}),
-                        [](const SettingValue& v) { EXPECT_EQ(std::get<std::vector<double>>(v), (std::vector<double>{7.0, 8.0, 9.0})); },
+                        [](const SettingValue& v) {
+                            EXPECT_EQ(std::get<std::vector<double>>(v), (std::vector<double>{7.0, 8.0, 9.0}));
+                        },
                 }),
         SimpleScalarCaseName);
 
@@ -239,7 +261,9 @@ TEST_F(SettingTypesTest, PhoxiSize_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{sz}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".width", int64_t{1280}));
     EXPECT_TRUE(result.successful);
@@ -285,7 +309,9 @@ TEST_F(SettingTypesTest, PhoxiSize64f_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{sz}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".height", 4.0));
     EXPECT_TRUE(result.successful);
@@ -329,7 +355,9 @@ TEST_F(SettingTypesTest, Phoxi2DROI_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{roi}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".x_max", int64_t{300}));
     EXPECT_TRUE(result.successful);
@@ -377,7 +405,9 @@ TEST_F(SettingTypesTest, AxisVolume64f_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{vol}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".z_max", 99.0));
     EXPECT_TRUE(result.successful);
@@ -420,7 +450,9 @@ TEST_F(SettingTypesTest, Point3_64f_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{pt}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".g", 9.9));
     EXPECT_TRUE(result.successful);
@@ -553,7 +585,9 @@ TEST_F(SettingTypesTest, Phoxi2DROI_BothMinMaxChanged_SingleSetSettingsCall) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{roi}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) {
+        captured = kv;
+    });
 
     const std::string base = "device_settings." + key;
     auto result = lcNode->set_parameters_atomically({

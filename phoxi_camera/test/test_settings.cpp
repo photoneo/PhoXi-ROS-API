@@ -10,7 +10,8 @@
 class DirectInterfaceTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        mInterface.connectCamera(DeviceRequiredTest::deviceId(), [](const phoxi_camera::PhoXiFrame&) {});
+        mInterface.connectCamera(DeviceRequiredTest::deviceId(), [](const phoxi_camera::PhoXiFrame&) {
+        });
     }
 
     void TearDown() override { mInterface.disconnectCamera(); }

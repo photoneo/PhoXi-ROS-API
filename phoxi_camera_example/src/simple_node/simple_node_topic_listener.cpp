@@ -61,35 +61,46 @@ int main(int argc, char* argv[]) {
         RCLCPP_INFO(logger, "[points]             %ux%u, %zu fields", msg->width, msg->height, msg->fields.size());
     });
 
-    auto normalsSub = node->create_subscription<sensor_msgs::msg::Image>("/normals", 10,
-            [&logger](sensor_msgs::msg::Image::SharedPtr msg) { RCLCPP_INFO(logger, "[normals]            %ux%u %s", msg->width, msg->height, msg->encoding.c_str()); });
+    auto normalsSub = node->create_subscription<sensor_msgs::msg::Image>("/normals", 10, [&logger](sensor_msgs::msg::Image::SharedPtr msg) {
+        RCLCPP_INFO(logger, "[normals]            %ux%u %s", msg->width, msg->height, msg->encoding.c_str());
+    });
 
-    auto depthSub = node->create_subscription<sensor_msgs::msg::Image>("/depth", 10,
-            [&logger](sensor_msgs::msg::Image::SharedPtr msg) { RCLCPP_INFO(logger, "[depth]              %ux%u %s", msg->width, msg->height, msg->encoding.c_str()); });
+    auto depthSub = node->create_subscription<sensor_msgs::msg::Image>("/depth", 10, [&logger](sensor_msgs::msg::Image::SharedPtr msg) {
+        RCLCPP_INFO(logger, "[depth]              %ux%u %s", msg->width, msg->height, msg->encoding.c_str());
+    });
 
-    auto confidenceSub = node->create_subscription<sensor_msgs::msg::Image>("/confidence", 10,
-            [&logger](sensor_msgs::msg::Image::SharedPtr msg) { RCLCPP_INFO(logger, "[confidence]         %ux%u %s", msg->width, msg->height, msg->encoding.c_str()); });
+    auto confidenceSub = node->create_subscription<sensor_msgs::msg::Image>("/confidence", 10, [&logger](sensor_msgs::msg::Image::SharedPtr msg) {
+        RCLCPP_INFO(logger, "[confidence]         %ux%u %s", msg->width, msg->height, msg->encoding.c_str());
+    });
 
-    auto intensitySub = node->create_subscription<sensor_msgs::msg::Image>("/intensity", 10,
-            [&logger](sensor_msgs::msg::Image::SharedPtr msg) { RCLCPP_INFO(logger, "[intensity]          %ux%u %s", msg->width, msg->height, msg->encoding.c_str()); });
+    auto intensitySub = node->create_subscription<sensor_msgs::msg::Image>("/intensity", 10, [&logger](sensor_msgs::msg::Image::SharedPtr msg) {
+        RCLCPP_INFO(logger, "[intensity]          %ux%u %s", msg->width, msg->height, msg->encoding.c_str());
+    });
 
-    auto textureSub = node->create_subscription<sensor_msgs::msg::Image>("/texture", 10,
-            [&logger](sensor_msgs::msg::Image::SharedPtr msg) { RCLCPP_INFO(logger, "[texture]            %ux%u %s", msg->width, msg->height, msg->encoding.c_str()); });
+    auto textureSub = node->create_subscription<sensor_msgs::msg::Image>("/texture", 10, [&logger](sensor_msgs::msg::Image::SharedPtr msg) {
+        RCLCPP_INFO(logger, "[texture]            %ux%u %s", msg->width, msg->height, msg->encoding.c_str());
+    });
 
-    auto colorCameraImageSub = node->create_subscription<sensor_msgs::msg::Image>("/color_camera_image", 10,
-            [&logger](sensor_msgs::msg::Image::SharedPtr msg) { RCLCPP_INFO(logger, "[color_camera_image] %ux%u %s", msg->width, msg->height, msg->encoding.c_str()); });
+    auto colorCameraImageSub = node->create_subscription<sensor_msgs::msg::Image>("/color_camera_image", 10, [&logger](sensor_msgs::msg::Image::SharedPtr msg) {
+        RCLCPP_INFO(logger, "[color_camera_image] %ux%u %s", msg->width, msg->height, msg->encoding.c_str());
+    });
 
-    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>(
-            "/frame_info", 10, [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) { printFrameInfo(logger, *msg); });
+    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>("/frame_info", 10, [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) {
+        printFrameInfo(logger, *msg);
+    });
 
-    auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/frame_info/current_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) { printCameraInfo(logger, "frame_info/current_camera", *msg); });
+    auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>("/frame_info/current_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+        printCameraInfo(logger, "frame_info/current_camera", *msg);
+    });
 
-    auto frameInfoColorCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/frame_info/current_color_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) { printCameraInfo(logger, "frame_info/current_color_camera", *msg); });
+    auto frameInfoColorCameraSub =
+            node->create_subscription<sensor_msgs::msg::CameraInfo>("/frame_info/current_color_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+                printCameraInfo(logger, "frame_info/current_color_camera", *msg);
+            });
 
-    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-            "/frame_error", 10, [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) { printFrameError(logger, *msg); });
+    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>("/frame_error", 10, [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) {
+        printFrameError(logger, *msg);
+    });
 
     RCLCPP_INFO(logger, "Listening on all phoxi_camera topics.");
     rclcpp::spin(node);

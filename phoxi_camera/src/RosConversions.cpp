@@ -30,11 +30,14 @@ std::unique_ptr<sensor_msgs::msg::PointCloud2> phoXiFrameToRosMsg(const PhoXiFra
         return msg;
     }
 
+    using Float3 = const float[3];
+    using Uint16_3 = const uint16_t[3];
+
     const int height = frame.pointCloud->height;
     const int width = frame.pointCloud->width;
-    const auto* points = static_cast<const float(*)[3]>(frame.pointCloud->data);
-    const auto* normals = frame.normalMap ? static_cast<const float(*)[3]>(frame.normalMap->data) : nullptr;
-    const auto* rgbTexture = frame.textureRgb ? static_cast<const uint16_t(*)[3]>(frame.textureRgb->data) : nullptr;
+    const auto* points = static_cast<Float3*>(frame.pointCloud->data);
+    const auto* normals = frame.normalMap ? static_cast<Float3*>(frame.normalMap->data) : nullptr;
+    const auto* rgbTexture = frame.textureRgb ? static_cast<Uint16_3*>(frame.textureRgb->data) : nullptr;
     const auto* texture = (!rgbTexture && frame.texture) ? static_cast<const float*>(frame.texture->data) : nullptr;
     const auto* confidence = frame.confidenceMap ? static_cast<const float*>(frame.confidenceMap->data) : nullptr;
     const auto* depth = frame.depthMap ? static_cast<const float*>(frame.depthMap->data) : nullptr;
@@ -205,7 +208,9 @@ static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame
 }
 
 template <typename T> static std::unique_ptr<sensor_msgs::msg::Image> recordToRosMsg(const phoxi_frame_record_t& record, const std::string& encoding, uint32_t channels) {
-    return recordToRosMsg<T, T>(record, encoding, channels, [](T v) { return v; });
+    return recordToRosMsg<T, T>(record, encoding, channels, [](T v) {
+        return v;
+    });
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> normalMapToRosMsg(const phoxi_frame_record_t& record) {
@@ -225,11 +230,15 @@ std::unique_ptr<sensor_msgs::msg::Image> eventMapToRosMsg(const phoxi_frame_reco
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> textureToRosMsg(const phoxi_frame_record_t& record) {
-    return recordToRosMsg<float, float>(record, "32FC1", 1, [](float v) { return v / MAX_TEXTURE; });
+    return recordToRosMsg<float, float>(record, "32FC1", 1, [](float v) {
+        return v / MAX_TEXTURE;
+    });
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> textureRgbToRosMsg(const phoxi_frame_record_t& record) {
-    return recordToRosMsg<uint16_t, uint8_t>(record, "rgb8", 3, [](uint16_t v) { return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE); });
+    return recordToRosMsg<uint16_t, uint8_t>(record, "rgb8", 3, [](uint16_t v) {
+        return static_cast<uint8_t>(static_cast<float>(v) * RGB_SCALE);
+    });
 }
 
 std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_frame_record_t& record) {

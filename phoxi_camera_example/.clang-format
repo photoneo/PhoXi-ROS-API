@@ -14,7 +14,7 @@ AllowShortBlocksOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: false
-#AllowShortLambdasOnASingleLine: All
+AllowShortLambdasOnASingleLine: None
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
@@ -40,7 +40,6 @@ BraceWrapping:
   SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Attach
-BreakBeforeInheritanceComma: false
 BreakInheritanceList: BeforeColon
 BreakBeforeTernaryOperators: false
 BreakConstructorInitializers: BeforeColon
@@ -49,7 +48,8 @@ BreakStringLiterals: true
 ColumnLimit:     180
 CommentPragmas:  '^ IWYU pragma:'
 CompactNamespaces: false
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: true  # v11–13
+PackConstructorInitializers: CurrentLine              # v14+ (replaces the above)
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 8
 Cpp11BracedListStyle: true
@@ -103,7 +103,15 @@ SpaceBeforeAssignmentOperators: true
 SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
-SpaceBeforeParens: ControlStatements
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements:      true
+  AfterForeachMacros:          true
+  AfterIfMacros:               true
+  AfterFunctionDefinitionName: false
+  AfterFunctionDeclarationName: false
+  AfterOverloadedOperator:     false
+  BeforeNonEmptyParentheses:   false
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 2
@@ -112,7 +120,7 @@ SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-Standard:        Cpp11
+Standard:        c++17
 TabWidth:        8
 UseTab:          Never
 ...
