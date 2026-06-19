@@ -21,6 +21,7 @@ public:
     MOCK_METHOD(void, stopAcquisition, (), (override));
     MOCK_METHOD(bool, isConnected, (), (override));
     MOCK_METHOD(bool, isAcquiring, (), (override));
+    MOCK_METHOD(void, setTriggerMode, (pho::api::PhoXiTriggerMode), (override));
     MOCK_METHOD(void, setFrameOutputSettings, (const ComponentList&), (override));
     MOCK_METHOD(std::vector<pho::api::PhoXiProfileDescriptor>, getProfileList, (), (override));
     MOCK_METHOD(std::string, getActiveProfile, (), (override));

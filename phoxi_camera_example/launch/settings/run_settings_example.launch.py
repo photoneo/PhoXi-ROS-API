@@ -34,6 +34,7 @@ def generate_launch_description():
             'frameSettings.EventMap':                       False,
             'deviceSettings.CapturingSettings.LaserPower':  2,
             'deviceSettings.ScanMultiplier':                1,
+            'trigger_mode':                                 'Software',
         }]
     )
 

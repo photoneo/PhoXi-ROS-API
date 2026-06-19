@@ -152,6 +152,7 @@ ros2 service call /phoxi_camera/change_state lifecycle_msgs/srv/ChangeState \
 | `device_id` | string | `""` | Hardware serial number or network ID of the target device. Set before `configure`. |
 | `frame_id` | string | `"phoxi_camera_sensor"` | TF frame ID stamped on all published messages. |
 | `publish_combined` | bool | `false` | `true`: publish a single `point_cloud` with all fields. `false`: publish individual topics. |
+| `trigger_mode` | string | `"Software"` | Trigger mode applied at configure and on every write. Accepted values: `"Software"`, `"Freerun"`. Writes are rejected with an error for any other value. |
 | `logout_on_exit` | bool | `true` | Log out from the device on node shutdown or cleanup. Set to `false` to keep the device connected to PhoXi Control after the node exits (useful for quick restarts). |
 | `stop_acquisition_on_exit` | bool | `true` | Stop acquisition on node shutdown or cleanup. Set to `false` to leave acquisition running in PhoXi Control after the node exits. |
 

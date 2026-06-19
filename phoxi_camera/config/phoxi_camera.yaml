@@ -3,7 +3,8 @@ phoxi_camera:
     device_id: "" # hardware identification of PhoXi device (serial number or network ID)
     frame_id: "phoxi_camera_sensor" # coordinate frame ID for published point cloud
     publish_combined: false # true: publish only point_cloud (XYZ + all fields); false: publish individual topics
-    # frameSettings/* — override which components the device sends per frame.
+    trigger_mode: "Software" # trigger mode: "Software" or "Freerun"
+    # frame_settings/* — override which components the device sends per frame.
     # Omit any entry to leave the device's current setting unchanged.
     frameSettings:
       PointCloud: true

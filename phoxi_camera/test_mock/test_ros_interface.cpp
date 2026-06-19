@@ -990,6 +990,48 @@ TEST_F(RosInterfaceTest, ResetActiveProfileCallsInterface) {
     ASSERT_TRUE(cleanup());
 }
 
+TEST_F(RosInterfaceTest, TriggerMode_DefaultIsSoftware_AppliedOnConfigure) {
+    const pho::api::PhoXiTriggerMode software = pho::api::PhoXiTriggerMode::Software;
+    EXPECT_CALL(*mockInterface, setTriggerMode(software)).Times(1);
+    ASSERT_TRUE(configure());
+    ASSERT_TRUE(cleanup());
+}
+
+TEST_F(RosInterfaceTest, TriggerMode_FreerunOverride_AppliedOnConfigure) {
+    SetUpBase("test-device-id", "test_client_node",
+              {rclcpp::Parameter("trigger_mode", "Freerun")});
+    const pho::api::PhoXiTriggerMode freerun = pho::api::PhoXiTriggerMode::Freerun;
+    EXPECT_CALL(*mockInterface, setTriggerMode(freerun)).Times(1);
+    ASSERT_TRUE(configure());
+    ASSERT_TRUE(cleanup());
+}
+
+TEST_F(RosInterfaceTest, TriggerMode_InvalidValue_ConfigureFails) {
+    SetUpBase("test-device-id", "test_client_node",
+              {rclcpp::Parameter("trigger_mode", "Invalid")});
+    EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
+    EXPECT_CALL(*mockInterface, setTriggerMode(testing::_)).Times(0);
+    EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(testing::AtLeast(1));
+    ASSERT_FALSE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
+}
+
+TEST_F(RosInterfaceTest, TriggerMode_LiveChange_ForwardedToDevice) {
+    ASSERT_TRUE(configure());
+    const pho::api::PhoXiTriggerMode freerun = pho::api::PhoXiTriggerMode::Freerun;
+    EXPECT_CALL(*mockInterface, setTriggerMode(freerun)).Times(1);
+    auto result = lcNode->set_parameter(rclcpp::Parameter("trigger_mode", "Freerun"));
+    EXPECT_TRUE(result.successful);
+    ASSERT_TRUE(cleanup());
+}
+
+TEST_F(RosInterfaceTest, TriggerMode_LiveChange_InvalidValue_Rejected) {
+    ASSERT_TRUE(configure());
+    EXPECT_CALL(*mockInterface, setTriggerMode(testing::_)).Times(0);
+    auto result = lcNode->set_parameter(rclcpp::Parameter("trigger_mode", "BadValue"));
+    EXPECT_FALSE(result.successful);
+    ASSERT_TRUE(cleanup());
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     rclcpp::init(argc, argv);

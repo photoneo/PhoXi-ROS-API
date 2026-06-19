@@ -16,6 +16,8 @@
  * - `device_id` (string, default `""`): Hardware identification of the target device.
  * - `frame_id` (string, default `"phoxi_camera_sensor"`): TF frame ID stamped on all published messages.
  * - `publish_combined` (bool, default `false`): Publish only `point_cloud` instead of individual topics.
+ * - `trigger_mode` (string, default `"Software"`): Trigger mode applied at configure and on every write.
+ *   Accepted values: `"Software"`, `"Freerun"`. Writes are rejected with an error for any other value.
  *
  * Frame output settings (declared during `configure` from the device schema):
  * - `frameSettings.<Component>` (bool): Enable/disable individual frame output components.
@@ -81,6 +83,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -200,6 +203,15 @@ private:
     void drainFrameCallback();
     /** @brief Declare static parameters (device_id, frame_id, publish_combined) and register callbacks. */
     void declareParameters();
+    /**
+     * @brief Handle a change to a node-level parameter (`trigger_mode`, `logout_on_exit`, `stop_acquisition_on_exit`).
+     *
+     * Updates the corresponding member variable. For `trigger_mode` also forwards the change to the device.
+     *
+     * @param param The parameter that changed.
+     * @return Result if the parameter was recognised and handled; `std::nullopt` if unrecognised.
+     */
+    std::optional<rcl_interfaces::msg::SetParametersResult> handleNodeParameter(const rclcpp::Parameter& param);
     /** @brief Populate mSettingDescriptors and mParamToDescriptor from the device schema. */
     void loadDeviceSettingDescriptors();
     /** @brief Declare `deviceSettings.*` parameters from the current device values and apply any overrides. */
@@ -367,8 +379,9 @@ private:
     bool mDeclaringDeviceSettings = false; ///< Set to true during declareDeviceSettingParameters to suppress device calls.
     bool mLogoutOnExit = true;
     bool mStopAcquisitionOnExit = true;
+    std::string mTriggerMode = "Software"; ///< Trigger mode applied at configure and forwarded live on every write.
 };
 
 }  // namespace phoxi_camera
 
-#endif  // PHOXI_CAMERA_ROSINTERFACE_H
+#endif  // PHOXI_CAMERA_H

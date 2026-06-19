@@ -213,7 +213,7 @@ public:
      * \throw PhoXiDeviceNotConnected when no device is connected
      * \throw InvalidTriggerMode when invalid trigger mode is passed
      */
-    void setTriggerMode(pho::api::PhoXiTriggerMode mode);
+    virtual void setTriggerMode(pho::api::PhoXiTriggerMode mode);
 
     /**
      * Get the list of saved profiles.

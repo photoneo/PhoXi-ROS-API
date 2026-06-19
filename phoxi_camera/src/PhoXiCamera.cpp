@@ -19,6 +19,16 @@ static constexpr std::string_view DEVICE_SETTINGS_PREFIX = "deviceSettings";
 static constexpr std::string_view DEVICE_INFO_PREFIX = "deviceInfo";
 static constexpr std::string_view FRAME_SETTINGS_PREFIX = "frameSettings";
 
+static pho::api::PhoXiTriggerMode parseTriggerMode(const std::string& modeStr) {
+    if (modeStr == "Software") {
+        return pho::api::PhoXiTriggerMode::Software;
+    }
+    if (modeStr == "Freerun") {
+        return pho::api::PhoXiTriggerMode::Freerun;
+    }
+    throw InvalidTriggerMode("Invalid trigger_mode '" + modeStr + "'. Expected 'Software' or 'Freerun'.");
+}
+
 static std::string connectionStatusToString(PhoXiDeviceInformation::PhoXiConnectionStatus status) {
     switch (status) {
         case PhoXiDeviceInformation::Ready:
@@ -96,6 +106,18 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         mPhoXiInterface->connectCamera(mDeviceId, std::bind(&PhoXiCamera::onFrameCallback, this, std::placeholders::_1));
     } catch (const PhoXiInterfaceException& e) {
         RCLCPP_ERROR(get_logger(), "Configuration failed: %s", e.what());
+        return CallbackReturn::FAILURE;
+    }
+
+    get_parameter("trigger_mode", mTriggerMode);
+    try {
+        mPhoXiInterface->setTriggerMode(parseTriggerMode(mTriggerMode));
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(get_logger(), "Configuration failed (trigger_mode): %s", e.what());
+        try {
+            mPhoXiInterface->disconnectCamera(mLogoutOnExit, mStopAcquisitionOnExit);
+        } catch (...) {
+        }
         return CallbackReturn::FAILURE;
     }
 
@@ -239,6 +261,7 @@ void PhoXiCamera::declareParameters() {
     declare_parameter<std::string>("device_id", mDeviceId);
     declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
     declare_parameter<bool>("publish_combined", false);
+    declare_parameter<std::string>("trigger_mode", mTriggerMode);
     declare_parameter<bool>("logout_on_exit", mLogoutOnExit);
     declare_parameter<bool>("stop_acquisition_on_exit", mStopAcquisitionOnExit);
 
@@ -713,6 +736,32 @@ SettingValue PhoXiCamera::applyFieldUpdate(const SettingValue& current, SettingV
     }
 }
 
+std::optional<rcl_interfaces::msg::SetParametersResult> PhoXiCamera::handleNodeParameter(const rclcpp::Parameter& param) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+
+    const auto& name = param.get_name();
+    if (name == "trigger_mode") {
+        const auto& modeStr = param.as_string();
+        try {
+            mPhoXiInterface->setTriggerMode(parseTriggerMode(modeStr));
+        } catch (const std::exception& e) {
+            result.successful = false;
+            result.reason = e.what();
+            return result;
+        }
+        mTriggerMode = modeStr;
+    } else if (name == "logout_on_exit") {
+        mLogoutOnExit = param.as_bool();
+    } else if (name == "stop_acquisition_on_exit") {
+        mStopAcquisitionOnExit = param.as_bool();
+    } else {
+        return {};
+    }
+
+    return result;
+}
+
 rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const std::vector<rclcpp::Parameter>& params) {
     rcl_interfaces::msg::SetParametersResult result;
     result.successful = true;
@@ -728,7 +777,14 @@ rcl_interfaces::msg::SetParametersResult PhoXiCamera::onParametersChanged(const 
 
     for (auto& p : params) {
         const auto& name = p.get_name();
-        if (name.rfind(FRAME_SETTINGS_PREFIX_P, 0) == 0) {
+        if (const auto nodeResult = handleNodeParameter(p)) {
+            if (!nodeResult->successful) {
+                if (params.size() == 1) {
+                    return *nodeResult;
+                }
+                RCLCPP_WARN(get_logger(), "%s", nodeResult->reason.c_str());
+            }
+        } else if (name.rfind(FRAME_SETTINGS_PREFIX_P, 0) == 0) {
             components.emplace_back(name.substr(FRAME_SETTINGS_PREFIX_P.size()), p.as_bool());
         } else if (name.rfind(DEVICE_SETTINGS_PREFIX_P, 0) == 0) {
             const auto it = mParamToDescriptor.find(name);

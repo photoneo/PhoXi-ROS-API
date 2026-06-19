@@ -445,8 +445,6 @@ void PhoXiInterface::connectCamera(const std::string& deviceId, GetFrameCallback
         throw UnableToConnect("Device was not able to connect. Disconnected.");
     }
 
-    setTriggerMode(pho::api::PhoXiTriggerMode::Software);
-
     if (phoxi_aframe_enable(deviceId.c_str(), &PhoXiInterface::frameAcceptor, this) != PHOXI_OK) {
         const char* errMsg = nullptr;
         phoxi_error_last(&errMsg);

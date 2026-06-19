@@ -95,6 +95,25 @@ TEST_F(DeviceRequiredTest, SetSettings_WrongType_Rejected) {
     EXPECT_FALSE(setResult.successful);
 }
 
+TEST_F(DeviceRequiredTest, TriggerMode_DefaultIsSoftware) {
+    auto p = mLcNode->get_parameter("trigger_mode");
+    EXPECT_EQ(p.as_string(), "Software");
+}
+
+TEST_F(DeviceRequiredTest, TriggerMode_LiveChange_Freerun) {
+    auto setResult = mLcNode->set_parameter(rclcpp::Parameter("trigger_mode", "Freerun"));
+    ASSERT_TRUE(setResult.successful) << setResult.reason;
+    EXPECT_EQ(mLcNode->get_parameter("trigger_mode").as_string(), "Freerun");
+    // Restore
+    mLcNode->set_parameter(rclcpp::Parameter("trigger_mode", "Software"));
+}
+
+TEST_F(DeviceRequiredTest, TriggerMode_InvalidValue_Rejected) {
+    auto setResult = mLcNode->set_parameter(rclcpp::Parameter("trigger_mode", "BadValue"));
+    EXPECT_FALSE(setResult.successful);
+    EXPECT_EQ(mLcNode->get_parameter("trigger_mode").as_string(), "Software");
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     rclcpp::init(argc, argv);
