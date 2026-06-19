@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "camera_test_fixture.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -12,7 +13,6 @@
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/PhoXiInterface.h"
 #include "rclcpp/rclcpp.hpp"
-#include "camera_test_fixture.h"
 
 using namespace phoxi_camera;
 using ::testing::_;
@@ -38,8 +38,7 @@ struct SimpleScalarCase {
     std::function<void(const SettingValue&)> checkSet;
 };
 
-class SimpleScalarTest : public SettingTypesTest, public ::testing::WithParamInterface<SimpleScalarCase> {
-};
+class SimpleScalarTest : public SettingTypesTest, public ::testing::WithParamInterface<SimpleScalarCase> {};
 
 TEST_P(SimpleScalarTest, DeclaredWithCorrectValue) {
     const auto& tc = GetParam();
@@ -68,10 +67,7 @@ TEST_P(SimpleScalarTest, ParameterChange_CallsSetSettings) {
     setConnected();
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key, tc.newValue));
     EXPECT_TRUE(result.successful);
@@ -87,73 +83,53 @@ static std::string SimpleScalarCaseName(const ::testing::TestParamInfo<SimpleSca
     return info.param.name;
 }
 
-INSTANTIATE_TEST_SUITE_P(AllScalars, SimpleScalarTest, ::testing::Values(
-    SimpleScalarCase{
-        "Bool",
-        SettingValueType::BOOL,
-        SettingValue{true},
-        rclcpp::PARAMETER_BOOL,
-        [](const rclcpp::Parameter& p) {
-            EXPECT_EQ(p.as_bool(), true);
-        },
-        rclcpp::ParameterValue(false),
-        [](const SettingValue& v) {
-            EXPECT_EQ(std::get<bool>(v), false);
-        },
-    },
-    SimpleScalarCase{
-        "Int",
-        SettingValueType::INT,
-        SettingValue{int64_t{42}},
-        rclcpp::PARAMETER_INTEGER,
-        [](const rclcpp::Parameter& p) {
-            EXPECT_EQ(p.as_int(), 42);
-        },
-        rclcpp::ParameterValue(int64_t{99}),
-        [](const SettingValue& v) {
-            EXPECT_EQ(std::get<int64_t>(v), int64_t{99});
-        },
-    },
-    SimpleScalarCase{
-        "Double",
-        SettingValueType::DOUBLE,
-        SettingValue{3.14},
-        rclcpp::PARAMETER_DOUBLE,
-        [](const rclcpp::Parameter& p) {
-            EXPECT_DOUBLE_EQ(p.as_double(), 3.14);
-        },
-        rclcpp::ParameterValue(2.71828),
-        [](const SettingValue& v) {
-            EXPECT_DOUBLE_EQ(std::get<double>(v), 2.71828);
-        },
-    },
-    SimpleScalarCase{
-        "String",
-        SettingValueType::STRING,
-        SettingValue{std::string{"hello"}},
-        rclcpp::PARAMETER_STRING,
-        [](const rclcpp::Parameter& p) {
-            EXPECT_EQ(p.as_string(), "hello");
-        },
-        rclcpp::ParameterValue(std::string{"new"}),
-        [](const SettingValue& v) {
-            EXPECT_EQ(std::get<std::string>(v), "new");
-        },
-    },
-    SimpleScalarCase{
-        "DoubleArray",
-        SettingValueType::DOUBLE_ARRAY,
-        SettingValue{std::vector<double>{1.0, 2.0, 3.0}},
-        rclcpp::PARAMETER_DOUBLE_ARRAY,
-        [](const rclcpp::Parameter& p) {
-            EXPECT_EQ(p.as_double_array(), (std::vector<double>{1.0, 2.0, 3.0}));
-        },
-        rclcpp::ParameterValue(std::vector<double>{7.0, 8.0, 9.0}),
-        [](const SettingValue& v) {
-            EXPECT_EQ(std::get<std::vector<double>>(v), (std::vector<double>{7.0, 8.0, 9.0}));
-        },
-    }),
-    SimpleScalarCaseName);
+INSTANTIATE_TEST_SUITE_P(AllScalars, SimpleScalarTest,
+        ::testing::Values(SimpleScalarCase{
+                                  "Bool",
+                                  SettingValueType::BOOL,
+                                  SettingValue{true},
+                                  rclcpp::PARAMETER_BOOL,
+                                  [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_bool(), true); },
+                                  rclcpp::ParameterValue(false),
+                                  [](const SettingValue& v) { EXPECT_EQ(std::get<bool>(v), false); },
+                          },
+                SimpleScalarCase{
+                        "Int",
+                        SettingValueType::INT,
+                        SettingValue{int64_t{42}},
+                        rclcpp::PARAMETER_INTEGER,
+                        [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_int(), 42); },
+                        rclcpp::ParameterValue(int64_t{99}),
+                        [](const SettingValue& v) { EXPECT_EQ(std::get<int64_t>(v), int64_t{99}); },
+                },
+                SimpleScalarCase{
+                        "Double",
+                        SettingValueType::DOUBLE,
+                        SettingValue{3.14},
+                        rclcpp::PARAMETER_DOUBLE,
+                        [](const rclcpp::Parameter& p) { EXPECT_DOUBLE_EQ(p.as_double(), 3.14); },
+                        rclcpp::ParameterValue(2.71828),
+                        [](const SettingValue& v) { EXPECT_DOUBLE_EQ(std::get<double>(v), 2.71828); },
+                },
+                SimpleScalarCase{
+                        "String",
+                        SettingValueType::STRING,
+                        SettingValue{std::string{"hello"}},
+                        rclcpp::PARAMETER_STRING,
+                        [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_string(), "hello"); },
+                        rclcpp::ParameterValue(std::string{"new"}),
+                        [](const SettingValue& v) { EXPECT_EQ(std::get<std::string>(v), "new"); },
+                },
+                SimpleScalarCase{
+                        "DoubleArray",
+                        SettingValueType::DOUBLE_ARRAY,
+                        SettingValue{std::vector<double>{1.0, 2.0, 3.0}},
+                        rclcpp::PARAMETER_DOUBLE_ARRAY,
+                        [](const rclcpp::Parameter& p) { EXPECT_EQ(p.as_double_array(), (std::vector<double>{1.0, 2.0, 3.0})); },
+                        rclcpp::ParameterValue(std::vector<double>{7.0, 8.0, 9.0}),
+                        [](const SettingValue& v) { EXPECT_EQ(std::get<std::vector<double>>(v), (std::vector<double>{7.0, 8.0, 9.0})); },
+                }),
+        SimpleScalarCaseName);
 
 struct ReadOnlyCase {
     const char* name;
@@ -163,8 +139,7 @@ struct ReadOnlyCase {
     rclcpp::ParameterValue attemptedValue;
 };
 
-class ReadOnlyTest : public SettingTypesTest, public ::testing::WithParamInterface<ReadOnlyCase> {
-};
+class ReadOnlyTest : public SettingTypesTest, public ::testing::WithParamInterface<ReadOnlyCase> {};
 
 TEST_P(ReadOnlyTest, SetAttempt_IsRejected) {
     const auto& tc = GetParam();
@@ -176,8 +151,7 @@ TEST_P(ReadOnlyTest, SetAttempt_IsRejected) {
     ASSERT_TRUE(configure());
     setConnected();
 
-    auto result = lcNode->set_parameter(
-            rclcpp::Parameter("device_settings." + key + tc.paramSuffix, tc.attemptedValue));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + tc.paramSuffix, tc.attemptedValue));
     EXPECT_FALSE(result.successful);
 
     ASSERT_TRUE(cleanup());
@@ -187,50 +161,51 @@ static std::string ReadOnlyCaseName(const ::testing::TestParamInfo<ReadOnlyCase>
     return info.param.name;
 }
 
-INSTANTIATE_TEST_SUITE_P(AllReadOnly, ReadOnlyTest, ::testing::Values(
-    ReadOnlyCase{
-        "CuttingPlanes",
-        SettingValueType::CUTTING_PLANES,
-        SettingValue{std::vector<pho::api::Plane_64f>{pho::api::Plane_64f(pho::api::Point3_64f(1.0, 0.0, 0.0), 5.0)}},
-        "",
-        rclcpp::ParameterValue(std::vector<double>{0.0, 1.0, 0.0, 3.0}),
-    },
-    ReadOnlyCase{
-        "ScanningVolume",
-        SettingValueType::SCANNING_VOLUME,
-        []() {
-            pho::api::ProjectionGeometry_64f g;
-            g.Origin = pho::api::Point3_64f(0.0, 0.0, 0.0);
-            return SettingValue{g};
-        }(),
-        ".origin",
-        rclcpp::ParameterValue(std::vector<double>{9.0, 9.0, 9.0}),
-    },
-    ReadOnlyCase{
-        "ScanningVolumeMesh",
-        SettingValueType::SCANNING_VOLUME_MESH,
-        []() {
-            pho::api::PhoXiMesh m;
-            m.PointsPerSection = 3;
-            m.Vertices = {pho::api::Point3_64f(0.0, 0.0, 0.0)};
-            m.Indices = {0u};
-            return SettingValue{m};
-        }(),
-        ".points_per_section",
-        rclcpp::ParameterValue(int64_t{6}),
-    },
-    ReadOnlyCase{
-        "ReprojectionMap",
-        SettingValueType::REPROJECTION_MAP,
-        []() {
-            pho::api::PhoXiReprojectionMap r;
-            r.Map.Resize(pho::api::PhoXiSize(320, 240));
-            return SettingValue{r};
-        }(),
-        ".width",
-        rclcpp::ParameterValue(int64_t{640}),
-    }),
-    ReadOnlyCaseName);
+INSTANTIATE_TEST_SUITE_P(AllReadOnly, ReadOnlyTest,
+        ::testing::Values(
+                ReadOnlyCase{
+                        "CuttingPlanes",
+                        SettingValueType::CUTTING_PLANES,
+                        SettingValue{std::vector<pho::api::Plane_64f>{pho::api::Plane_64f(pho::api::Point3_64f(1.0, 0.0, 0.0), 5.0)}},
+                        "",
+                        rclcpp::ParameterValue(std::vector<double>{0.0, 1.0, 0.0, 3.0}),
+                },
+                ReadOnlyCase{
+                        "ScanningVolume",
+                        SettingValueType::SCANNING_VOLUME,
+                        []() {
+                            pho::api::ProjectionGeometry_64f g;
+                            g.Origin = pho::api::Point3_64f(0.0, 0.0, 0.0);
+                            return SettingValue{g};
+                        }(),
+                        ".origin",
+                        rclcpp::ParameterValue(std::vector<double>{9.0, 9.0, 9.0}),
+                },
+                ReadOnlyCase{
+                        "ScanningVolumeMesh",
+                        SettingValueType::SCANNING_VOLUME_MESH,
+                        []() {
+                            pho::api::PhoXiMesh m;
+                            m.PointsPerSection = 3;
+                            m.Vertices = {pho::api::Point3_64f(0.0, 0.0, 0.0)};
+                            m.Indices = {0u};
+                            return SettingValue{m};
+                        }(),
+                        ".points_per_section",
+                        rclcpp::ParameterValue(int64_t{6}),
+                },
+                ReadOnlyCase{
+                        "ReprojectionMap",
+                        SettingValueType::REPROJECTION_MAP,
+                        []() {
+                            pho::api::PhoXiReprojectionMap r;
+                            r.Map.Resize(pho::api::PhoXiSize(320, 240));
+                            return SettingValue{r};
+                        }(),
+                        ".width",
+                        rclcpp::ParameterValue(int64_t{640}),
+                }),
+        ReadOnlyCaseName);
 
 TEST_F(SettingTypesTest, PhoxiSize_DeclaresTwoIntSubparams) {
     const std::string key = "mySize";
@@ -264,10 +239,7 @@ TEST_F(SettingTypesTest, PhoxiSize_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{sz}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".width", int64_t{1280}));
     EXPECT_TRUE(result.successful);
@@ -313,10 +285,7 @@ TEST_F(SettingTypesTest, PhoxiSize64f_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{sz}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".height", 4.0));
     EXPECT_TRUE(result.successful);
@@ -360,10 +329,7 @@ TEST_F(SettingTypesTest, Phoxi2DROI_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{roi}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".x_max", int64_t{300}));
     EXPECT_TRUE(result.successful);
@@ -380,8 +346,7 @@ TEST_F(SettingTypesTest, Phoxi2DROI_FieldChange_MergesAndCallsSetSettings) {
 
 TEST_F(SettingTypesTest, AxisVolume64f_DeclaresCorrectSubparams) {
     const std::string key = "myVol";
-    pho::api::AxisVolume_64f vol(pho::api::Point3_64f(-1.0, -2.0, -3.0),
-            pho::api::Point3_64f(1.0, 2.0, 3.0));
+    pho::api::AxisVolume_64f vol(pho::api::Point3_64f(-1.0, -2.0, -3.0), pho::api::Point3_64f(1.0, 2.0, 3.0));
     EXPECT_CALL(*mockInterface, getSettingInfos()).WillRepeatedly(Return(makeSchema(key, SettingValueType::AXIS_VOLUME_64F, true)));
     EXPECT_CALL(*mockInterface, getSettings(_)).WillRepeatedly(Return(SettingValueMap{{key, SettingValue{vol}}}));
     EXPECT_CALL(*mockInterface, setSettings(_)).Times(0);
@@ -401,8 +366,7 @@ TEST_F(SettingTypesTest, AxisVolume64f_DeclaresCorrectSubparams) {
 
 TEST_F(SettingTypesTest, AxisVolume64f_FieldChange_MergesAndCallsSetSettings) {
     const std::string key = "myVol";
-    pho::api::AxisVolume_64f vol(pho::api::Point3_64f(-1.0, -2.0, -3.0),
-            pho::api::Point3_64f(1.0, 2.0, 3.0));
+    pho::api::AxisVolume_64f vol(pho::api::Point3_64f(-1.0, -2.0, -3.0), pho::api::Point3_64f(1.0, 2.0, 3.0));
     EXPECT_CALL(*mockInterface, getSettingInfos()).WillRepeatedly(Return(makeSchema(key, SettingValueType::AXIS_VOLUME_64F, true)));
     EXPECT_CALL(*mockInterface, getSettings(_)).WillRepeatedly(Return(SettingValueMap{{key, SettingValue{vol}}}));
     EXPECT_CALL(*mockInterface, setSettings(_)).Times(0);
@@ -413,10 +377,7 @@ TEST_F(SettingTypesTest, AxisVolume64f_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{vol}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".z_max", 99.0));
     EXPECT_TRUE(result.successful);
@@ -459,10 +420,7 @@ TEST_F(SettingTypesTest, Point3_64f_FieldChange_MergesAndCallsSetSettings) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{pt}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".g", 9.9));
     EXPECT_TRUE(result.successful);
@@ -535,11 +493,7 @@ TEST_F(SettingTypesTest, ScanningVolumeMesh_DeclaresThreeSubparams) {
     const std::string key = "myMesh";
     pho::api::PhoXiMesh mesh;
     mesh.PointsPerSection = 3;
-    mesh.Vertices = {
-        pho::api::Point3_64f(0.0, 0.0, 0.0),
-        pho::api::Point3_64f(1.0, 0.0, 0.0),
-        pho::api::Point3_64f(0.0, 1.0, 0.0)
-    };
+    mesh.Vertices = {pho::api::Point3_64f(0.0, 0.0, 0.0), pho::api::Point3_64f(1.0, 0.0, 0.0), pho::api::Point3_64f(0.0, 1.0, 0.0)};
     mesh.Indices = {0u, 1u, 2u};
 
     EXPECT_CALL(*mockInterface, getSettingInfos()).WillRepeatedly(Return(makeSchema(key, SettingValueType::SCANNING_VOLUME_MESH, false)));
@@ -599,15 +553,12 @@ TEST_F(SettingTypesTest, Phoxi2DROI_BothMinMaxChanged_SingleSetSettingsCall) {
     EXPECT_CALL(*mockInterface, getSetting(key)).WillOnce(Return(SettingValue{roi}));
 
     SettingKeyValueList captured;
-    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(
-        [&captured](const SettingKeyValueList& kv) {
-            captured = kv;
-        });
+    EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
     const std::string base = "device_settings." + key;
     auto result = lcNode->set_parameters_atomically({
-        rclcpp::Parameter(base + ".x_min", int64_t{5}),
-        rclcpp::Parameter(base + ".y_min", int64_t{15}),
+            rclcpp::Parameter(base + ".x_min", int64_t{5}),
+            rclcpp::Parameter(base + ".y_min", int64_t{15}),
     });
     EXPECT_TRUE(result.successful);
 

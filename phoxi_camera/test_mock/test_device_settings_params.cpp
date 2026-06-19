@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "camera_test_fixture.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -11,7 +12,6 @@
 #include "phoxi_camera/PhoXiCamera.h"
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/PhoXiInterface.h"
-#include "camera_test_fixture.h"
 
 using namespace phoxi_camera;
 using ::testing::_;
@@ -30,22 +30,21 @@ TEST_F(DeviceSettingsParamsTest, EmptySchema_NoDeviceSettingsParams) {
 
     ASSERT_TRUE(configure());
 
-    EXPECT_THROW(lcNode->get_parameter("device_settings.anything"),
-        rclcpp::exceptions::ParameterNotDeclaredException);
+    EXPECT_THROW(lcNode->get_parameter("device_settings.anything"), rclcpp::exceptions::ParameterNotDeclaredException);
 
     ASSERT_TRUE(cleanup());
 }
 
 TEST_F(DeviceSettingsParamsTest, SchemaWithMultipleTypes_AllParamsDeclaredCorrectly) {
     std::vector<SettingInfo> schema = {
-        {"gain", SettingValueType::DOUBLE, true},
-        {"mode", SettingValueType::STRING, true},
-        {"enabled", SettingValueType::BOOL, true},
+            {"gain", SettingValueType::DOUBLE, true},
+            {"mode", SettingValueType::STRING, true},
+            {"enabled", SettingValueType::BOOL, true},
     };
     SettingValueMap deviceVals = {
-        {"gain", SettingValue{2.5}},
-        {"mode", SettingValue{std::string{"auto"}}},
-        {"enabled", SettingValue{false}},
+            {"gain", SettingValue{2.5}},
+            {"mode", SettingValue{std::string{"auto"}}},
+            {"enabled", SettingValue{false}},
     };
     EXPECT_CALL(*mockInterface, getSettingInfos()).WillRepeatedly(Return(schema));
     EXPECT_CALL(*mockInterface, getSettings(_)).WillRepeatedly(Return(deviceVals));
@@ -67,12 +66,12 @@ TEST_F(DeviceSettingsParamsTest, Configure_WithOverride_WhileConnected_CalledExa
     // The override must be supplied via NodeOptions because device_settings.* are not declared
     // until configure — set_parameter would throw before that.
     std::vector<SettingInfo> schema = {
-        {"gain", SettingValueType::DOUBLE, true},
-        {"mode", SettingValueType::STRING, true},
+            {"gain", SettingValueType::DOUBLE, true},
+            {"mode", SettingValueType::STRING, true},
     };
     SettingValueMap deviceVals = {
-        {"gain", SettingValue{2.5}},
-        {"mode", SettingValue{std::string{"auto"}}},
+            {"gain", SettingValue{2.5}},
+            {"mode", SettingValue{std::string{"auto"}}},
     };
 
     testing::Mock::VerifyAndClearExpectations(mockInterface);
@@ -255,8 +254,7 @@ TEST_F(DeviceSettingsParamsTest, UnknownDeviceSettingsParam_Rejected) {
 
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
-    EXPECT_THROW(lcNode->set_parameter(rclcpp::Parameter("device_settings.nonExistent", 42.0)),
-                 rclcpp::exceptions::ParameterNotDeclaredException);
+    EXPECT_THROW(lcNode->set_parameter(rclcpp::Parameter("device_settings.nonExistent", 42.0)), rclcpp::exceptions::ParameterNotDeclaredException);
 
     ASSERT_TRUE(cleanup());
 }
@@ -278,8 +276,8 @@ TEST_F(DeviceSettingsParamsTest, NonDeviceSettingsParamChange_Ignored) {
 
 TEST_F(DeviceSettingsParamsTest, KeyMissingFromGetSettingsResponse_ParamNotDeclared) {
     std::vector<SettingInfo> schema = {
-        {"gain", SettingValueType::DOUBLE, true},
-        {"mode", SettingValueType::STRING, true},
+            {"gain", SettingValueType::DOUBLE, true},
+            {"mode", SettingValueType::STRING, true},
     };
     SettingValueMap deviceVals = {{"gain", SettingValue{3.0}}};
 
@@ -349,10 +347,10 @@ TEST_F(DeviceSettingsParamsTest, ObjectTypeParamChange_WhenConnected_GetSettingC
 TEST(GetSettingsEmptyTest, EmptyInput_ReturnsAllSettings) {
     MockPhoXiInterface mock;
     const SettingValueMap allSettings = {
-        {"CapturingSettings/LaserPower", SettingValue{int64_t{1024}}},
-        {"CapturingSettings/LEDPower",   SettingValue{int64_t{512}}},
-        {"ScanMultiplier",               SettingValue{int64_t{1}}},
-        {"Resolution",                   SettingValue{std::string{"High"}}},
+            {"CapturingSettings/LaserPower", SettingValue{int64_t{1024}}},
+            {"CapturingSettings/LEDPower", SettingValue{int64_t{512}}},
+            {"ScanMultiplier", SettingValue{int64_t{1}}},
+            {"Resolution", SettingValue{std::string{"High"}}},
     };
     EXPECT_CALL(mock, getSettings(testing::IsEmpty())).WillOnce(testing::Return(allSettings));
 

@@ -488,7 +488,10 @@ The `phoxi_camera` package includes a layered test suite:
 colcon build --packages-select phoxi_camera
 source install/setup.bash
 
-# Run all tests (set PHO_TEST_DEVICE_ID to also run hardware tests)
+# Run only mock tests (no device needed)
+colcon test --packages-select phoxi_camera --ctest-args -R "_mock_"
+
+# Run all tests including hardware (set PHO_TEST_DEVICE_ID first)
 export PHO_TEST_DEVICE_ID='<your-serial-number>'
 colcon test --packages-select phoxi_camera
 colcon test-result --verbose

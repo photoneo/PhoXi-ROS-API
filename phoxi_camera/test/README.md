@@ -20,7 +20,6 @@ For mock-based (no-hardware) tests see **[test_mock/README.md](../test_mock/READ
 
 | Test binary | Suite | What it covers |
 |-------------|-------|----------------|
-| `phoxi_camera_conversions_test` | `ConversionTest` | Pure unit tests for data-type conversions (no device required). |
 | `phoxi_camera_hardware_integration_test` | `HardwareIntegrationTest` | Full lifecycle transitions, frame triggering, and combined `point_cloud` topic in `publish_combined` mode. |
 | `phoxi_camera_get_frame_test` | `FrameTest` | Frame acquisition in combined mode; verifies timestamp and frame ID synchronisation across all published topics. |
 | `phoxi_camera_get_frame_individual_test` | `IndividualTopicsFrameTest` | Frame acquisition in individual-topics mode; verifies each image and point-cloud topic is published correctly. |

@@ -1,5 +1,6 @@
 #include <string>
 
+#include "camera_test_fixture.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -7,7 +8,6 @@
 #include "phoxi_camera/PhoXiDeviceInformation.h"
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/PhoXiInterface.h"
-#include "camera_test_fixture.h"
 
 using namespace phoxi_camera;
 using ::testing::Return;
@@ -77,8 +77,7 @@ TEST_F(DeviceInfoParamsTest, AllFields_AreReadOnly) {
 }
 
 TEST_F(DeviceInfoParamsTest, GetDeviceInfoThrows_ConfigureFails) {
-    EXPECT_CALL(*mockInterface, getDeviceInfo())
-        .WillOnce(Throw(PhoXiInterfaceException("device error")));
+    EXPECT_CALL(*mockInterface, getDeviceInfo()).WillOnce(Throw(PhoXiInterfaceException("device error")));
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, testing::_)).Times(1);
     EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(1);
 

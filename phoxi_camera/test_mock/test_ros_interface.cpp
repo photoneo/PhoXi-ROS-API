@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "camera_test_fixture.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/srv/change_state.hpp"
@@ -11,7 +12,8 @@
 #include "phoxi_camera/PhoXiException.h"
 #include "phoxi_camera/PhoXiFrame.h"
 #include "phoxi_camera/PhoXiInterface.h"
-#include "camera_test_fixture.h"
+#include "phoxi_camera_msgs/msg/frame_error.hpp"
+#include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "phoxi_camera_msgs/srv/connect.hpp"
 #include "phoxi_camera_msgs/srv/create_profile.hpp"
 #include "phoxi_camera_msgs/srv/delete_profile.hpp"
@@ -24,8 +26,6 @@
 #include "phoxi_camera_msgs/srv/set_startup_profile.hpp"
 #include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "phoxi_camera_msgs/srv/update_profile.hpp"
-#include "phoxi_camera_msgs/msg/frame_error.hpp"
-#include "phoxi_camera_msgs/msg/frame_info.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -42,10 +42,7 @@ protected:
 
     PhoXiInterface::GetFrameCallback configureActivateCapture() {
         PhoXiInterface::GetFrameCallback cb;
-        EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _))
-            .WillOnce([&cb](const std::string&, PhoXiInterface::GetFrameCallback&& captured) {
-                cb = std::move(captured);
-            });
+        EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).WillOnce([&cb](const std::string&, PhoXiInterface::GetFrameCallback&& captured) { cb = std::move(captured); });
         if (!changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE))
             return {};
         EXPECT_CALL(*mockInterface, startAcquisition());
@@ -55,9 +52,7 @@ protected:
     }
 
     template <typename SrvT>
-    typename SrvT::Response::SharedPtr callService(
-        const std::string& serviceName,
-        typename SrvT::Request::SharedPtr request = std::make_shared<typename SrvT::Request>()) {
+    typename SrvT::Response::SharedPtr callService(const std::string& serviceName, typename SrvT::Request::SharedPtr request = std::make_shared<typename SrvT::Request>()) {
         auto client = clientNode->create_client<SrvT>(serviceName);
         if (!client->wait_for_service(std::chrono::seconds(2))) {
             return nullptr;
@@ -69,23 +64,19 @@ protected:
         return future.get();
     }
 
-    template <typename MsgT>
-    typename MsgT::SharedPtr injectAndReceive(
-        const PhoXiInterface::GetFrameCallback& frameCb, const std::string& topic, const PhoXiFrame& frame) {
+    template <typename MsgT> typename MsgT::SharedPtr injectAndReceive(const PhoXiInterface::GetFrameCallback& frameCb, const std::string& topic, const PhoXiFrame& frame) {
         std::promise<typename MsgT::SharedPtr> promise;
         auto future = promise.get_future().share();
         bool received = false;
-        auto sub = clientNode->create_subscription<MsgT>(
-            topic, rclcpp::SystemDefaultsQoS(), [&promise, &received](typename MsgT::SharedPtr msg) {
-                if (!received) {
-                    received = true;
-                    promise.set_value(msg);
-                }
-            });
+        auto sub = clientNode->create_subscription<MsgT>(topic, rclcpp::SystemDefaultsQoS(), [&promise, &received](typename MsgT::SharedPtr msg) {
+            if (!received) {
+                received = true;
+                promise.set_value(msg);
+            }
+        });
         executor_.spin_some(std::chrono::milliseconds(50));
         frameCb(frame);
-        if (executor_.spin_until_future_complete(future, std::chrono::seconds(2)) !=
-            rclcpp::FutureReturnCode::SUCCESS) {
+        if (executor_.spin_until_future_complete(future, std::chrono::seconds(2)) != rclcpp::FutureReturnCode::SUCCESS) {
             return nullptr;
         }
         return future.get();
@@ -745,9 +736,7 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentCameraPublished) {
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        FRAME_INFO_JSON.size(),
-        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, FRAME_INFO_JSON.size(), const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
@@ -758,11 +747,11 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentCameraPublished) {
     EXPECT_EQ(msg->distortion_model, "plumb_bob");
     ASSERT_EQ(msg->d.size(), 14u);
     EXPECT_DOUBLE_EQ(msg->d[0], -0.1);
-    EXPECT_DOUBLE_EQ(msg->k[0], 800.0);   // fx
-    EXPECT_DOUBLE_EQ(msg->k[4], 800.0);   // fy
-    EXPECT_DOUBLE_EQ(msg->k[2], 320.0);   // cx
-    EXPECT_DOUBLE_EQ(msg->k[5], 240.0);   // cy
-    EXPECT_DOUBLE_EQ(msg->p[0], 800.0);   // P = [K|0]
+    EXPECT_DOUBLE_EQ(msg->k[0], 800.0);  // fx
+    EXPECT_DOUBLE_EQ(msg->k[4], 800.0);  // fy
+    EXPECT_DOUBLE_EQ(msg->k[2], 320.0);  // cx
+    EXPECT_DOUBLE_EQ(msg->k[5], 240.0);  // cy
+    EXPECT_DOUBLE_EQ(msg->p[0], 800.0);  // P = [K|0]
     EXPECT_DOUBLE_EQ(msg->p[3], 0.0);
     EXPECT_NE(msg->header.frame_id, "");
 }
@@ -771,9 +760,7 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentColorCameraPublished) {
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        FRAME_INFO_JSON.size(),
-        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, FRAME_INFO_JSON.size(), const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
@@ -796,8 +783,7 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFrameInfoNull) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "frame_info/current_camera", rclcpp::SystemDefaultsQoS(),
-        [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
+            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(PhoXiFrame{});
@@ -811,16 +797,13 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFieldsMissing) {
     ASSERT_TRUE(frameCb);
 
     const std::string incompleteJson = R"({"info": {"current_camera/Resolution": {"width": 1, "height": 1}}})";
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        incompleteJson.size(),
-        const_cast<void*>(static_cast<const void*>(incompleteJson.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, incompleteJson.size(), const_cast<void*>(static_cast<const void*>(incompleteJson.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "frame_info/current_camera", rclcpp::SystemDefaultsQoS(),
-        [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
+            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -842,19 +825,15 @@ TEST_F(RosInterfaceTest, FrameInfo_ColorCamera_NotPublishedWhenAbsentFromJson) {
             "current_camera/Resolution": {"width": 640, "height": 480}
         }
     })";
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        primaryOnlyJson.size(),
-        const_cast<void*>(static_cast<const void*>(primaryOnlyJson.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, primaryOnlyJson.size(), const_cast<void*>(static_cast<const void*>(primaryOnlyJson.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
     bool colorReceived = false;
     auto colorSub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(),
-        [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) { colorReceived = true; });
+            "frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(), [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) { colorReceived = true; });
 
-    auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(
-        frameCb, "frame_info/current_camera", frame);
+    auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_camera", frame);
 
     executor_.spin_some(std::chrono::milliseconds(100));
 
@@ -867,9 +846,7 @@ TEST_F(RosInterfaceTest, FrameInfo_FrameInfoMsgPublished) {
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        FRAME_INFO_JSON.size(),
-        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, FRAME_INFO_JSON.size(), const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
@@ -913,9 +890,7 @@ TEST_F(RosInterfaceTest, FrameError_PublishedWhenNotSuccessful) {
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        FRAME_ERROR_JSON.size(),
-        const_cast<void*>(static_cast<const void*>(FRAME_ERROR_JSON.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, FRAME_ERROR_JSON.size(), const_cast<void*>(static_cast<const void*>(FRAME_ERROR_JSON.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
@@ -937,17 +912,14 @@ TEST_F(RosInterfaceTest, FrameError_PointCloudNotPublishedWhenNotSuccessful) {
 
     float pts[1][3] = {{1000.0f, 0.0f, 0.0f}};
     phoxi_frame_record_t pcRec{PHOXI_FRAME_TYPE_POINTCLOUD, PHOXI_FRAME_FORMAT_POINT3_32F, 1, 1, sizeof(pts), pts};
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        FRAME_ERROR_JSON.size(),
-        const_cast<void*>(static_cast<const void*>(FRAME_ERROR_JSON.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, FRAME_ERROR_JSON.size(), const_cast<void*>(static_cast<const void*>(FRAME_ERROR_JSON.data()))};
     PhoXiFrame frame;
     frame.pointCloud = &pcRec;
     frame.frameInfo = &infoRec;
 
     bool pcReceived = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>(
-        "point_cloud", rclcpp::SystemDefaultsQoS(),
-        [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) { pcReceived = true; });
+            "point_cloud", rclcpp::SystemDefaultsQoS(), [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) { pcReceived = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -960,16 +932,13 @@ TEST_F(RosInterfaceTest, FrameError_NotPublishedWhenSuccessful) {
     auto frameCb = configureActivateCapture();
     ASSERT_TRUE(frameCb);
 
-    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0,
-        FRAME_INFO_JSON.size(),
-        const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
+    phoxi_frame_record_t infoRec{PHOXI_FRAME_TYPE_FRAMEINFO, 0, 0, 0, FRAME_INFO_JSON.size(), const_cast<void*>(static_cast<const void*>(FRAME_INFO_JSON.data()))};
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
     bool errorReceived = false;
     auto sub = clientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-        "frame_error", rclcpp::SystemDefaultsQoS(),
-        [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) { errorReceived = true; });
+            "frame_error", rclcpp::SystemDefaultsQoS(), [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) { errorReceived = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
     frameCb(frame);
@@ -998,8 +967,7 @@ TEST_F(RosInterfaceTest, TriggerMode_DefaultIsSoftware_AppliedOnConfigure) {
 }
 
 TEST_F(RosInterfaceTest, TriggerMode_FreerunOverride_AppliedOnConfigure) {
-    SetUpBase("test-device-id", "test_client_node",
-              {rclcpp::Parameter("trigger_mode", "Freerun")});
+    SetUpBase("test-device-id", "test_client_node", {rclcpp::Parameter("trigger_mode", "Freerun")});
     const pho::api::PhoXiTriggerMode freerun = pho::api::PhoXiTriggerMode::Freerun;
     EXPECT_CALL(*mockInterface, setTriggerMode(freerun)).Times(1);
     ASSERT_TRUE(configure());
@@ -1007,8 +975,7 @@ TEST_F(RosInterfaceTest, TriggerMode_FreerunOverride_AppliedOnConfigure) {
 }
 
 TEST_F(RosInterfaceTest, TriggerMode_InvalidValue_ConfigureFails) {
-    SetUpBase("test-device-id", "test_client_node",
-              {rclcpp::Parameter("trigger_mode", "Invalid")});
+    SetUpBase("test-device-id", "test_client_node", {rclcpp::Parameter("trigger_mode", "Invalid")});
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mockInterface, setTriggerMode(testing::_)).Times(0);
     EXPECT_CALL(*mockInterface, disconnectCamera(testing::_, testing::_)).Times(testing::AtLeast(1));
