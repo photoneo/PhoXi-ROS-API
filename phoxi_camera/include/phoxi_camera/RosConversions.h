@@ -119,7 +119,7 @@ std::unique_ptr<sensor_msgs::msg::Image> colorCameraImageToRosMsg(const phoxi_fr
 /**
  * @brief Result of parsing a FRAME_INFO record.
  *
- * On a failed frame (`successful == false`), only `frameError` is populated.
+ * On a failed frame (`successful == false`), only `frame_error` is populated.
  * On success the remaining fields are filled in as available from the JSON payload.
  */
 struct ParsedFrameInfo {

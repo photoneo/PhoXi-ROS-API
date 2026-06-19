@@ -6,7 +6,7 @@ phoxi_camera:
     trigger_mode: "Software" # trigger mode: "Software" or "Freerun"
     # frame_settings/* — override which components the device sends per frame.
     # Omit any entry to leave the device's current setting unchanged.
-    frameSettings:
+    frame_settings:
       PointCloud: true
       NormalMap: false
       DepthMap: true

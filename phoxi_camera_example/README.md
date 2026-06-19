@@ -46,7 +46,7 @@ The launch file opens RViz with a pre-configured view and shuts everything down 
 
 ## Settings Example
 
-Demonstrates configuring `frameSettings.*` and `deviceSettings.*` before and after `configure`, and changing a live setting while the camera is active.
+Demonstrates configuring `frame_settings.*` and `device_settings.*` before and after `configure`, and changing a live setting while the camera is active.
 
 ```bash
 ros2 launch phoxi_camera_example run_settings_example.launch.py \
@@ -58,22 +58,22 @@ Pass device and frame setting overrides directly in the launch file — they are
 ```python
 parameters=[{
     'device_id':                                   LaunchConfiguration('sensor_sn'),
-    'frameSettings.PointCloud':                    True,
-    'frameSettings.NormalMap':                     False,
-    'deviceSettings.CapturingSettings.LaserPower': 2,
-    'deviceSettings.ScanMultiplier':               1,
+    'frame_settings.PointCloud':                    True,
+    'frame_settings.NormalMap':                     False,
+    'device_settings.CapturingSettings.LaserPower': 2,
+    'device_settings.ScanMultiplier':               1,
 }]
 ```
 
 The `settings_example_caller` node then:
 1. Triggers configure — the driver connects to the device and applies all overrides.
-2. Lists all declared `deviceSettings.*` and `frameSettings.*` parameters.
+2. Lists all declared `device_settings.*` and `frame_settings.*` parameters.
 3. Activates the camera.
 4. Changes `LaserPower` live via the parameter service while the camera is running.
 
 ### What to Expect
 
-- **Terminal output:** The caller logs all declared `deviceSettings.*` and `frameSettings.*` parameters after configure, then confirms the live `LaserPower` change.
+- **Terminal output:** The caller logs all declared `device_settings.*` and `frame_settings.*` parameters after configure, then confirms the live `LaserPower` change.
 - **Shutdown:** Once the caller's workflow is complete it shuts down, and the launch file automatically terminates the camera node.
 
 ---

@@ -41,17 +41,17 @@ TEST_F(DeviceInfoParamsTest, AllFields_DeclaredWithCorrectValues) {
 
     ASSERT_TRUE(configure());
 
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.name").as_string(), "TestScanner");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.type").as_string(), "PhoXi3DScan");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.deviceId").as_string(), "SN-12345");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.ipAddress").as_string(), "192.168.1.100");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.status").as_string(), "Ready");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.firmwareVersion").as_string(), "1.2.3");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.variant").as_string(), "M");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.isAlpha").as_bool(), false);
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.isBlue").as_bool(), true);
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.isColor").as_bool(), false);
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.isFileCam").as_bool(), false);
+    EXPECT_EQ(lcNode->get_parameter("device_info.name").as_string(), "TestScanner");
+    EXPECT_EQ(lcNode->get_parameter("device_info.type").as_string(), "PhoXi3DScan");
+    EXPECT_EQ(lcNode->get_parameter("device_info.deviceId").as_string(), "SN-12345");
+    EXPECT_EQ(lcNode->get_parameter("device_info.ipAddress").as_string(), "192.168.1.100");
+    EXPECT_EQ(lcNode->get_parameter("device_info.status").as_string(), "Ready");
+    EXPECT_EQ(lcNode->get_parameter("device_info.firmwareVersion").as_string(), "1.2.3");
+    EXPECT_EQ(lcNode->get_parameter("device_info.variant").as_string(), "M");
+    EXPECT_EQ(lcNode->get_parameter("device_info.isAlpha").as_bool(), false);
+    EXPECT_EQ(lcNode->get_parameter("device_info.isBlue").as_bool(), true);
+    EXPECT_EQ(lcNode->get_parameter("device_info.isColor").as_bool(), false);
+    EXPECT_EQ(lcNode->get_parameter("device_info.isFileCam").as_bool(), false);
 
     ASSERT_TRUE(cleanup());
 }
@@ -61,17 +61,17 @@ TEST_F(DeviceInfoParamsTest, AllFields_AreReadOnly) {
 
     ASSERT_TRUE(configure());
 
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.name", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.type", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.deviceId", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.ipAddress", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.status", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.firmwareVersion", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.variant", "other")).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.isAlpha", true)).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.isBlue", false)).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.isColor", true)).successful);
-    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("deviceInfo.isFileCam", true)).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.name", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.type", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.deviceId", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.ipAddress", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.status", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.firmwareVersion", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.variant", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.isAlpha", true)).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.isBlue", false)).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.isColor", true)).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.isFileCam", true)).successful);
 
     ASSERT_TRUE(cleanup());
 }
@@ -94,8 +94,8 @@ TEST_F(DeviceInfoParamsTest, AfterCleanupAndReconfigure_ParamsDeclaredCorrectly)
     EXPECT_CALL(*mockInterface, getDeviceInfo()).WillRepeatedly(Return(makeDeviceInfo()));
     ASSERT_TRUE(configure());
 
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.name").as_string(), "TestScanner");
-    EXPECT_EQ(lcNode->get_parameter("deviceInfo.deviceId").as_string(), "SN-12345");
+    EXPECT_EQ(lcNode->get_parameter("device_info.name").as_string(), "TestScanner");
+    EXPECT_EQ(lcNode->get_parameter("device_info.deviceId").as_string(), "SN-12345");
 
     ASSERT_TRUE(cleanup());
 }

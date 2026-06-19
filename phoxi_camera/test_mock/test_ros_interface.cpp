@@ -751,7 +751,7 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentCameraPublished) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frameInfo/currentCamera", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_camera", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 640u);
     EXPECT_EQ(msg->height, 480u);
@@ -777,7 +777,7 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentColorCameraPublished) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frameInfo/currentColorCamera", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_color_camera", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1280u);
     EXPECT_EQ(msg->height, 960u);
@@ -796,7 +796,7 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFrameInfoNull) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "frameInfo/currentCamera", rclcpp::SystemDefaultsQoS(),
+        "frame_info/current_camera", rclcpp::SystemDefaultsQoS(),
         [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
@@ -819,7 +819,7 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFieldsMissing) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "frameInfo/currentCamera", rclcpp::SystemDefaultsQoS(),
+        "frame_info/current_camera", rclcpp::SystemDefaultsQoS(),
         [&received](sensor_msgs::msg::CameraInfo::SharedPtr) { received = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));
@@ -850,11 +850,11 @@ TEST_F(RosInterfaceTest, FrameInfo_ColorCamera_NotPublishedWhenAbsentFromJson) {
 
     bool colorReceived = false;
     auto colorSub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "frameInfo/currentColorCamera", rclcpp::SystemDefaultsQoS(),
+        "frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(),
         [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) { colorReceived = true; });
 
     auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(
-        frameCb, "frameInfo/currentCamera", frame);
+        frameCb, "frame_info/current_camera", frame);
 
     executor_.spin_some(std::chrono::milliseconds(100));
 
@@ -873,7 +873,7 @@ TEST_F(RosInterfaceTest, FrameInfo_FrameInfoMsgPublished) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameInfo>(frameCb, "frameInfo", frame);
+    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameInfo>(frameCb, "frame_info", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->hw_id, "TEST-CAM-001");
     EXPECT_EQ(msg->index, 42);
@@ -919,7 +919,7 @@ TEST_F(RosInterfaceTest, FrameError_PublishedWhenNotSuccessful) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameError>(frameCb, "frameError", frame);
+    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameError>(frameCb, "frame_error", frame);
     ASSERT_NE(msg, nullptr);
     ASSERT_EQ(msg->messages.size(), 2u);
     EXPECT_EQ(msg->messages[0].code, 11);
@@ -968,7 +968,7 @@ TEST_F(RosInterfaceTest, FrameError_NotPublishedWhenSuccessful) {
 
     bool errorReceived = false;
     auto sub = clientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-        "frameError", rclcpp::SystemDefaultsQoS(),
+        "frame_error", rclcpp::SystemDefaultsQoS(),
         [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) { errorReceived = true; });
 
     executor_.spin_some(std::chrono::milliseconds(50));

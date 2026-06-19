@@ -20,23 +20,23 @@
  *   Accepted values: `"Software"`, `"Freerun"`. Writes are rejected with an error for any other value.
  *
  * Frame output settings (declared during `configure` from the device schema):
- * - `frameSettings.<Component>` (bool): Enable/disable individual frame output components.
+ * - `frame_settings.<Component>` (bool): Enable/disable individual frame output components.
  *   Available components are discovered from the device at configure time.
  *   Values pre-supplied via launch file or parameter overrides are applied as overrides during configure.
  *
  * Device settings (declared during `configure` from the device schema):
- * - `deviceSettings.*` (various types): Device-setting parameters. Applied to the device on every write.
+ * - `device_settings.*` (various types): Device-setting parameters. Applied to the device on every write.
  *   Parameters flagged as read-only by the device reject writes.
- * - `deviceInfo.*` (various types): Device identity information (name, type, IP address, firmware version, etc.).
+ * - `device_info.*` (various types): Device identity information (name, type, IP address, firmware version, etc.).
  *   Read-only.
  *
  * **Published topics (active state only)**
  *
  * Always published:
- * - `frameError` (`phoxi_camera_msgs/FrameError`): API-reported frame errors.
- * - `frameInfo` (`phoxi_camera_msgs/FrameInfo`): Per-frame metadata.
- * - `frameInfo/currentCamera` (`sensor_msgs/CameraInfo`): Primary camera intrinsics.
- * - `frameInfo/currentColorCamera` (`sensor_msgs/CameraInfo`): Color camera intrinsics.
+ * - `frame_error` (`phoxi_camera_msgs/FrameError`): API-reported frame errors.
+ * - `frame_info` (`phoxi_camera_msgs/FrameInfo`): Per-frame metadata.
+ * - `frame_info/current_camera` (`sensor_msgs/CameraInfo`): Primary camera intrinsics.
+ * - `frame_info/current_color_camera` (`sensor_msgs/CameraInfo`): Color camera intrinsics.
  *
  * When `publish_combined` is `true`:
  * - `point_cloud` (`sensor_msgs/PointCloud2`): XYZ + normals + color/intensity + confidence + depth + event.
@@ -77,8 +77,8 @@
  * - `~/profiles/import` (`phoxi_camera_msgs/ImportProfile`): Import a profile from binary.
  * - `~/profiles/reset` (`std_srvs/Trigger`): Reset the active profile to factory defaults.
  */
-#ifndef PHOXI_CAMERA_ROSINTERFACE_H
-#define PHOXI_CAMERA_ROSINTERFACE_H
+#ifndef PHOXI_CAMERA_H
+#define PHOXI_CAMERA_H
 
 #include <map>
 #include <memory>
@@ -145,7 +145,7 @@ public:
      * @brief Connect to the device and create publishers and services.
      *
      * Reads `device_id`, `frame_id`, and `publish_combined` parameters, then
-     * connects to the device and declares `deviceSettings.*` and `deviceInfo.*`
+     * connects to the device and declares `device_settings.*` and `device_info.*`
      * parameters from the device schema.
      *
      * @param previous_state Lifecycle state before this transition.
@@ -214,11 +214,11 @@ private:
     std::optional<rcl_interfaces::msg::SetParametersResult> handleNodeParameter(const rclcpp::Parameter& param);
     /** @brief Populate mSettingDescriptors and mParamToDescriptor from the device schema. */
     void loadDeviceSettingDescriptors();
-    /** @brief Declare `deviceSettings.*` parameters from the current device values and apply any overrides. */
+    /** @brief Declare `device_settings.*` parameters from the current device values and apply any overrides. */
     void declareDeviceSettingParameters();
-    /** @brief Declare `frameSettings.*` parameters from the device schema and apply any pre-configure overrides. */
+    /** @brief Declare `frame_settings.*` parameters from the device schema and apply any pre-configure overrides. */
     void declareFrameSettingParameters();
-    /** @brief Declare read-only `deviceInfo.*` parameters from the connected device. */
+    /** @brief Declare read-only `device_info.*` parameters from the connected device. */
     void declareDeviceInfoParameters();
     /** @brief Activate the publishers selected by the `publish_combined` parameter. */
     void activatePublishers();
@@ -231,11 +231,11 @@ private:
     void onFrameCallback(const PhoXiFrame& frame);
 
     /**
-     * @brief Forward parameter changes to the device or to frameSettings.
+     * @brief Forward parameter changes to the device or to frame_settings.
      *
      * Called by the ROS2 parameter system for every `set_parameters` call.
-     * Changes to `deviceSettings.*` are forwarded to the device via `PhoXiInterface::setSettings`.
-     * Changes to `frameSettings.*` are forwarded via `PhoXiInterface::setFrameOutputSettings`.
+     * Changes to `device_settings.*` are forwarded to the device via `PhoXiInterface::setSettings`.
+     * Changes to `frame_settings.*` are forwarded via `PhoXiInterface::setFrameOutputSettings`.
      *
      * @param params Parameters that were changed.
      * @return Result with `successful=true` on success, or an error reason string.
@@ -248,7 +248,7 @@ private:
      * Object-typed settings (e.g. `PHOXI_2DROI`) are split into sub-parameters.
      *
      * @param desc      Descriptor for the setting.
-     * @param baseParam ROS2 parameter name prefix (e.g. `deviceSettings.Scanning.Mode`).
+     * @param baseParam ROS2 parameter name prefix (e.g. `device_settings.Scanning.Mode`).
      * @param devVal    Initial value read from the device, used as the default.
      * @return `True` if initial value was overridden, otherwise `False`
      */
@@ -328,10 +328,10 @@ private:
     void resetActiveProfileCallback(const std::shared_ptr<const std_srvs::srv::Trigger::Request>& request, const std::shared_ptr<std_srvs::srv::Trigger::Response>& response);
 
     // Publishers (topic)
-    rclcpp_lifecycle::LifecyclePublisher<phoxi_camera_msgs::msg::FrameError>::SharedPtr mFrameErrorPub;   ///< topic: `frameError`
-    rclcpp_lifecycle::LifecyclePublisher<phoxi_camera_msgs::msg::FrameInfo>::SharedPtr mFrameInfoPub;     ///< topic: `frameInfo`
-    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::CameraInfo>::SharedPtr mPrimaryCameraInfoPub;  ///< topic: `frameInfo/currentCamera`
-    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::CameraInfo>::SharedPtr mColorCameraInfoPub;    ///< topic: `frameInfo/currentColorCamera`
+    rclcpp_lifecycle::LifecyclePublisher<phoxi_camera_msgs::msg::FrameError>::SharedPtr mFrameErrorPub;   ///< topic: `frame_error`
+    rclcpp_lifecycle::LifecyclePublisher<phoxi_camera_msgs::msg::FrameInfo>::SharedPtr mFrameInfoPub;     ///< topic: `frame_info`
+    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::CameraInfo>::SharedPtr mPrimaryCameraInfoPub;  ///< topic: `frame_info/current_camera`
+    rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::CameraInfo>::SharedPtr mColorCameraInfoPub;    ///< topic: `frame_info/current_color_camera`
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointCloudPub;        ///< topic: `point_cloud` (combined mode)
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::PointCloud2>::SharedPtr mPointsPub;            ///< topic: `points` (individual mode)
     rclcpp_lifecycle::LifecyclePublisher<sensor_msgs::msg::Image>::SharedPtr mNormalMapPub;               ///< topic: `normals` (32FC3)

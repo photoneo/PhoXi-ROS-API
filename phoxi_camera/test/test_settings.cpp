@@ -53,12 +53,12 @@ bool isParamDeclared(rclcpp_lifecycle::LifecycleNode& node, const std::string& k
 }  // namespace
 
 TEST_F(DeviceRequiredTest, DeviceSettings_PopulatedAfterConfigure) {
-    auto result = mLcNode->list_parameters({"deviceSettings"}, 100);
-    EXPECT_FALSE(result.names.empty()) << "No deviceSettings parameters declared after configure";
+    auto result = mLcNode->list_parameters({"device_settings"}, 100);
+    EXPECT_FALSE(result.names.empty()) << "No device_settings parameters declared after configure";
 }
 
 TEST_F(DeviceRequiredTest, GetSettings_LaserPower_IsPositive) {
-    const std::string key = "deviceSettings.CapturingSettings.LaserPower";
+    const std::string key = "device_settings.CapturingSettings.LaserPower";
     if (!isParamDeclared(*mLcNode, key)) {
         GTEST_SKIP() << key << " not available on this device";
     }
@@ -68,7 +68,7 @@ TEST_F(DeviceRequiredTest, GetSettings_LaserPower_IsPositive) {
 }
 
 TEST_F(DeviceRequiredTest, SetSettings_LaserPower_ChangePersists) {
-    const std::string key = "deviceSettings.CapturingSettings.LaserPower";
+    const std::string key = "device_settings.CapturingSettings.LaserPower";
     if (!isParamDeclared(*mLcNode, key)) {
         GTEST_SKIP() << key << " not available on this device";
     }
@@ -82,12 +82,12 @@ TEST_F(DeviceRequiredTest, SetSettings_LaserPower_ChangePersists) {
 
 TEST_F(DeviceRequiredTest, GetSettings_UnknownKey_NotDeclared) {
     EXPECT_THROW(
-        mLcNode->get_parameter("deviceSettings.NonExistent.FooBar"),
+        mLcNode->get_parameter("device_settings.NonExistent.FooBar"),
         rclcpp::exceptions::ParameterNotDeclaredException);
 }
 
 TEST_F(DeviceRequiredTest, SetSettings_WrongType_Rejected) {
-    const std::string key = "deviceSettings.CapturingSettings.LaserPower";
+    const std::string key = "device_settings.CapturingSettings.LaserPower";
     if (!isParamDeclared(*mLcNode, key)) {
         GTEST_SKIP() << key << " not available on this device";
     }

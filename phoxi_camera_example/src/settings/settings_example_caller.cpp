@@ -57,8 +57,8 @@ bool setParameters(std::shared_ptr<rclcpp::Node> node,
     return true;
 }
 
-// List all declared deviceSettings.* and frameSettings.* parameters with values.
-// deviceSettings.* are only declared after configure.
+// List all declared device_settings.* and frame_settings.* parameters with values.
+// device_settings.* are only declared after configure.
 void listSettings(std::shared_ptr<rclcpp::Node> node) {
     auto listClient = node->create_client<rcl_interfaces::srv::ListParameters>(
         "/phoxi_camera/list_parameters");
@@ -68,7 +68,7 @@ void listSettings(std::shared_ptr<rclcpp::Node> node) {
         RCLCPP_ERROR(node->get_logger(), "Parameter service not available.");
         return;
     }
-    for (const auto& prefix : {"deviceSettings", "frameSettings"}) {
+    for (const auto& prefix : {"device_settings", "frame_settings"}) {
         auto listReq = std::make_shared<rcl_interfaces::srv::ListParameters::Request>();
         listReq->prefixes = {prefix};
         listReq->depth = 100;
@@ -91,31 +91,31 @@ void listSettings(std::shared_ptr<rclcpp::Node> node) {
 }
 
 void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
-    // 1. frameSettings.* are declared at node construction so they can be set
+    // 1. frame_settings.* are declared at node construction so they can be set
     //    from code before configure; on_configure() reads them and forwards to device.
     RCLCPP_INFO(node->get_logger(), "Setting frame output settings.");
     if (!setParameters(node, {
-            rclcpp::Parameter("frameSettings.PointCloud",       true),
-            rclcpp::Parameter("frameSettings.NormalMap",        false),
-            rclcpp::Parameter("frameSettings.DepthMap",         true),
-            rclcpp::Parameter("frameSettings.Texture",          true),
-            rclcpp::Parameter("frameSettings.ConfidenceMap",    false),
-            rclcpp::Parameter("frameSettings.ColorCameraImage", false),
-            rclcpp::Parameter("frameSettings.EventMap",         false),
+            rclcpp::Parameter("frame_settings.PointCloud",       true),
+            rclcpp::Parameter("frame_settings.NormalMap",        false),
+            rclcpp::Parameter("frame_settings.DepthMap",         true),
+            rclcpp::Parameter("frame_settings.Texture",          true),
+            rclcpp::Parameter("frame_settings.ConfidenceMap",    false),
+            rclcpp::Parameter("frame_settings.ColorCameraImage", false),
+            rclcpp::Parameter("frame_settings.EventMap",         false),
         })) {
         rclcpp::shutdown();
         return;
     }
 
     // 2. Configure — connects to device, loads schema, then applies both the inline
-    //    parameters from the launch description and the frameSettings set above.
+    //    parameters from the launch description and the frame_settings set above.
     RCLCPP_INFO(node->get_logger(), "Configuring.");
     if (!changeLifecycleState(node, lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE)) {
         rclcpp::shutdown();
         return;
     }
 
-    // 3. List all available settings — deviceSettings.* are device-specific and
+    // 3. List all available settings — device_settings.* are device-specific and
     //    only declared after configure.
     listSettings(node);
 
@@ -132,7 +132,7 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     std::this_thread::sleep_for(2s);
     RCLCPP_INFO(node->get_logger(), "Setting LaserPower to 3.");
     setParameters(node, {
-        rclcpp::Parameter("deviceSettings.CapturingSettings.LaserPower", 3),
+        rclcpp::Parameter("device_settings.CapturingSettings.LaserPower", 3),
     });
 
     rclcpp::shutdown();

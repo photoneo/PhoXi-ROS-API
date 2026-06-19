@@ -58,12 +58,12 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     // 1. Set frame output settings before configure so on_configure applies them.
     RCLCPP_INFO(node->get_logger(), "Setting initial frame output settings.");
     if (!setParameters(node, {
-            rclcpp::Parameter("frameSettings.PointCloud",       true),
-            rclcpp::Parameter("frameSettings.NormalMap",        false),
-            rclcpp::Parameter("frameSettings.DepthMap",         true),
-            rclcpp::Parameter("frameSettings.Texture",          true),
-            rclcpp::Parameter("frameSettings.ConfidenceMap",    false),
-            rclcpp::Parameter("frameSettings.ColorCameraImage", false),
+            rclcpp::Parameter("frame_settings.PointCloud",       true),
+            rclcpp::Parameter("frame_settings.NormalMap",        false),
+            rclcpp::Parameter("frame_settings.DepthMap",         true),
+            rclcpp::Parameter("frame_settings.Texture",          true),
+            rclcpp::Parameter("frame_settings.ConfidenceMap",    false),
+            rclcpp::Parameter("frame_settings.ColorCameraImage", false),
         })) {
         rclcpp::shutdown();
         return;

@@ -6,10 +6,6 @@
 
 namespace phoxi_camera::composition_example {
 
-// -------------------------------------------------------------------------- //
-//  Constructor                                                               //
-// -------------------------------------------------------------------------- //
-
 CompositionExample::CompositionExample(const rclcpp::NodeOptions& options) : rclcpp::Node("phoxi_camera_example_client", options) {
     this->declare_parameter<std::string>("trigger_service_name", "/phoxi_camera/trigger_frame");
     trigger_service_name_ = this->get_parameter("trigger_service_name").as_string();
@@ -21,7 +17,6 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options) : rcl
     cb_group_srv_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     cb_group_client_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
-    // ---- point cloud subscriber ---------------------------------------- //
     rclcpp::SubscriptionOptions sub_opts;
     sub_opts.callback_group = cb_group_sub_;
 
@@ -37,10 +32,8 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options) : rcl
     const auto service_qos = rclcpp::ServicesQoS();
 #endif
 
-    // ---- trigger-frame service client ---------------------------------- //
     trigger_client_ = create_client<std_srvs::srv::Trigger>(trigger_service_name_, service_qos, cb_group_client_);
 
-    // ---- start / stop services ----------------------------------------- //
     start_service_ = create_service<std_srvs::srv::Trigger>(
             "~/start", std::bind(&CompositionExample::on_start, this, std::placeholders::_1, std::placeholders::_2), service_qos, cb_group_srv_);
 
@@ -53,14 +46,10 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options) : rcl
     RCLCPP_INFO(get_logger(), "  Call ~/stop  to halt the loop.");
 }
 
-// -------------------------------------------------------------------------- //
-//  Point-cloud callback                                                      //
-// -------------------------------------------------------------------------- //
-
 void CompositionExample::on_point_cloud(sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
     const auto now = std::chrono::steady_clock::now();
 
-    // --- Count non-zero 3-D points -------------------------------------- //
+    // Count non-zero 3-D points.
     uint32_t non_zero = 0;
     try {
         sensor_msgs::PointCloud2ConstIterator<float> ix(*msg, "x");
@@ -76,7 +65,7 @@ void CompositionExample::on_point_cloud(sensor_msgs::msg::PointCloud2::ConstShar
         RCLCPP_WARN_ONCE(get_logger(), "PointCloud2 does not have x/y/z fields (%s); skipping point count.", e.what());
     }
 
-    // --- Timing & FPS --------------------------------------------------- //
+    // Log FPS and timing.
     if (!timing_initialized_) {
         loop_start_time_ = now;
         last_frame_time_ = now;
@@ -97,24 +86,15 @@ void CompositionExample::on_point_cloud(sensor_msgs::msg::PointCloud2::ConstShar
         last_frame_time_ = now;
     }
 
-    // --- Continue the loop ---------------------------------------------- //
     if (running_) {
         trigger_next_frame();
     }
 }
 
-// -------------------------------------------------------------------------- //
-//  Color-camera-image callback                                               //
-// -------------------------------------------------------------------------- //
-
 void CompositionExample::on_color_camera_image(sensor_msgs::msg::Image::ConstSharedPtr msg) {
-    RCLCPP_INFO(get_logger(), "[ColorCameraImage]  %ux%u  encoding=%s  stamp=%d.%09u", msg->width, msg->height, msg->encoding.c_str(), msg->header.stamp.sec,
+    RCLCPP_INFO(get_logger(), "[color_camera_image]  %ux%u  encoding=%s  stamp=%d.%09u", msg->width, msg->height, msg->encoding.c_str(), msg->header.stamp.sec,
             msg->header.stamp.nanosec);
 }
-
-// -------------------------------------------------------------------------- //
-//  trigger_next_frame helper                                                 //
-// -------------------------------------------------------------------------- //
 
 void CompositionExample::trigger_next_frame() {
     if (!trigger_client_->service_is_ready()) {
@@ -132,10 +112,6 @@ void CompositionExample::trigger_next_frame() {
         }
     });
 }
-
-// -------------------------------------------------------------------------- //
-//  start service                                                             //
-// -------------------------------------------------------------------------- //
 
 void CompositionExample::on_start(const std::shared_ptr<std_srvs::srv::Trigger::Request> /*req*/, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
     if (running_) {
@@ -162,10 +138,6 @@ void CompositionExample::on_start(const std::shared_ptr<std_srvs::srv::Trigger::
     res->success = true;
     res->message = "Acquisition loop started.";
 }
-
-// -------------------------------------------------------------------------- //
-//  stop service                                                              //
-// -------------------------------------------------------------------------- //
 
 void CompositionExample::on_stop(const std::shared_ptr<std_srvs::srv::Trigger::Request> /*req*/, std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
     if (!running_) {

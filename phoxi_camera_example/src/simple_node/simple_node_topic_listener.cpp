@@ -11,7 +11,7 @@
 static void printFrameError(const rclcpp::Logger& logger,
     const phoxi_camera_msgs::msg::FrameError& msg)
 {
-    RCLCPP_ERROR(logger, "[frameError] %zu message(s):", msg.messages.size());
+    RCLCPP_ERROR(logger, "[frame_error] %zu message(s):", msg.messages.size());
     for (const auto& e : msg.messages) {
         RCLCPP_ERROR(logger, "  [code=%d severity=%d] %s", e.code, e.severity, e.text.c_str());
     }
@@ -20,7 +20,7 @@ static void printFrameError(const rclcpp::Logger& logger,
 static void printFrameInfo(const rclcpp::Logger& logger,
     const phoxi_camera_msgs::msg::FrameInfo& msg)
 {
-    RCLCPP_INFO(logger, "[frameInfo] #%d  total=%d  hw=%s",
+    RCLCPP_INFO(logger, "[frame_info] #%d  total=%d  hw=%s",
         msg.index, msg.total_scan_count, msg.hw_id.c_str());
     RCLCPP_INFO(logger, "  duration=%.2f ms  computation=%.2f ms  transfer=%.2f ms",
         msg.duration, msg.duration_computation, msg.duration_transfer);
@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
     auto node = rclcpp::Node::make_shared("topic_listener_node");
     auto logger = node->get_logger();
 
-    // Only topics whose frameSettings component is enabled will publish.
+    // Only topics whose frame_settings component is enabled will publish.
     auto pointsSub = node->create_subscription<sensor_msgs::msg::PointCloud2>(
         "/points", 10,
         [&logger](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
@@ -126,25 +126,25 @@ int main(int argc, char* argv[]) {
         });
 
     auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>(
-        "/frameInfo", 10,
+        "/frame_info", 10,
         [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) {
             printFrameInfo(logger, *msg);
         });
 
     auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/frameInfo/currentCamera", 10,
+        "/frame_info/current_camera", 10,
         [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
-            printCameraInfo(logger, "frameInfo/currentCamera", *msg);
+            printCameraInfo(logger, "frame_info/current_camera", *msg);
         });
 
     auto frameInfoColorCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "/frameInfo/currentColorCamera", 10,
+        "/frame_info/current_color_camera", 10,
         [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
-            printCameraInfo(logger, "frameInfo/currentColorCamera", *msg);
+            printCameraInfo(logger, "frame_info/current_color_camera", *msg);
         });
 
     auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-        "/frameError", 10,
+        "/frame_error", 10,
         [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) {
             printFrameError(logger, *msg);
         });

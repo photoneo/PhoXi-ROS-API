@@ -62,11 +62,11 @@ void runWorkflow(std::shared_ptr<rclcpp::Node> node) {
     RCLCPP_INFO(node->get_logger(), "Enabling publish_combined mode.");
     if (!setParameters(node, {
             rclcpp::Parameter("publish_combined",             true),
-            rclcpp::Parameter("frameSettings.PointCloud",    true),
-            rclcpp::Parameter("frameSettings.NormalMap",     true),
-            rclcpp::Parameter("frameSettings.DepthMap",      true),
-            rclcpp::Parameter("frameSettings.Texture",       true),
-            rclcpp::Parameter("frameSettings.ConfidenceMap", true),
+            rclcpp::Parameter("frame_settings.PointCloud",    true),
+            rclcpp::Parameter("frame_settings.NormalMap",     true),
+            rclcpp::Parameter("frame_settings.DepthMap",      true),
+            rclcpp::Parameter("frame_settings.Texture",       true),
+            rclcpp::Parameter("frame_settings.ConfidenceMap", true),
         })) {
         rclcpp::shutdown();
         return;

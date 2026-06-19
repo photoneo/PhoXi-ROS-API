@@ -51,7 +51,7 @@ TEST_F(FrameSettingsTest, Configure_WithOverride_WhileConnected_CalledExactlyOnc
     // guard, each declare_parameter fires onParametersChanged → setFrameOutputSettings, so with
     // 7 components and one override the call count would be 8 instead of 1.
     // NormalMap device default = false; pre-setting to true is an override.
-    InitNode({rclcpp::Parameter("frameSettings.NormalMap", true)});
+    InitNode({rclcpp::Parameter("frame_settings.NormalMap", true)});
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).Times(1);
     ASSERT_TRUE(configure());
@@ -59,14 +59,14 @@ TEST_F(FrameSettingsTest, Configure_WithOverride_WhileConnected_CalledExactlyOnc
 }
 
 TEST_F(FrameSettingsTest, Configure_OverrideSameAsDevice_NotForwarded) {
-    InitNode({rclcpp::Parameter("frameSettings.PointCloud", true)});
+    InitNode({rclcpp::Parameter("frame_settings.PointCloud", true)});
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_)).Times(0);
     ASSERT_TRUE(configure());
     ASSERT_TRUE(cleanup());
 }
 
 TEST_F(FrameSettingsTest, Configure_SingleOverrideEnabled_ForwardedToDevice) {
-    InitNode({rclcpp::Parameter("frameSettings.NormalMap", true)});
+    InitNode({rclcpp::Parameter("frame_settings.NormalMap", true)});
     std::vector<std::pair<std::string, bool>> captured;
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
@@ -78,7 +78,7 @@ TEST_F(FrameSettingsTest, Configure_SingleOverrideEnabled_ForwardedToDevice) {
 }
 
 TEST_F(FrameSettingsTest, Configure_SingleOverrideDisabled_ForwardedToDevice) {
-    InitNode({rclcpp::Parameter("frameSettings.DepthMap", false)});
+    InitNode({rclcpp::Parameter("frame_settings.DepthMap", false)});
     std::vector<std::pair<std::string, bool>> captured;
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
@@ -91,9 +91,9 @@ TEST_F(FrameSettingsTest, Configure_SingleOverrideDisabled_ForwardedToDevice) {
 
 TEST_F(FrameSettingsTest, Configure_MultipleOverrides_AllForwarded) {
     InitNode({
-        rclcpp::Parameter("frameSettings.NormalMap", true),
-        rclcpp::Parameter("frameSettings.DepthMap", false),
-        rclcpp::Parameter("frameSettings.Texture", true),
+        rclcpp::Parameter("frame_settings.NormalMap", true),
+        rclcpp::Parameter("frame_settings.DepthMap", false),
+        rclcpp::Parameter("frame_settings.Texture", true),
     });
     std::vector<std::pair<std::string, bool>> captured;
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
@@ -105,7 +105,7 @@ TEST_F(FrameSettingsTest, Configure_MultipleOverrides_AllForwarded) {
 }
 
 TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_ReturnsFailure) {
-    InitNode({rclcpp::Parameter("frameSettings.NormalMap", true)});
+    InitNode({rclcpp::Parameter("frame_settings.NormalMap", true)});
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce(Throw(PhoXiInterfaceException("device rejected component")));
@@ -114,7 +114,7 @@ TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_ReturnsFailure)
 }
 
 TEST_F(FrameSettingsTest, Configure_SetFrameOutputSettingsThrows_CanReconfigureSuccessfully) {
-    InitNode({rclcpp::Parameter("frameSettings.NormalMap", true)});
+    InitNode({rclcpp::Parameter("frame_settings.NormalMap", true)});
     EXPECT_CALL(*mockInterface, connectCamera(mDeviceId, _)).Times(1);
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce(Throw(PhoXiInterfaceException("transient error")));
@@ -136,7 +136,7 @@ TEST_F(FrameSettingsTest, ParameterChange_WhenConnected_ForwardedToDevice) {
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings.DepthMap", false));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("frame_settings.DepthMap", false));
     EXPECT_TRUE(result.successful);
     ASSERT_EQ(captured.size(), 1u);
     EXPECT_EQ(captured[0].first, "DepthMap");
@@ -154,8 +154,8 @@ TEST_F(FrameSettingsTest, ParameterChange_MultipleComponents_AllPassedInSingleCa
         .WillOnce([&captured](const std::vector<std::pair<std::string, bool>>& c) { captured = c; });
 
     lcNode->set_parameters_atomically({
-        rclcpp::Parameter("frameSettings.PointCloud", true),
-        rclcpp::Parameter("frameSettings.ColorCameraImage", false),
+        rclcpp::Parameter("frame_settings.PointCloud", true),
+        rclcpp::Parameter("frame_settings.ColorCameraImage", false),
     });
 
     EXPECT_THAT(captured, UnorderedElementsAre(Pair("PointCloud", true), Pair("ColorCameraImage", false)));
@@ -182,7 +182,7 @@ TEST_F(FrameSettingsTest, ParameterChange_MixedParams_OnlyFrameSettingsForwarded
 
     lcNode->set_parameters_atomically({
         rclcpp::Parameter("publish_combined", false),
-        rclcpp::Parameter("frameSettings.EventMap", true),
+        rclcpp::Parameter("frame_settings.EventMap", true),
     });
 
     ASSERT_EQ(captured.size(), 1u);
@@ -197,7 +197,7 @@ TEST_F(FrameSettingsTest, ParameterChange_SetFrameOutputSettingsThrows_CallbackR
     EXPECT_CALL(*mockInterface, setFrameOutputSettings(_))
         .WillOnce(Throw(PhoXiInterfaceException("device busy")));
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("frameSettings.Texture", true));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("frame_settings.Texture", true));
     EXPECT_FALSE(result.successful);
     ASSERT_TRUE(cleanup());
 }

@@ -19,9 +19,9 @@ For hardware tests that exercise a real device see **[test/README.md](../test/RE
 | Test binary | Suite | What it covers |
 |-------------|-------|----------------|
 | `phoxi_camera_ros_interface_test` | `RosInterfaceTest` | Core ROS lifecycle behaviour: configure, activate, deactivate, cleanup, and service availability at each state. |
-| `phoxi_camera_frame_settings_test` | `FrameSettingsTest` | `frameSettings.*` parameter declaration, override detection, and `setFrameOutputSettings` call semantics. |
-| `phoxi_camera_device_settings_params_test` | `DeviceSettingsParamsTest` | `deviceSettings.*` parameter declaration from the device schema, override application, and live `setSettings` call semantics. |
-| `phoxi_camera_device_info_params_test` | `DeviceInfoParamsTest` | `deviceInfo.*` read-only parameter declaration after configure. |
+| `phoxi_camera_frame_settings_test` | `FrameSettingsTest` | `frame_settings.*` parameter declaration, override detection, and `setFrameOutputSettings` call semantics. |
+| `phoxi_camera_device_settings_params_test` | `DeviceSettingsParamsTest` | `device_settings.*` parameter declaration from the device schema, override application, and live `setSettings` call semantics. |
+| `phoxi_camera_device_info_params_test` | `DeviceInfoParamsTest` | `device_info.*` read-only parameter declaration after configure. |
 | `phoxi_camera_setting_types_test` | `SettingTypesTest` | Typed `SettingValue` variant conversion for all supported setting types. |
 
 ---

@@ -1,3 +1,25 @@
+"""
+run_simple_node_example.launch.py
+
+Demonstrates the basic phoxi_camera driver workflow:
+configure → activate → trigger → receive a point cloud → cleanup.
+
+Starts three nodes alongside the driver:
+  - simple_node_service_caller  — drives the lifecycle, triggers one frame, exits.
+  - simple_node_topic_listener  — subscribes to individual topics and logs the
+                                   first received message on each.
+  - rviz2                        — opens a pre-configured view of the point cloud.
+
+The launch file shuts everything down automatically when rviz2 exits.
+
+Usage
+-----
+  ros2 launch phoxi_camera_example run_simple_node_example.launch.py [sensor_sn:=<sn>]
+
+With the default sensor_sn (InstalledExamples-basic-example) the example runs
+against a file camera bundled with PhoXi Control — no hardware required.
+"""
+
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -23,7 +45,7 @@ def generate_launch_description():
     # before acquisition starts — so only the listed components are transferred.
     #
     # Alternatively, frame settings can be changed at runtime via:
-    #   ros2 param set /phoxi_camera frameSettings.NormalMap false
+    #   ros2 param set /phoxi_camera frame_settings.NormalMap false
     #
     # Note: parameter names use '/' as the separator, so they must be written as
     # flat keys (not nested dicts) in this parameters dict.
@@ -36,12 +58,12 @@ def generate_launch_description():
             'device_id': LaunchConfiguration('sensor_sn'),
             # Frame output settings — comment out entries to leave the device
             # default unchanged, or set to false to disable a component.
-            'frameSettings.PointCloud':       True,
-            'frameSettings.NormalMap':        False,
-            'frameSettings.DepthMap':         True,
-            'frameSettings.Texture':          True,
-            'frameSettings.ConfidenceMap':    False,
-            'frameSettings.ColorCameraImage': False,
+            'frame_settings.PointCloud':       True,
+            'frame_settings.NormalMap':        False,
+            'frame_settings.DepthMap':         True,
+            'frame_settings.Texture':          True,
+            'frame_settings.ConfidenceMap':    False,
+            'frame_settings.ColorCameraImage': False,
         }]
     )
 

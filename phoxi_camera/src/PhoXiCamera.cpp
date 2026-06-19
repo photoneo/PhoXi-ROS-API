@@ -135,10 +135,10 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         return CallbackReturn::FAILURE;
     }
 
-    mFrameErrorPub = create_publisher<phoxi_camera_msgs::msg::FrameError>("frameError", rclcpp::SystemDefaultsQoS());
-    mFrameInfoPub = create_publisher<phoxi_camera_msgs::msg::FrameInfo>("frameInfo", rclcpp::SystemDefaultsQoS());
-    mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentCamera", rclcpp::SystemDefaultsQoS());
-    mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frameInfo/currentColorCamera", rclcpp::SystemDefaultsQoS());
+    mFrameErrorPub = create_publisher<phoxi_camera_msgs::msg::FrameError>("frame_error", rclcpp::SystemDefaultsQoS());
+    mFrameInfoPub = create_publisher<phoxi_camera_msgs::msg::FrameInfo>("frame_info", rclcpp::SystemDefaultsQoS());
+    mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frame_info/current_camera", rclcpp::SystemDefaultsQoS());
+    mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frame_info/current_color_camera", rclcpp::SystemDefaultsQoS());
     mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS());
     mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS());
     mNormalMapPub = create_publisher<sensor_msgs::msg::Image>("normals", rclcpp::SystemDefaultsQoS());
@@ -149,8 +149,10 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
     mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>("texture", rclcpp::SystemDefaultsQoS());
     mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>("color_camera_image", rclcpp::SystemDefaultsQoS());
 
-    mConnectService = create_service<phoxi_camera_msgs::srv::Connect>("~/connect", std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mDisconnectService = create_service<std_srvs::srv::Trigger>("~/disconnect", std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mConnectService = create_service<phoxi_camera_msgs::srv::Connect>(
+        "~/connect", std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mDisconnectService = create_service<std_srvs::srv::Trigger>(
+        "~/disconnect", std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
     mTriggerFrameService = create_service<phoxi_camera_msgs::srv::TriggerFrame>(
             "~/trigger_frame", std::bind(&PhoXiCamera::triggerFrameCallback, this, std::placeholders::_1, std::placeholders::_2));
     mGetProfileListService = create_service<phoxi_camera_msgs::srv::GetProfileList>(
@@ -173,8 +175,8 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
             "~/profiles/export", std::bind(&PhoXiCamera::exportProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     mImportProfileService = create_service<phoxi_camera_msgs::srv::ImportProfile>(
             "~/profiles/import", std::bind(&PhoXiCamera::importProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
-    mResetActiveProfileService =
-            create_service<std_srvs::srv::Trigger>("~/profiles/reset", std::bind(&PhoXiCamera::resetActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
+    mResetActiveProfileService = create_service<std_srvs::srv::Trigger>(
+        "~/profiles/reset", std::bind(&PhoXiCamera::resetActiveProfileCallback, this, std::placeholders::_1, std::placeholders::_2));
     RCLCPP_INFO(get_logger(), "Configuration complete. Connected to device: %s", mDeviceId.c_str());
     return CallbackReturn::SUCCESS;
 }

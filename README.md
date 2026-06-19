@@ -97,10 +97,10 @@ ros2 topic echo /phoxi_camera/frameInfo
 
 ```bash
 # Read a setting
-ros2 param get /phoxi_camera deviceSettings.CapturingSettings.LaserPower
+ros2 param get /phoxi_camera device_settings.CapturingSettings.LaserPower
 
 # Write a setting — applied to the device immediately
-ros2 param set /phoxi_camera deviceSettings.CapturingSettings.LaserPower 1024
+ros2 param set /phoxi_camera device_settings.CapturingSettings.LaserPower 1024
 ```
 
 ---
@@ -113,7 +113,7 @@ ros2 param set /phoxi_camera deviceSettings.CapturingSettings.LaserPower 1024
 
 ```
 [unconfigured]
-      │  configure  → connects to device, declares deviceSettings.* / deviceInfo.* parameters
+      │  configure  → connects to device, declares device_settings.* / device_info.* parameters
       ▼
 [inactive]
       │  activate   → starts acquisition, activates all publishers
@@ -162,13 +162,13 @@ Available components are discovered from the connected device — typical compon
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `frameSettings.PointCloud` | bool | Enable the point cloud component. |
-| `frameSettings.NormalMap` | bool | Enable per-pixel surface normals. |
-| `frameSettings.DepthMap` | bool | Enable the depth map. |
-| `frameSettings.Texture` | bool | Enable the grayscale texture. |
-| `frameSettings.ConfidenceMap` | bool | Enable the confidence map. |
-| `frameSettings.ColorCameraImage` | bool | Enable the color camera image (color cameras only). |
-| `frameSettings.EventMap` | bool | Enable the event map (MotionCam only). |
+| `frame_settings.PointCloud` | bool | Enable the point cloud component. |
+| `frame_settings.NormalMap` | bool | Enable per-pixel surface normals. |
+| `frame_settings.DepthMap` | bool | Enable the depth map. |
+| `frame_settings.Texture` | bool | Enable the grayscale texture. |
+| `frame_settings.ConfidenceMap` | bool | Enable the confidence map. |
+| `frame_settings.ColorCameraImage` | bool | Enable the color camera image (color cameras only). |
+| `frame_settings.EventMap` | bool | Enable the event map (MotionCam only). |
 
 Values supplied via launch file or parameter overrides before `configure` are compared against the device defaults and applied as overrides during configure. Post-configure writes are forwarded immediately.
 
@@ -176,14 +176,19 @@ Values supplied via launch file or parameter overrides before `configure` are co
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `deviceSettings.*` | various | Device settings. Applied to the device on every write. Parameters marked read-only by the device reject changes. |
-| `deviceInfo.*` | various | Device identity information (name, type, IP address, firmware version, etc.). Read-only. |
+| `device_settings.*` | various | Device settings. Applied to the device on every write. Parameters marked read-only by the device reject changes. |
 
 To list all declared device settings after configure:
 
 ```bash
-ros2 param list /phoxi_camera | grep deviceSettings
+ros2 param list /phoxi_camera | grep device_settings
 ```
+
+**Device info** (declared during `configure` from the connected device; read-only):
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `device_info.*` | various | Device identity information (name, type, IP address, firmware version, etc.). |
 
 ### Published Topics
 
@@ -193,10 +198,10 @@ Topics are only active in the **active** state.
 
 | Topic | Type | Description |
 |-------|------|-------------|
-| `frameError` | `phoxi_camera_msgs/FrameError` | Published when a scan fails; contains device error codes. |
-| `frameInfo` | `phoxi_camera_msgs/FrameInfo` | Per-frame metadata: timing, sensor pose, PTP sync, temperatures. |
-| `frameInfo/currentCamera` | `sensor_msgs/CameraInfo` | Primary camera intrinsics. |
-| `frameInfo/currentColorCamera` | `sensor_msgs/CameraInfo` | Color camera intrinsics. |
+| `frame_error` | `phoxi_camera_msgs/FrameError` | Published when a scan fails; contains device error codes. |
+| `frame_info` | `phoxi_camera_msgs/FrameInfo` | Per-frame metadata: timing, sensor pose, PTP sync, temperatures. |
+| `frame_info/current_camera` | `sensor_msgs/CameraInfo` | Primary camera intrinsics. |
+| `frame_info/current_color_camera` | `sensor_msgs/CameraInfo` | Color camera intrinsics. |
 
 **When `publish_combined` is `false` (default):**
 
@@ -219,7 +224,7 @@ Topics are only active in the **active** state.
 
 ### Services
 
-**Available in all lifecycle states:**
+**Device control** (available in all lifecycle states):
 
 | Service | Type | Description |
 |---------|------|-------------|
@@ -228,19 +233,24 @@ Topics are only active in the **active** state.
 | `~/factory_reset` | `std_srvs/Trigger` | Restore factory defaults. |
 | `~/log_download` | `phoxi_camera_msgs/LogDownload` | Download device logs to a file. |
 
-**Available after `configure`:**
+**Frame control** (available in active state):
 
 | Service | Type | Description |
 |---------|------|-------------|
-| `~/trigger_frame` | `phoxi_camera_msgs/TriggerFrame` | Manually trigger a scan (active state only). |
+| `~/trigger_frame` | `phoxi_camera_msgs/TriggerFrame` | Manually trigger a scan. |
+
+**Profile management** (available after `configure`):
+
+| Service | Type | Description |
+|---------|------|-------------|
 | `~/profiles/list` | `phoxi_camera_msgs/GetProfileList` | List saved profiles. |
 | `~/profiles/get_active` | `phoxi_camera_msgs/GetActiveProfile` | Get the name of the active profile. |
 | `~/profiles/set_active` | `phoxi_camera_msgs/SetActiveProfile` | Switch to a profile by name. |
-| `~/profiles/create` | `phoxi_camera_msgs/CreateProfile` | Save current settings as a new profile. |
-| `~/profiles/delete` | `phoxi_camera_msgs/DeleteProfile` | Delete a profile by name. |
-| `~/profiles/update` | `phoxi_camera_msgs/UpdateProfile` | Overwrite a profile with current settings. |
 | `~/profiles/get_startup` | `phoxi_camera_msgs/GetStartupProfile` | Get the startup profile name. |
 | `~/profiles/set_startup` | `phoxi_camera_msgs/SetStartupProfile` | Set the startup profile. |
+| `~/profiles/create` | `phoxi_camera_msgs/CreateProfile` | Save current settings as a new profile. |
+| `~/profiles/update` | `phoxi_camera_msgs/UpdateProfile` | Overwrite a profile with current settings. |
+| `~/profiles/delete` | `phoxi_camera_msgs/DeleteProfile` | Delete a profile by name. |
 | `~/profiles/export` | `phoxi_camera_msgs/ExportProfile` | Export the active profile as binary. |
 | `~/profiles/import` | `phoxi_camera_msgs/ImportProfile` | Import a profile from binary. |
 | `~/profiles/reset` | `std_srvs/Trigger` | Reset the active profile to factory defaults. |
@@ -344,7 +354,7 @@ The `phoxi_camera_example` package contains three self-contained examples with r
 | Example | Launch file | Description |
 |---------|-------------|-------------|
 | Simple Node | `run_simple_node_example.launch.py` | Configure → activate → trigger → receive → cleanup. |
-| Settings | `run_settings_example.launch.py` | Configure `frameSettings.*` / `deviceSettings.*` overrides and change a live setting. |
+| Settings | `run_settings_example.launch.py` | Configure `frame_settings.*` / `device_settings.*` overrides and change a live setting. |
 | Composition | `run_composition_example.launch.py` | Composable node container with zero-copy intra-process communication. |
 
 For full instructions see the **[Examples README](./phoxi_camera_example/README.md)**.

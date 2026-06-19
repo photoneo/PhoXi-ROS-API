@@ -30,7 +30,7 @@ TEST_F(DeviceSettingsParamsTest, EmptySchema_NoDeviceSettingsParams) {
 
     ASSERT_TRUE(configure());
 
-    EXPECT_THROW(lcNode->get_parameter("deviceSettings.anything"),
+    EXPECT_THROW(lcNode->get_parameter("device_settings.anything"),
         rclcpp::exceptions::ParameterNotDeclaredException);
 
     ASSERT_TRUE(cleanup());
@@ -53,9 +53,9 @@ TEST_F(DeviceSettingsParamsTest, SchemaWithMultipleTypes_AllParamsDeclaredCorrec
 
     ASSERT_TRUE(configure());
 
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter("deviceSettings.gain").as_double(), 2.5);
-    EXPECT_EQ(lcNode->get_parameter("deviceSettings.mode").as_string(), "auto");
-    EXPECT_EQ(lcNode->get_parameter("deviceSettings.enabled").as_bool(), false);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter("device_settings.gain").as_double(), 2.5);
+    EXPECT_EQ(lcNode->get_parameter("device_settings.mode").as_string(), "auto");
+    EXPECT_EQ(lcNode->get_parameter("device_settings.enabled").as_bool(), false);
 
     ASSERT_TRUE(cleanup());
 }
@@ -64,7 +64,7 @@ TEST_F(DeviceSettingsParamsTest, Configure_WithOverride_WhileConnected_CalledExa
     // isConnected()=true simulates real post-connect state. Without the mDeclaringDeviceSettings
     // guard, each declare_parameter fires onParametersChanged → setSettings, so with two
     // declared params and one override the call count would be 3 instead of 1.
-    // The override must be supplied via NodeOptions because deviceSettings.* are not declared
+    // The override must be supplied via NodeOptions because device_settings.* are not declared
     // until configure — set_parameter would throw before that.
     std::vector<SettingInfo> schema = {
         {"gain", SettingValueType::DOUBLE, true},
@@ -81,7 +81,7 @@ TEST_F(DeviceSettingsParamsTest, Configure_WithOverride_WhileConnected_CalledExa
     lcNode.reset();
 
     rclcpp::NodeOptions options;
-    options.parameter_overrides({rclcpp::Parameter("deviceSettings.gain", 9.0)});
+    options.parameter_overrides({rclcpp::Parameter("device_settings.gain", 9.0)});
     auto node2 = std::make_shared<TestableNode>(mDeviceId, options, std::make_unique<MockPhoXiInterface>());
     MockPhoXiInterface* mock2 = node2->getMock();
     testing::Mock::AllowLeak(mock2);
@@ -121,7 +121,7 @@ TEST_F(DeviceSettingsParamsTest, YamlOverride_AppliedToDeviceViaSetSettings) {
     lcNode.reset();
 
     rclcpp::NodeOptions options;
-    options.parameter_overrides({rclcpp::Parameter("deviceSettings.gain", 5.0)});
+    options.parameter_overrides({rclcpp::Parameter("device_settings.gain", 5.0)});
     auto node2 = std::make_shared<TestableNode>(mDeviceId, options, std::make_unique<MockPhoXiInterface>());
     MockPhoXiInterface* mock2 = node2->getMock();
     testing::Mock::AllowLeak(mock2);
@@ -169,7 +169,7 @@ TEST_F(DeviceSettingsParamsTest, NoYamlOverride_SetSettingsNotCalled) {
 
     ASSERT_TRUE(configure());
 
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter("deviceSettings.gain").as_double(), 2.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter("device_settings.gain").as_double(), 2.0);
 
     ASSERT_TRUE(cleanup());
 }
@@ -196,7 +196,7 @@ TEST_F(DeviceSettingsParamsTest, SetSettingsThrowsDuringYamlOverride_ConfigureFa
     lcNode.reset();
 
     rclcpp::NodeOptions options;
-    options.parameter_overrides({rclcpp::Parameter("deviceSettings.gain", 9.0)});
+    options.parameter_overrides({rclcpp::Parameter("device_settings.gain", 9.0)});
     auto node2 = std::make_shared<TestableNode>(mDeviceId, options, std::make_unique<MockPhoXiInterface>());
     MockPhoXiInterface* mock2 = node2->getMock();
     testing::Mock::AllowLeak(mock2);
@@ -241,7 +241,7 @@ TEST_F(DeviceSettingsParamsTest, RuntimeParamChange_DeviceError_ReturnsFailure) 
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
     EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce(Throw(PhoXiInterfaceException("device busy")));
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key, 3.0));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key, 3.0));
     EXPECT_FALSE(result.successful);
 
     ASSERT_TRUE(cleanup());
@@ -255,7 +255,7 @@ TEST_F(DeviceSettingsParamsTest, UnknownDeviceSettingsParam_Rejected) {
 
     EXPECT_CALL(*mockInterface, isConnected()).WillRepeatedly(Return(true));
 
-    EXPECT_THROW(lcNode->set_parameter(rclcpp::Parameter("deviceSettings.nonExistent", 42.0)),
+    EXPECT_THROW(lcNode->set_parameter(rclcpp::Parameter("device_settings.nonExistent", 42.0)),
                  rclcpp::exceptions::ParameterNotDeclaredException);
 
     ASSERT_TRUE(cleanup());
@@ -289,8 +289,8 @@ TEST_F(DeviceSettingsParamsTest, KeyMissingFromGetSettingsResponse_ParamNotDecla
 
     ASSERT_TRUE(configure());
 
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter("deviceSettings.gain").as_double(), 3.0);
-    EXPECT_THROW(lcNode->get_parameter("deviceSettings.mode"), rclcpp::exceptions::ParameterNotDeclaredException);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter("device_settings.gain").as_double(), 3.0);
+    EXPECT_THROW(lcNode->get_parameter("device_settings.mode"), rclcpp::exceptions::ParameterNotDeclaredException);
 
     ASSERT_TRUE(cleanup());
 }
@@ -311,7 +311,7 @@ TEST_F(DeviceSettingsParamsTest, AfterFailedConfigure_SuccessfulReconfigurePossi
     EXPECT_CALL(*mockInterface, getSettings(_)).WillRepeatedly(Return(deviceVals));
     ASSERT_TRUE(changeLcState(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE));
 
-    EXPECT_DOUBLE_EQ(lcNode->get_parameter("deviceSettings.gain").as_double(), 1.0);
+    EXPECT_DOUBLE_EQ(lcNode->get_parameter("device_settings.gain").as_double(), 1.0);
 
     ASSERT_TRUE(cleanup());
 }
@@ -334,7 +334,7 @@ TEST_F(DeviceSettingsParamsTest, ObjectTypeParamChange_WhenConnected_GetSettingC
     SettingKeyValueList captured;
     EXPECT_CALL(*mockInterface, setSettings(_)).WillOnce([&captured](const SettingKeyValueList& kv) { captured = kv; });
 
-    auto result = lcNode->set_parameter(rclcpp::Parameter("deviceSettings." + key + ".height", int64_t{1200}));
+    auto result = lcNode->set_parameter(rclcpp::Parameter("device_settings." + key + ".height", int64_t{1200}));
     EXPECT_TRUE(result.successful);
 
     ASSERT_EQ(captured.size(), 1u);

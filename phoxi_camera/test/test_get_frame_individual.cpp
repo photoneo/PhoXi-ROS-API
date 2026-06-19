@@ -50,21 +50,21 @@ protected:
     static void SetUpTestSuite() {
         rclcpp::NodeOptions options;
         options.append_parameter_override("device_id", deviceId());
-        options.append_parameter_override("frameSettings.PointCloud", true);
-        options.append_parameter_override("frameSettings.DepthMap", true);
-        options.append_parameter_override("frameSettings.Texture", true);
-        options.append_parameter_override("frameSettings.ColorCameraImage", true);
+        options.append_parameter_override("frame_settings.PointCloud", true);
+        options.append_parameter_override("frame_settings.DepthMap", true);
+        options.append_parameter_override("frame_settings.Texture", true);
+        options.append_parameter_override("frame_settings.ColorCameraImage", true);
         suiteSetUp(options);
 
-        const std::string opModeParam = "deviceSettings.CapturingSettings.OperationMode";
+        const std::string opModeParam = "device_settings.CapturingSettings.OperationMode";
         if (sLcNode->has_parameter(opModeParam)) {
             sCameraType = CameraType::MOTIONCAM;
             auto result = sLcNode->set_parameter(rclcpp::Parameter(opModeParam, "Camera"));
             ASSERT_TRUE(result.successful)
                 << "Failed to set MotionCam Camera mode: " << result.reason;
         }
-        // frameSettings.ColorCameraImage is only declared for cameras with a color camera.
-        sIsColorDevice = sLcNode->has_parameter("frameSettings.ColorCameraImage");
+        // frame_settings.ColorCameraImage is only declared for cameras with a color camera.
+        sIsColorDevice = sLcNode->has_parameter("frame_settings.ColorCameraImage");
     }
 
     static void TearDownTestSuite() {
@@ -73,8 +73,8 @@ protected:
 
     std::string textureSourceParam() const {
         return (sCameraType == CameraType::MOTIONCAM)
-            ? "deviceSettings.CameraMode.TextureSource"
-            : "deviceSettings.CapturingSettings.TextureSource";
+            ? "device_settings.CameraMode.TextureSource"
+            : "device_settings.CapturingSettings.TextureSource";
     }
 
     bool setTextureSource(const std::string& value) {
@@ -156,13 +156,13 @@ protected:
         mTextureSub.subscribe(mClientNode, "/texture", qos);
         mColorCameraSub.subscribe(mClientNode, "/color_camera_image", qos);
         mFrameInfoSub = mClientNode->create_subscription<FI>(
-            "/frameInfo", qos,
+            "/frame_info", qos,
             [this](FI::ConstSharedPtr msg) { mLatestFrameInfo = msg; });
         mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>(
-            "/frameInfo/currentCamera", qos,
+            "/frame_info/current_camera", qos,
             [this](CI::ConstSharedPtr msg) { mLatestPrimaryCameraInfo = msg; });
         mColorCameraInfoSub = mClientNode->create_subscription<CI>(
-            "/frameInfo/currentColorCamera", qos,
+            "/frame_info/current_color_camera", qos,
             [this](CI::ConstSharedPtr msg) { mLatestColorCameraInfo = msg; });
     }
 

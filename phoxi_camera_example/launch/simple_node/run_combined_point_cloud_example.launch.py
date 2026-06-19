@@ -1,3 +1,30 @@
+"""
+run_combined_point_cloud_example.launch.py
+
+Demonstrates phoxi_camera in combined-point-cloud mode (publish_combined=true).
+
+In this mode the driver publishes a single dense PointCloud2 on the
+"point_cloud" topic that carries all enabled fields (XYZ + normals + texture +
+confidence + depth) in one message.  Individual per-field topics are not
+published in this mode.
+
+Starts three nodes alongside the driver:
+  - combined_point_cloud_service_caller  — drives the lifecycle, triggers one
+                                           frame, exits.
+  - combined_point_cloud_topic_listener  — subscribes to "point_cloud" and logs
+                                           the first received message.
+  - rviz2                                — opens a pre-configured view.
+
+The launch file shuts everything down automatically when rviz2 exits.
+
+Usage
+-----
+  ros2 launch phoxi_camera_example run_combined_point_cloud_example.launch.py [sensor_sn:=<sn>]
+
+With the default sensor_sn (InstalledExamples-basic-example) the example runs
+against a file camera bundled with PhoXi Control — no hardware required.
+"""
+
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -28,11 +55,11 @@ def generate_launch_description():
         parameters=[{
             'device_id':        LaunchConfiguration('sensor_sn'),
             'publish_combined': True,
-            'frameSettings.PointCloud':    True,
-            'frameSettings.NormalMap':     True,
-            'frameSettings.DepthMap':      True,
-            'frameSettings.Texture':       True,
-            'frameSettings.ConfidenceMap': True,
+            'frame_settings.PointCloud':    True,
+            'frame_settings.NormalMap':     True,
+            'frame_settings.DepthMap':      True,
+            'frame_settings.Texture':       True,
+            'frame_settings.ConfidenceMap': True,
         }]
     )
 
