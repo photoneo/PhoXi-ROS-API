@@ -527,6 +527,8 @@ void PhoXiCamera::declareDeviceInfoParameters() {
     declare("type", static_cast<std::string>(info.type));
     declare("deviceId", info.hwIdentification);
     declare("ipAddress", info.ipAddress);
+    declare("ipv6Address", info.ipv6Address);
+    declare("hostname", info.hostname);
     declare("status", connectionStatusToString(info.status));
     declare("firmwareVersion", info.firmwareVersion);
     declare("variant", info.variant);

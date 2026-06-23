@@ -20,6 +20,8 @@ PhoXiDeviceInformation makeDeviceInfo() {
     info.type = "PhoXi3DScan";
     info.hwIdentification = "SN-12345";
     info.ipAddress = "192.168.1.100";
+    info.ipv6Address = "fe80::1";
+    info.hostname = "phoxi-scanner.local";
     info.status = PhoXiDeviceInformation::Ready;
     info.firmwareVersion = "1.2.3";
     info.variant = "M";
@@ -45,6 +47,8 @@ TEST_F(DeviceInfoParamsTest, AllFields_DeclaredWithCorrectValues) {
     EXPECT_EQ(lcNode->get_parameter("device_info.type").as_string(), "PhoXi3DScan");
     EXPECT_EQ(lcNode->get_parameter("device_info.deviceId").as_string(), "SN-12345");
     EXPECT_EQ(lcNode->get_parameter("device_info.ipAddress").as_string(), "192.168.1.100");
+    EXPECT_EQ(lcNode->get_parameter("device_info.ipv6Address").as_string(), "fe80::1");
+    EXPECT_EQ(lcNode->get_parameter("device_info.hostname").as_string(), "phoxi-scanner.local");
     EXPECT_EQ(lcNode->get_parameter("device_info.status").as_string(), "Ready");
     EXPECT_EQ(lcNode->get_parameter("device_info.firmwareVersion").as_string(), "1.2.3");
     EXPECT_EQ(lcNode->get_parameter("device_info.variant").as_string(), "M");
@@ -65,6 +69,8 @@ TEST_F(DeviceInfoParamsTest, AllFields_AreReadOnly) {
     EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.type", "other")).successful);
     EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.deviceId", "other")).successful);
     EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.ipAddress", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.ipv6Address", "other")).successful);
+    EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.hostname", "other")).successful);
     EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.status", "other")).successful);
     EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.firmwareVersion", "other")).successful);
     EXPECT_FALSE(lcNode->set_parameter(rclcpp::Parameter("device_info.variant", "other")).successful);

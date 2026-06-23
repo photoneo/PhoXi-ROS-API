@@ -188,7 +188,7 @@ ros2 param list /phoxi_camera | grep device_settings
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `device_info.*` | various | Device identity information (name, type, IP address, firmware version, etc.). |
+| `device_info.*` | various | Device identity information (name, type, IPv4/IPv6 address, hostname, firmware version, etc.). |
 
 ### Published Topics
 

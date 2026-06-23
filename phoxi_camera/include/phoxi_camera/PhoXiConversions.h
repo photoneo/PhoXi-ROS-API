@@ -24,9 +24,8 @@ inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformatio
     phoXiCameraDeviceInformation.type = phoXiDeviceInformation.Type;
     phoXiCameraDeviceInformation.hwIdentification = phoXiDeviceInformation.HWIdentification;
     phoXiCameraDeviceInformation.ipAddress = phoXiDeviceInformation.IPv4;
-    if (phoXiCameraDeviceInformation.ipAddress.empty()) {
-        phoXiCameraDeviceInformation.ipAddress = "unknown";
-    }
+    phoXiCameraDeviceInformation.ipv6Address = phoXiDeviceInformation.IPv6;
+    phoXiCameraDeviceInformation.hostname = phoXiDeviceInformation.Hostname;
     if (phoXiDeviceInformation.Status.Ready) {
         if (phoXiDeviceInformation.Status.Attached) {
             phoXiCameraDeviceInformation.status = phoxi_camera::PhoXiDeviceInformation::PhoXiConnectionStatus::Connected;
@@ -43,7 +42,9 @@ inline void toPhoXiCameraDeviceInformation(const pho::api::PhoXiDeviceInformatio
 
     phoXiCameraDeviceInformation.isFileCam = phoXiDeviceInformation.IsFileCamera;
     if (phoXiCameraDeviceInformation.isFileCam) {
-        phoXiCameraDeviceInformation.ipAddress = "N/A (FileCam)";
+        phoXiCameraDeviceInformation.ipAddress = "N/A";
+        phoXiCameraDeviceInformation.ipv6Address = "N/A";
+        phoXiCameraDeviceInformation.hostname = "N/A";
     }
     phoXiCameraDeviceInformation.firmwareVersion = phoXiDeviceInformation.FirmwareVersion;
     phoXiCameraDeviceInformation.variant = phoXiDeviceInformation.Variant;

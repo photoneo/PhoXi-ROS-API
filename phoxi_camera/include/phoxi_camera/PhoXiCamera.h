@@ -27,7 +27,7 @@
  * Device settings (declared during `configure` from the device schema):
  * - `device_settings.*` (various types): Device-setting parameters. Applied to the device on every write.
  *   Parameters flagged as read-only by the device reject writes.
- * - `device_info.*` (various types): Device identity information (name, type, IP address, firmware version, etc.).
+ * - `device_info.*` (various types): Device identity information (name, type, IPv4/IPv6 address, hostname, firmware version, etc.).
  *   Read-only.
  *
  * **Published topics (active state only)**

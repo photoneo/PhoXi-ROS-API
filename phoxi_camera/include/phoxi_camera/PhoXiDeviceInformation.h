@@ -40,7 +40,9 @@ public:
     std::string name;                ///< Human-readable device name.
     pho::api::PhoXiDeviceType type;  ///< API device-type enum (scanner model family).
     std::string hwIdentification;    ///< Unique hardware serial / identification string.
-    std::string ipAddress;           ///< IPv4 address, or `"N/A (FileCam)"` for file cameras.
+    std::string ipAddress;           ///< IPv4 address or `"N/A"` for file cameras.
+    std::string ipv6Address;         ///< IPv6 address or `"N/A"` for file cameras.
+    std::string hostname;            ///< Network hostname or `"N/A"` for file cameras.
     PhoXiConnectionStatus status;    ///< Current reachability and ownership state.
     std::string firmwareVersion;     ///< Firmware version string reported by the device.
     std::string variant;             ///< Device variant string (e.g. hardware configuration tier).
