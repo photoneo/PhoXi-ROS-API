@@ -179,9 +179,15 @@ public:
     /**
      * Trigger new Image
      *
-     * \return positive id on success, negative number on failure
-     * (-1 Trigger not accepted, -2 Device is not running, -3 Communication Error,
-     *  -4 WaitForGrabbingEnd is not supported)
+     * \return positive id on success, negative number on failure:
+     *   - -1 Trigger not accepted
+     *   - -2 Device is not running
+     *   - -3 Communication error
+     *   - -4 WaitForGrabbingEnd is not supported
+     *   - -5 Timeout
+     *   - -6 Device is not connected
+     *   - -7 Device is not acquiring
+     *   - -100 and below: internal error
      */
     int triggerImage(bool waitForGrab = false);
 
