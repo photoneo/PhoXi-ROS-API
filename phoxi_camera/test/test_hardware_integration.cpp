@@ -29,7 +29,7 @@ TEST_F(HardwareIntegrationTest, FullLifecycleAndData) {
     bool frameErrorReceived = false;
     sensor_msgs::msg::PointCloud2::SharedPtr receivedMsg;
 
-    auto pcSub = mClientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/point_cloud", 1, [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    auto pcSub = mClientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/phoxi_camera/point_cloud", 1, [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
         pointCloudReceived = true;
         receivedMsg = msg;
     });

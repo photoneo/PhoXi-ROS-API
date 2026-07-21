@@ -21,10 +21,10 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options) : rcl
     sub_opts.callback_group = cb_group_sub_;
 
     point_cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/point_cloud", rclcpp::SystemDefaultsQoS(), std::bind(&CompositionExample::on_point_cloud, this, std::placeholders::_1), sub_opts);
+            "/phoxi_camera/point_cloud", rclcpp::SystemDefaultsQoS(), std::bind(&CompositionExample::on_point_cloud, this, std::placeholders::_1), sub_opts);
 
     color_camera_image_sub_ = create_subscription<sensor_msgs::msg::Image>(
-            "/color_camera_image", rclcpp::SystemDefaultsQoS(), std::bind(&CompositionExample::on_color_camera_image, this, std::placeholders::_1), sub_opts);
+            "/phoxi_camera/color_camera_image", rclcpp::SystemDefaultsQoS(), std::bind(&CompositionExample::on_color_camera_image, this, std::placeholders::_1), sub_opts);
 
 #if defined(RCLCPP_VERSION_MAJOR) && (RCLCPP_VERSION_MAJOR < 21)
     const auto service_qos = rclcpp::ServicesQoS().get_rmw_qos_profile();

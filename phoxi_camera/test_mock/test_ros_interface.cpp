@@ -236,7 +236,7 @@ TEST_F(RosInterfaceTest, ColorCameraImagePublished) {
     PhoXiFrame frame;
     frame.colorCamera = &colorRec;
 
-    auto received = injectAndReceive<sensor_msgs::msg::Image>(capturedCb, "color_camera_image", frame);
+    auto received = injectAndReceive<sensor_msgs::msg::Image>(capturedCb, "/phoxi_camera/color_camera_image", frame);
     ASSERT_NE(received, nullptr);
     EXPECT_EQ(received->encoding, "rgb8");
     EXPECT_EQ(received->width, 2u);
@@ -274,7 +274,7 @@ TEST_F(RosInterfaceTest, PointCloudPublished) {
     frame.confidenceMap = &confRec;
     frame.depthMap = &depRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frameCb, "point_cloud", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frameCb, "/phoxi_camera/point_cloud", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1u);
     EXPECT_EQ(msg->height, 1u);
@@ -324,7 +324,7 @@ TEST_F(RosInterfaceTest, PointsPublished) {
     PhoXiFrame frame;
     frame.pointCloud = &pcRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frameCb, "points", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::PointCloud2>(frameCb, "/phoxi_camera/points", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1u);
     EXPECT_EQ(msg->height, 1u);
@@ -344,7 +344,7 @@ TEST_F(RosInterfaceTest, PointsNotPublishedWhenPointCloudEmpty) {
     ASSERT_TRUE(frameCb);
 
     bool received = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/phoxi_camera/points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
         received = true;
     });
 
@@ -365,7 +365,7 @@ TEST_F(RosInterfaceTest, PointCloudNotPublishedWhenNotCombined) {
     frame.pointCloud = &pcRec;
 
     bool received = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/phoxi_camera/point_cloud", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
         received = true;
     });
 
@@ -387,7 +387,7 @@ TEST_F(RosInterfaceTest, IndividualTopicsNotPublishedWhenCombined) {
     frame.pointCloud = &pcRec;
 
     bool received = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/phoxi_camera/points", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::PointCloud2::SharedPtr) {
         received = true;
     });
 
@@ -407,7 +407,7 @@ TEST_F(RosInterfaceTest, NormalMapPublished) {
     PhoXiFrame frame;
     frame.normalMap = &nmRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "normals", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "/phoxi_camera/normals", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC3");
     EXPECT_EQ(msg->width, 1u);
@@ -432,7 +432,7 @@ TEST_F(RosInterfaceTest, DepthMapPublished) {
     PhoXiFrame frame;
     frame.depthMap = &depRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "depth", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "/phoxi_camera/depth", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
     EXPECT_EQ(msg->width, 1u);
@@ -453,7 +453,7 @@ TEST_F(RosInterfaceTest, ConfidenceMapPublished) {
     PhoXiFrame frame;
     frame.confidenceMap = &confRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "confidence", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "/phoxi_camera/confidence", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -471,7 +471,7 @@ TEST_F(RosInterfaceTest, EventMapPublished) {
     PhoXiFrame frame;
     frame.eventMap = &evRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "event", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "/phoxi_camera/event", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -489,7 +489,7 @@ TEST_F(RosInterfaceTest, IntensityPublished) {
     PhoXiFrame frame;
     frame.texture = &texRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "intensity", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "/phoxi_camera/intensity", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "32FC1");
 
@@ -507,7 +507,7 @@ TEST_F(RosInterfaceTest, TexturePublished) {
     PhoXiFrame frame;
     frame.textureRgb = &rgbRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "texture", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::Image>(frameCb, "/phoxi_camera/texture", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->encoding, "rgb8");
     EXPECT_EQ(msg->width, 2u);
@@ -747,7 +747,7 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentCameraPublished) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_camera", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "/phoxi_camera/frame_info/current_camera", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 640u);
     EXPECT_EQ(msg->height, 480u);
@@ -771,7 +771,7 @@ TEST_F(RosInterfaceTest, FrameInfo_CurrentColorCameraPublished) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_color_camera", frame);
+    auto msg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "/phoxi_camera/frame_info/current_color_camera", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->width, 1280u);
     EXPECT_EQ(msg->height, 960u);
@@ -790,7 +790,7 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFrameInfoNull) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) {
+            "/phoxi_camera/frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) {
                 received = true;
             });
 
@@ -812,7 +812,7 @@ TEST_F(RosInterfaceTest, FrameInfo_NotPublishedWhenFieldsMissing) {
 
     bool received = false;
     auto sub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) {
+            "/phoxi_camera/frame_info/current_camera", rclcpp::SystemDefaultsQoS(), [&received](sensor_msgs::msg::CameraInfo::SharedPtr) {
                 received = true;
             });
 
@@ -842,11 +842,11 @@ TEST_F(RosInterfaceTest, FrameInfo_ColorCamera_NotPublishedWhenAbsentFromJson) {
 
     bool colorReceived = false;
     auto colorSub = clientNode->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(), [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) {
+            "/phoxi_camera/frame_info/current_color_camera", rclcpp::SystemDefaultsQoS(), [&colorReceived](sensor_msgs::msg::CameraInfo::SharedPtr) {
                 colorReceived = true;
             });
 
-    auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "frame_info/current_camera", frame);
+    auto primaryMsg = injectAndReceive<sensor_msgs::msg::CameraInfo>(frameCb, "/phoxi_camera/frame_info/current_camera", frame);
 
     executor_.spin_some(std::chrono::milliseconds(100));
 
@@ -863,7 +863,7 @@ TEST_F(RosInterfaceTest, FrameInfo_FrameInfoMsgPublished) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameInfo>(frameCb, "frame_info", frame);
+    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameInfo>(frameCb, "/phoxi_camera/frame_info", frame);
     ASSERT_NE(msg, nullptr);
     EXPECT_EQ(msg->hw_id, "TEST-CAM-001");
     EXPECT_EQ(msg->index, 42);
@@ -907,7 +907,7 @@ TEST_F(RosInterfaceTest, FrameError_PublishedWhenNotSuccessful) {
     PhoXiFrame frame;
     frame.frameInfo = &infoRec;
 
-    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameError>(frameCb, "frame_error", frame);
+    auto msg = injectAndReceive<phoxi_camera_msgs::msg::FrameError>(frameCb, "/phoxi_camera/frame_error", frame);
     ASSERT_NE(msg, nullptr);
     ASSERT_EQ(msg->messages.size(), 2u);
     EXPECT_EQ(msg->messages[0].code, 11);
@@ -931,7 +931,7 @@ TEST_F(RosInterfaceTest, FrameError_PointCloudNotPublishedWhenNotSuccessful) {
     frame.frameInfo = &infoRec;
 
     bool pcReceived = false;
-    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS(), [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) {
+    auto sub = clientNode->create_subscription<sensor_msgs::msg::PointCloud2>("/phoxi_camera/point_cloud", rclcpp::SystemDefaultsQoS(), [&pcReceived](sensor_msgs::msg::PointCloud2::SharedPtr) {
         pcReceived = true;
     });
 
@@ -952,7 +952,7 @@ TEST_F(RosInterfaceTest, FrameError_NotPublishedWhenSuccessful) {
 
     bool errorReceived = false;
     auto sub = clientNode->create_subscription<phoxi_camera_msgs::msg::FrameError>(
-            "frame_error", rclcpp::SystemDefaultsQoS(), [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) {
+            "/phoxi_camera/frame_error", rclcpp::SystemDefaultsQoS(), [&errorReceived](phoxi_camera_msgs::msg::FrameError::SharedPtr) {
                 errorReceived = true;
             });
 

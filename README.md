@@ -90,7 +90,7 @@ ros2 service call /phoxi_camera/trigger_frame phoxi_camera_msgs/srv/TriggerFrame
 ros2 topic echo /phoxi_camera/points
 
 # Watch per-frame metadata
-ros2 topic echo /phoxi_camera/frameInfo
+ros2 topic echo /phoxi_camera/frame_info
 ```
 
 ### 4. Adjust device settings at runtime
@@ -102,6 +102,25 @@ ros2 param get /phoxi_camera device_settings.CapturingSettings.LaserPower
 # Write a setting — applied to the device immediately
 ros2 param set /phoxi_camera device_settings.CapturingSettings.LaserPower 1024
 ```
+
+### 5. Running Multiple Cameras
+
+Every topic and service is scoped under the node's name, so running one
+`phoxi_camera` instance per physical camera only requires giving each
+instance a unique `camera_name` (and `device_id`):
+
+```bash
+ros2 launch phoxi_camera phoxi_camera.launch.py \
+    camera_name:=camera_1 --ros-args -p device_id:='<serial-number-1>'
+
+ros2 launch phoxi_camera phoxi_camera.launch.py \
+    camera_name:=camera_2 --ros-args -p device_id:='<serial-number-2>'
+```
+
+Topics (`/camera_1/points`, `/camera_2/points`, ...), services
+(`/camera_1/trigger_frame`, `/camera_2/trigger_frame`, ...), and the default
+TF frame (`camera_1_sensor`, `camera_2_sensor`) all separate automatically —
+no manual remapping needed.
 
 ---
 
@@ -140,7 +159,7 @@ Or via the `~/change_state` service:
 
 ```bash
 ros2 service call /phoxi_camera/change_state lifecycle_msgs/srv/ChangeState \
-    '{transition: {id: 1}}'  # 1=configure, 3=activate, 4=deactivate, 6=cleanup
+    '{transition: {id: 1}}'  # 1=configure, 3=activate, 4=deactivate, 2=cleanup
 ```
 
 ### Parameters
@@ -150,8 +169,8 @@ ros2 service call /phoxi_camera/change_state lifecycle_msgs/srv/ChangeState \
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `device_id` | string | `""` | Hardware serial number or network ID of the target device. Set before `configure`. |
-| `frame_id` | string | `"phoxi_camera_sensor"` | TF frame ID stamped on all published messages. |
-| `publish_combined` | bool | `false` | `true`: publish a single `point_cloud` with all fields. `false`: publish individual topics. |
+| `frame_id` | string | `"<node_name>_sensor"` | TF frame ID stamped on all published messages. Defaults to the node's own name with `_sensor` appended (e.g. `phoxi_camera_sensor`) — override explicitly for a custom frame or to avoid relying on the node name. |
+| `publish_combined` | bool | `false` | `true`: publish a single `` `~/point_cloud` `` with all fields. `false`: publish individual topics. |
 | `trigger_mode` | string | `"Software"` | Trigger mode applied at configure and on every write. Accepted values: `"Software"`, `"Freerun"`. Writes are rejected with an error for any other value. |
 | `logout_on_exit` | bool | `true` | Log out from the device on node shutdown or cleanup. Set to `false` to keep the device connected to PhoXi Control after the node exits (useful for quick restarts). |
 | `stop_acquisition_on_exit` | bool | `true` | Stop acquisition on node shutdown or cleanup. Set to `false` to leave acquisition running in PhoXi Control after the node exits. |
@@ -198,29 +217,29 @@ Topics are only active in the **active** state.
 
 | Topic | Type | Description |
 |-------|------|-------------|
-| `frame_error` | `phoxi_camera_msgs/FrameError` | Published when a scan fails; contains device error codes. |
-| `frame_info` | `phoxi_camera_msgs/FrameInfo` | Per-frame metadata: timing, sensor pose, PTP sync, temperatures. |
-| `frame_info/current_camera` | `sensor_msgs/CameraInfo` | Primary camera intrinsics. |
-| `frame_info/current_color_camera` | `sensor_msgs/CameraInfo` | Color camera intrinsics. |
+| `~/frame_error` | `phoxi_camera_msgs/FrameError` | Published when a scan fails; contains device error codes. |
+| `~/frame_info` | `phoxi_camera_msgs/FrameInfo` | Per-frame metadata: timing, sensor pose, PTP sync, temperatures. |
+| `~/frame_info/current_camera` | `sensor_msgs/CameraInfo` | Primary camera intrinsics. |
+| `~/frame_info/current_color_camera` | `sensor_msgs/CameraInfo` | Color camera intrinsics. |
 
 **When `publish_combined` is `false` (default):**
 
 | Topic | Type | Encoding | Description |
 |-------|------|----------|-------------|
-| `points` | `sensor_msgs/PointCloud2` | XYZ float32 | Lean XYZ-only point cloud. |
-| `normals` | `sensor_msgs/Image` | 32FC3 | Per-pixel surface normal vectors. |
-| `depth` | `sensor_msgs/Image` | 32FC1 | Orthogonal distance in mm. |
-| `confidence` | `sensor_msgs/Image` | 32FC1 | Measurement confidence score. |
-| `intensity` | `sensor_msgs/Image` | 32FC1 | Grayscale texture. |
-| `texture` | `sensor_msgs/Image` | rgb8 | RGB texture. |
-| `color_camera_image` | `sensor_msgs/Image` | rgb8 | Color camera image (color cameras only). |
-| `event` | `sensor_msgs/Image` | 32FC1 | Time-of-measurement map (MotionCam only). |
+| `~/points` | `sensor_msgs/PointCloud2` | XYZ float32 | Lean XYZ-only point cloud. |
+| `~/normals` | `sensor_msgs/Image` | 32FC3 | Per-pixel surface normal vectors. |
+| `~/depth` | `sensor_msgs/Image` | 32FC1 | Orthogonal distance in mm. |
+| `~/confidence` | `sensor_msgs/Image` | 32FC1 | Measurement confidence score. |
+| `~/intensity` | `sensor_msgs/Image` | 32FC1 | Grayscale texture. |
+| `~/texture` | `sensor_msgs/Image` | rgb8 | RGB texture. |
+| `~/color_camera_image` | `sensor_msgs/Image` | rgb8 | Color camera image (color cameras only). |
+| `~/event` | `sensor_msgs/Image` | 32FC1 | Time-of-measurement map (MotionCam only). |
 
 **When `publish_combined` is `true`:**
 
 | Topic | Type | Description |
 |-------|------|-------------|
-| `point_cloud` | `sensor_msgs/PointCloud2` | XYZ + normals + color/intensity + confidence + depth + event in a single message. |
+| `~/point_cloud` | `sensor_msgs/PointCloud2` | XYZ + normals + color/intensity + confidence + depth + event in a single message. |
 
 ### Services
 

@@ -135,19 +135,19 @@ CallbackReturn PhoXiCamera::on_configure(const rclcpp_lifecycle::State& /*previo
         return CallbackReturn::FAILURE;
     }
 
-    mFrameErrorPub = create_publisher<phoxi_camera_msgs::msg::FrameError>("frame_error", rclcpp::SystemDefaultsQoS());
-    mFrameInfoPub = create_publisher<phoxi_camera_msgs::msg::FrameInfo>("frame_info", rclcpp::SystemDefaultsQoS());
-    mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frame_info/current_camera", rclcpp::SystemDefaultsQoS());
-    mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("frame_info/current_color_camera", rclcpp::SystemDefaultsQoS());
-    mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>("point_cloud", rclcpp::SystemDefaultsQoS());
-    mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>("points", rclcpp::SystemDefaultsQoS());
-    mNormalMapPub = create_publisher<sensor_msgs::msg::Image>("normals", rclcpp::SystemDefaultsQoS());
-    mDepthMapPub = create_publisher<sensor_msgs::msg::Image>("depth", rclcpp::SystemDefaultsQoS());
-    mConfidenceMapPub = create_publisher<sensor_msgs::msg::Image>("confidence", rclcpp::SystemDefaultsQoS());
-    mEventMapPub = create_publisher<sensor_msgs::msg::Image>("event", rclcpp::SystemDefaultsQoS());
-    mTexturePub = create_publisher<sensor_msgs::msg::Image>("intensity", rclcpp::SystemDefaultsQoS());
-    mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>("texture", rclcpp::SystemDefaultsQoS());
-    mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>("color_camera_image", rclcpp::SystemDefaultsQoS());
+    mFrameErrorPub = create_publisher<phoxi_camera_msgs::msg::FrameError>("~/frame_error", rclcpp::SystemDefaultsQoS());
+    mFrameInfoPub = create_publisher<phoxi_camera_msgs::msg::FrameInfo>("~/frame_info", rclcpp::SystemDefaultsQoS());
+    mPrimaryCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("~/frame_info/current_camera", rclcpp::SystemDefaultsQoS());
+    mColorCameraInfoPub = create_publisher<sensor_msgs::msg::CameraInfo>("~/frame_info/current_color_camera", rclcpp::SystemDefaultsQoS());
+    mPointCloudPub = create_publisher<sensor_msgs::msg::PointCloud2>("~/point_cloud", rclcpp::SystemDefaultsQoS());
+    mPointsPub = create_publisher<sensor_msgs::msg::PointCloud2>("~/points", rclcpp::SystemDefaultsQoS());
+    mNormalMapPub = create_publisher<sensor_msgs::msg::Image>("~/normals", rclcpp::SystemDefaultsQoS());
+    mDepthMapPub = create_publisher<sensor_msgs::msg::Image>("~/depth", rclcpp::SystemDefaultsQoS());
+    mConfidenceMapPub = create_publisher<sensor_msgs::msg::Image>("~/confidence", rclcpp::SystemDefaultsQoS());
+    mEventMapPub = create_publisher<sensor_msgs::msg::Image>("~/event", rclcpp::SystemDefaultsQoS());
+    mTexturePub = create_publisher<sensor_msgs::msg::Image>("~/intensity", rclcpp::SystemDefaultsQoS());
+    mTextureRgbPub = create_publisher<sensor_msgs::msg::Image>("~/texture", rclcpp::SystemDefaultsQoS());
+    mColorCameraImagePub = create_publisher<sensor_msgs::msg::Image>("~/color_camera_image", rclcpp::SystemDefaultsQoS());
 
     mConnectService = create_service<phoxi_camera_msgs::srv::Connect>("~/connect", std::bind(&PhoXiCamera::connectCallback, this, std::placeholders::_1, std::placeholders::_2));
     mDisconnectService = create_service<std_srvs::srv::Trigger>("~/disconnect", std::bind(&PhoXiCamera::disconnectCallback, this, std::placeholders::_1, std::placeholders::_2));
@@ -259,7 +259,7 @@ void PhoXiCamera::drainFrameCallback() {
 
 void PhoXiCamera::declareParameters() {
     declare_parameter<std::string>("device_id", mDeviceId);
-    declare_parameter<std::string>("frame_id", "phoxi_camera_sensor");
+    declare_parameter<std::string>("frame_id", std::string(get_name()) + "_sensor");
     declare_parameter<bool>("publish_combined", false);
     declare_parameter<std::string>("trigger_mode", mTriggerMode);
     declare_parameter<bool>("logout_on_exit", mLogoutOnExit);

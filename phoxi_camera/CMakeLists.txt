@@ -107,6 +107,15 @@ if(BUILD_TESTING)
     )
     target_include_directories(${PROJECT_NAME}_mock_ros_interface_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
+    ament_add_gmock(${PROJECT_NAME}_mock_multi_camera_test
+            test_mock/test_multi_camera.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_mock_multi_camera_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_mock_multi_camera_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
     ament_add_gtest(${PROJECT_NAME}_mock_conversions_test
             test_mock/test_conversions.cpp
             TIMEOUT 200

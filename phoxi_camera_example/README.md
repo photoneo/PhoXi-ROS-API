@@ -25,7 +25,7 @@ Two executables run alongside the driver:
   3. Calls `~/trigger_frame` to request a scan.
   4. Waits for a point cloud to be received.
   5. Deactivates and cleans up the node.
-- **`simple_node_topic_listener`** — subscribes to `points` and logs the first received message.
+- **`simple_node_topic_listener`** — subscribes to `/phoxi_camera/points` and logs the first received message.
 
 ```bash
 ros2 launch phoxi_camera_example run_simple_node_example.launch.py \

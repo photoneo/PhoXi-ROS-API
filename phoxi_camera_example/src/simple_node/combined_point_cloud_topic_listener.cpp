@@ -58,31 +58,31 @@ int main(int argc, char* argv[]) {
     // In publish_combined mode the camera publishes a single dense PointCloud2
     // on "point_cloud" carrying all enabled fields. Individual topics are not
     // published in this mode.
-    auto pointCloudSub = node->create_subscription<sensor_msgs::msg::PointCloud2>("/point_cloud", 10, [&logger](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    auto pointCloudSub = node->create_subscription<sensor_msgs::msg::PointCloud2>("/phoxi_camera/point_cloud", 10, [&logger](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
         RCLCPP_INFO(logger, "Received combined PointCloud2: %ux%u, %zu fields:", msg->width, msg->height, msg->fields.size());
         for (const auto& field : msg->fields) {
             RCLCPP_INFO(logger, "  %s (offset %u)", field.name.c_str(), field.offset);
         }
     });
 
-    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>("/frame_info", 10, [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) {
+    auto frameInfoSub = node->create_subscription<phoxi_camera_msgs::msg::FrameInfo>("/phoxi_camera/frame_info", 10, [&logger](phoxi_camera_msgs::msg::FrameInfo::SharedPtr msg) {
         printFrameInfo(logger, *msg);
     });
 
-    auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>("/frame_info/current_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+    auto frameInfoCameraSub = node->create_subscription<sensor_msgs::msg::CameraInfo>("/phoxi_camera/frame_info/current_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
         printCameraInfo(logger, "frame_info/current_camera", *msg);
     });
 
     auto frameInfoColorCameraSub =
-            node->create_subscription<sensor_msgs::msg::CameraInfo>("/frame_info/current_color_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+            node->create_subscription<sensor_msgs::msg::CameraInfo>("/phoxi_camera/frame_info/current_color_camera", 10, [&logger](sensor_msgs::msg::CameraInfo::SharedPtr msg) {
                 printCameraInfo(logger, "frame_info/current_color_camera", *msg);
             });
 
-    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>("/frame_error", 10, [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) {
+    auto frameErrorSub = node->create_subscription<phoxi_camera_msgs::msg::FrameError>("/phoxi_camera/frame_error", 10, [&logger](phoxi_camera_msgs::msg::FrameError::SharedPtr msg) {
         printFrameError(logger, *msg);
     });
 
-    RCLCPP_INFO(logger, "Listening on /point_cloud (combined mode).");
+    RCLCPP_INFO(logger, "Listening on /phoxi_camera/point_cloud (combined mode).");
     rclcpp::spin(node);
     rclcpp::shutdown();
     return 0;

@@ -55,7 +55,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /points
+        Value: /phoxi_camera/points
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -70,7 +70,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /depth
+        Value: /phoxi_camera/depth
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -83,7 +83,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /normals
+        Value: /phoxi_camera/normals
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -96,7 +96,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /intensity
+        Value: /phoxi_camera/intensity
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -109,7 +109,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /texture
+        Value: /phoxi_camera/texture
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -122,7 +122,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /confidence
+        Value: /phoxi_camera/confidence
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -135,7 +135,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /color_camera_image
+        Value: /phoxi_camera/color_camera_image
       Value: true
   Enabled: true
   Global Options:

@@ -89,15 +89,15 @@ protected:
         ASSERT_TRUE(mTriggerClient->wait_for_service(5s));
 
         const auto qos = rclcpp::SystemDefaultsQoS();
-        mfSubscribe(mPointCloudSub, mClientNode, "/point_cloud", qos);
-        mfSubscribe(mColorCameraSub, mClientNode, "/color_camera_image", qos);
-        mFrameInfoSub = mClientNode->create_subscription<FI>("/frame_info", qos, [this](FI::ConstSharedPtr msg) {
+        mfSubscribe(mPointCloudSub, mClientNode, "/phoxi_camera/point_cloud", qos);
+        mfSubscribe(mColorCameraSub, mClientNode, "/phoxi_camera/color_camera_image", qos);
+        mFrameInfoSub = mClientNode->create_subscription<FI>("/phoxi_camera/frame_info", qos, [this](FI::ConstSharedPtr msg) {
             mLatestFrameInfo = msg;
         });
-        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_camera", qos, [this](CI::ConstSharedPtr msg) {
+        mPrimaryCameraInfoSub = mClientNode->create_subscription<CI>("/phoxi_camera/frame_info/current_camera", qos, [this](CI::ConstSharedPtr msg) {
             mLatestPrimaryCameraInfo = msg;
         });
-        mColorCameraInfoSub = mClientNode->create_subscription<CI>("/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) {
+        mColorCameraInfoSub = mClientNode->create_subscription<CI>("/phoxi_camera/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) {
             mLatestColorCameraInfo = msg;
         });
     }

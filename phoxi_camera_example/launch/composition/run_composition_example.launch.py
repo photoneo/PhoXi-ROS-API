@@ -58,10 +58,10 @@ def generate_launch_description():
             #       phoxi_camera_msgs/srv/Connect "{sn: '<sn>'}"
             ComposableNode(
                 package='phoxi_camera',
-                plugin='phoxi_camera::RosInterface',
+                plugin='phoxi_camera::PhoXiCamera',
                 name='phoxi_camera',
                 parameters=[{
-                    'sensor_sn': 'InstalledExamples-basic-example',
+                    'device_id': 'InstalledExamples-basic-example',
                     'frame_id':  'phoxi_camera_sensor',
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
