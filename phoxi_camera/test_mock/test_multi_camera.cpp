@@ -119,16 +119,14 @@ TEST_F(MultiCameraTest, TwoInstancesPublishIsolatedTopicsAndFrameIds) {
     int count2 = 0;
     sensor_msgs::msg::PointCloud2::SharedPtr msg1;
     sensor_msgs::msg::PointCloud2::SharedPtr msg2;
-    auto sub1 = clientNode_->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/camera_1/points", rclcpp::SystemDefaultsQoS(), [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                ++count1;
-                msg1 = msg;
-            });
-    auto sub2 = clientNode_->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/camera_2/points", rclcpp::SystemDefaultsQoS(), [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-                ++count2;
-                msg2 = msg;
-            });
+    auto sub1 = clientNode_->create_subscription<sensor_msgs::msg::PointCloud2>("/camera_1/points", rclcpp::SystemDefaultsQoS(), [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+        ++count1;
+        msg1 = msg;
+    });
+    auto sub2 = clientNode_->create_subscription<sensor_msgs::msg::PointCloud2>("/camera_2/points", rclcpp::SystemDefaultsQoS(), [&](sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+        ++count2;
+        msg2 = msg;
+    });
     executor_.spin_some(std::chrono::milliseconds(50));
 
     // Fire camera_1's frame only — camera_2 must stay silent (no topic cross-talk).
