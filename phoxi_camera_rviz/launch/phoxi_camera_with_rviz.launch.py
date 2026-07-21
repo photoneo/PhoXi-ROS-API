@@ -1,30 +1,27 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
-def generate_launch_description():
+def launch_setup(context, *args, **kwargs):
     pkg_dir = get_package_share_directory('phoxi_camera')
     pkg_rviz_dir = get_package_share_directory('phoxi_camera_rviz')
     config_file = os.path.join(pkg_dir, 'config', 'phoxi_camera.yaml')
     rviz_config_file = os.path.join(pkg_rviz_dir, 'rviz', 'visual_test.rviz')
 
-    camera_name_arg = DeclareLaunchArgument(
-        'camera_name',
-        default_value='phoxi_camera',
-        description='Node name. Also scopes topics, services, and the '
-                     'default TF frame — set uniquely per physical camera '
-                     'when running multiple instances.'
-    )
+    parameters = [config_file]
+    device_id = LaunchConfiguration('device_id').perform(context)
+    if device_id:
+        parameters.append({'device_id': device_id})
 
     phoxi_camera_node = Node(
         package='phoxi_camera',
         executable='phoxi_camera_node',
         name=LaunchConfiguration('camera_name'),
         output='screen',
-        parameters=[config_file]
+        parameters=parameters
     )
 
     rviz_node = Node(
@@ -35,8 +32,29 @@ def generate_launch_description():
         output='screen'
     )
 
+    return [phoxi_camera_node, rviz_node]
+
+def generate_launch_description():
+    camera_name_arg = DeclareLaunchArgument(
+        'camera_name',
+        default_value='phoxi_camera',
+        description='Node name. Also scopes topics, services, and the '
+                     'default TF frame — set uniquely per physical camera '
+                     'when running multiple instances.'
+    )
+
+    device_id_arg = DeclareLaunchArgument(
+        'device_id',
+        default_value='',
+        description='Hardware serial number or network ID of the target '
+                     'device. Overrides the value in phoxi_camera.yaml when '
+                     'set — leave unset to use the value from the config '
+                     'file. Set uniquely per physical camera when running '
+                     'multiple instances.'
+    )
+
     return LaunchDescription([
         camera_name_arg,
-        phoxi_camera_node,
-        rviz_node
+        device_id_arg,
+        OpaqueFunction(function=launch_setup)
     ])

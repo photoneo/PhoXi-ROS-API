@@ -111,10 +111,10 @@ instance a unique `camera_name` (and `device_id`):
 
 ```bash
 ros2 launch phoxi_camera phoxi_camera.launch.py \
-    camera_name:=camera_1 --ros-args -p device_id:='<serial-number-1>'
+    camera_name:=camera_1 device_id:='<serial-number-1>'
 
 ros2 launch phoxi_camera phoxi_camera.launch.py \
-    camera_name:=camera_2 --ros-args -p device_id:='<serial-number-2>'
+    camera_name:=camera_2 device_id:='<serial-number-2>'
 ```
 
 Topics (`/camera_1/points`, `/camera_2/points`, ...), services

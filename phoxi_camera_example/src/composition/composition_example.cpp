@@ -32,7 +32,7 @@ CompositionExample::CompositionExample(const rclcpp::NodeOptions& options) : rcl
     const auto service_qos = rclcpp::ServicesQoS();
 #endif
 
-    trigger_client_ = create_client<std_srvs::srv::Trigger>(trigger_service_name_, service_qos, cb_group_client_);
+    trigger_client_ = create_client<phoxi_camera_msgs::srv::TriggerFrame>(trigger_service_name_, service_qos, cb_group_client_);
 
     start_service_ = create_service<std_srvs::srv::Trigger>(
             "~/start", std::bind(&CompositionExample::on_start, this, std::placeholders::_1, std::placeholders::_2), service_qos, cb_group_srv_);
@@ -103,8 +103,9 @@ void CompositionExample::trigger_next_frame() {
         return;
     }
 
-    auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
-    trigger_client_->async_send_request(req, [this](rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture fut) {
+    auto req = std::make_shared<phoxi_camera_msgs::srv::TriggerFrame::Request>();
+    req->wait_grabbing_end = false;
+    trigger_client_->async_send_request(req, [this](rclcpp::Client<phoxi_camera_msgs::srv::TriggerFrame>::SharedFuture fut) {
         const auto resp = fut.get();
         if (!resp->success) {
             RCLCPP_WARN(get_logger(), "trigger_frame call failed: %s – stopping the loop.", resp->message.c_str());

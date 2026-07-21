@@ -32,7 +32,7 @@ ros2 launch phoxi_camera_example run_simple_node_example.launch.py \
     sensor_sn:='<your-serial-number>'
 ```
 
-The launch file opens RViz with a pre-configured view and shuts everything down automatically when the service caller exits.
+The launch file opens RViz with a pre-configured view and shuts everything down automatically when RViz is closed.
 
 > With the default `sensor_sn` (`InstalledExamples-basic-example`) the example runs against a file camera bundled with PhoXi Control — no hardware required.
 
@@ -40,7 +40,7 @@ The launch file opens RViz with a pre-configured view and shuts everything down 
 
 - **Terminal output:** Log messages from both the `phoxi_camera` node and `simple_node_service_caller`, showing lifecycle transitions, the trigger call, and confirmation of receiving a point cloud.
 - **RViz:** The triggered point cloud appears in the pre-configured view.
-- **Shutdown:** Once the service caller exits, the launch file automatically terminates the driver and RViz.
+- **Shutdown:** Once RViz is closed, the launch file automatically terminates the driver and the other example nodes.
 
 ---
 

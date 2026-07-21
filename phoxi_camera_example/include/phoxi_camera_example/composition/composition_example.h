@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 
+#include "phoxi_camera_msgs/srv/trigger_frame.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -71,7 +72,7 @@ private:
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr color_camera_image_sub_;
-    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr trigger_client_;
+    rclcpp::Client<phoxi_camera_msgs::srv::TriggerFrame>::SharedPtr trigger_client_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr start_service_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr stop_service_;
 

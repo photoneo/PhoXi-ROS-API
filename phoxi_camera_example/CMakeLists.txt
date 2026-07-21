@@ -25,6 +25,7 @@ target_link_libraries(phoxi_camera_composition_example
     PUBLIC
         rclcpp::rclcpp
         rclcpp_components::component
+        ${phoxi_camera_msgs_TARGETS}
         ${sensor_msgs_TARGETS}
         ${std_srvs_TARGETS}
 )

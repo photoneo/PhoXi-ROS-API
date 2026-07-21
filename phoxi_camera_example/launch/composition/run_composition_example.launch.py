@@ -61,8 +61,9 @@ def generate_launch_description():
                 plugin='phoxi_camera::PhoXiCamera',
                 name='phoxi_camera',
                 parameters=[{
-                    'device_id': 'InstalledExamples-basic-example',
-                    'frame_id':  'phoxi_camera_sensor',
+                    'device_id':         'InstalledExamples-basic-example',
+                    'frame_id':          'phoxi_camera_sensor',
+                    'publish_combined':  True,
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
             ),
