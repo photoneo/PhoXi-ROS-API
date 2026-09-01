@@ -5,6 +5,7 @@ set(CMAKE_PREFIX_PATH $ENV{PHOXI_CONTROL_PATH} ${CMAKE_PREFIX_PATH})
 
 find_package(ament_cmake REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(message_filters REQUIRED)
 find_package(phoxi_camera_msgs REQUIRED)
 find_package(phoxi_camera_vendor REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -28,7 +29,10 @@ target_link_libraries(${PROJECT_NAME}_PhoXi_Interface
         pthread
 )
 
-add_library(${PROJECT_NAME}_Ros_Interface SHARED src/RosInterface.cpp src/RosConversions.cpp)
+add_library(${PROJECT_NAME}_Ros_Interface SHARED
+        src/PhoXiCamera.cpp
+        src/RosConversions.cpp)
+
 target_link_libraries(${PROJECT_NAME}_Ros_Interface
     PUBLIC
         ${PROJECT_NAME}_PhoXi_Interface
@@ -43,7 +47,7 @@ target_link_libraries(${PROJECT_NAME}_Ros_Interface
 )
 
 # Register RosInterface as a composable-node plugin.
-rclcpp_components_register_nodes(${PROJECT_NAME}_Ros_Interface "phoxi_camera::RosInterface")
+rclcpp_components_register_nodes(${PROJECT_NAME}_Ros_Interface "phoxi_camera::PhoXiCamera")
 
 add_executable(${PROJECT_NAME}_node src/phoxi_camera_node.cpp)
 target_link_libraries(${PROJECT_NAME}_node
@@ -94,21 +98,67 @@ if(BUILD_TESTING)
     find_package(ament_cmake_gtest REQUIRED)
     find_package(ament_cmake_gmock REQUIRED)
 
-    ament_add_gmock(${PROJECT_NAME}_ros_interface_test
-            test/test_ros_interface.cpp
+    ament_add_gmock(${PROJECT_NAME}_mock_ros_interface_test
+            test_mock/test_ros_interface.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_ros_interface_test
+    target_link_libraries(${PROJECT_NAME}_mock_ros_interface_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_mock_ros_interface_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
+    ament_add_gmock(${PROJECT_NAME}_mock_multi_camera_test
+            test_mock/test_multi_camera.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_mock_multi_camera_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_mock_multi_camera_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
+    ament_add_gtest(${PROJECT_NAME}_mock_conversions_test
+            test_mock/test_conversions.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_mock_conversions_test
             ${PROJECT_NAME}_Ros_Interface
     )
 
-    ament_add_gtest(${PROJECT_NAME}_conversions_test
-            test/test_conversions.cpp
+    ament_add_gmock(${PROJECT_NAME}_mock_frame_settings_test
+            test_mock/test_frame_settings.cpp
             TIMEOUT 200
     )
-    target_link_libraries(${PROJECT_NAME}_conversions_test
+    target_link_libraries(${PROJECT_NAME}_mock_frame_settings_test
             ${PROJECT_NAME}_Ros_Interface
     )
+    target_include_directories(${PROJECT_NAME}_mock_frame_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
+    ament_add_gmock(${PROJECT_NAME}_mock_setting_types_test
+            test_mock/test_setting_types.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_mock_setting_types_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_mock_setting_types_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
+    ament_add_gmock(${PROJECT_NAME}_mock_device_settings_params_test
+            test_mock/test_device_settings_params.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_mock_device_settings_params_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_mock_device_settings_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
+
+    ament_add_gmock(${PROJECT_NAME}_mock_device_info_params_test
+            test_mock/test_device_info_params.cpp
+            TIMEOUT 200
+    )
+    target_link_libraries(${PROJECT_NAME}_mock_device_info_params_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_mock_device_info_params_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test_mock)
 
     ament_add_gtest(${PROJECT_NAME}_hardware_integration_test
             test/test_hardware_integration.cpp
@@ -117,6 +167,36 @@ if(BUILD_TESTING)
     target_link_libraries(${PROJECT_NAME}_hardware_integration_test
             ${PROJECT_NAME}_Ros_Interface
     )
+    target_include_directories(${PROJECT_NAME}_hardware_integration_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+    ament_add_gtest(${PROJECT_NAME}_get_frame_test
+            test/test_get_frame.cpp
+            TIMEOUT 300
+    )
+    target_link_libraries(${PROJECT_NAME}_get_frame_test
+            ${PROJECT_NAME}_Ros_Interface
+            message_filters::message_filters
+    )
+    target_include_directories(${PROJECT_NAME}_get_frame_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+    ament_add_gtest(${PROJECT_NAME}_settings_test
+            test/test_settings.cpp
+            TIMEOUT 120
+    )
+    target_link_libraries(${PROJECT_NAME}_settings_test
+            ${PROJECT_NAME}_Ros_Interface
+    )
+    target_include_directories(${PROJECT_NAME}_settings_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
+
+    ament_add_gtest(${PROJECT_NAME}_get_frame_individual_test
+            test/test_get_frame_individual.cpp
+            TIMEOUT 600
+    )
+    target_link_libraries(${PROJECT_NAME}_get_frame_individual_test
+            ${PROJECT_NAME}_Ros_Interface
+            message_filters::message_filters
+    )
+    target_include_directories(${PROJECT_NAME}_get_frame_individual_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/test)
 endif()
 
 ament_package()

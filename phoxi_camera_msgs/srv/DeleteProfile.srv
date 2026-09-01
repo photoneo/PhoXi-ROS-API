@@ -1,0 +1,6 @@
+# Delete a saved profile by name from the connected device.
+
+string name     # Name of the profile to delete.
+---
+bool success    # True if the profile was deleted successfully.
+string message  # Error description if success is false.

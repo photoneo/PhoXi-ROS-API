@@ -28,6 +28,11 @@ jobs:
           - ros_distro: kilted
             PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
             PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
+
+          # ROS 2 Kilted (Ubuntu 24.04)
+          - ros_distro: lyrical
+            PHOXI_CONTROL_INSTALLER: PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.run
+            PHOXI_CONTROL_URL: https://photoneo.com/files/dw/dw/pxc/1.16/PhotoneoPhoXiControlInstaller-1.16.5-Ubuntu24-STABLE.tar.gz
           
           # ROS 2 Rolling (Ubuntu 24.04)
           - ros_distro: rolling
@@ -102,10 +107,10 @@ jobs:
             source /opt/ros/${{ matrix.ros_distro }}/setup.bash
 
             # Run linters
-            ament_clang_format --config .clang-format --xunit-file /ros2_ws/build/lint_reports/clang_format.xml src/ include/ test/
+            ament_clang_format --config .clang-format --xunit-file /ros2_ws/build/lint_reports/clang_format.xml src/ include/ test/ test_mock/
             export AMENT_CPPCHECK_ALLOW_SLOW_VERSIONS=1
-            ament_cppcheck --language=c++ --xunit-file /ros2_ws/build/lint_reports/cppcheck.xml src/ include/ test/
-            ament_cpplint src/ include/ test/ 2>&1 | tee /ros2_ws/build/lint_reports/cpplint.log
+            ament_cppcheck --language=c++ --xunit-file /ros2_ws/build/lint_reports/cppcheck.xml src/ include/ test/ test_mock/
+            ament_cpplint src/ include/ test/ test_mock/ 2>&1 | tee /ros2_ws/build/lint_reports/cpplint.log
           "
 
       - name: 'Start PhoXi Control'
@@ -136,7 +141,8 @@ jobs:
               cd /ros2_ws
               colcon build --cmake-args -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
               source ./install/local_setup.bash
-              colcon test
+              # Run mock tests only
+              colcon test --ctest-args -R "_mock_"
             "
 
       - name: 'Publish Test Report'

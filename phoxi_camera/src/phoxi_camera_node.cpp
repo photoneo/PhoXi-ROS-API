@@ -1,4 +1,4 @@
-#include "phoxi_camera/RosInterface.h"
+#include "phoxi_camera/PhoXiCamera.h"
 #include "rclcpp/rclcpp.hpp"
 
 int main(int argc, char** argv) {
@@ -9,8 +9,9 @@ int main(int argc, char** argv) {
     rclcpp::NodeOptions options;
     options.use_intra_process_comms(true);
 
-    auto lc_node = std::make_shared<phoxi_camera::RosInterface>(options);
-    executor.add_node(lc_node->get_node_base_interface());
+    auto lcNode = std::make_shared<phoxi_camera::PhoXiCamera>(options);
+    executor.add_node(lcNode->get_node_base_interface());
+
     executor.spin();
 
     rclcpp::shutdown();

@@ -1,0 +1,6 @@
+# Overwrite an existing saved profile with the current device settings.
+
+string name     # Name of the profile to overwrite.
+---
+bool success    # True if the profile was updated successfully.
+string message  # Error description if success is false.

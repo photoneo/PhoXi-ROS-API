@@ -1,4 +1,7 @@
-string sn       # sensor serial number
+# Connect to a PhoXi device by serial number.
+# Deprecated: prefer the lifecycle configure transition instead.
+
+string sn       # Hardware identification / serial number of the device to connect to.
 ---
-bool success    # if connected successfully
-string message  # error message, if necessary
+bool success    # True if the connection was established successfully.
+string message  # Error description if success is false.

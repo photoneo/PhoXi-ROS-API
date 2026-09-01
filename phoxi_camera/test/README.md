@@ -1,64 +1,54 @@
-# Testing the `phoxi_camera` ROS 2 Node
+# Hardware Tests — `phoxi_camera`
 
-All tests are built using the C++ GoogleTest (GTest) and GoogleMock (GMock) frameworks.
+Tests in this directory require a physical PhoXi device connected to the network with PhoXi Control running. They exercise the full driver stack end-to-end: lifecycle management, frame acquisition, topic publishing, and device settings.
+
+For mock-based (no-hardware) tests see **[test_mock/README.md](../test_mock/README.md)**.
 
 ## Requirements
 
-### General Requirements
-*   **GoogleTest & GoogleMock:** These are required to compile and run the tests.
-    ```bash
-    sudo apt-get update
-    sudo apt-get install libgtest-dev libgmock-dev
-    ```
-*   **ROS 2 Workspace:** All commands should be run from the root of your `colcon` workspace.
-
-* To run the `hardware_integration_test`, you **must** also have PhoXiControl application running and accessible on the network.
+- **PhoXi Control** installed and running with a device accessible on the network.
+- Device serial number exposed via the `PHO_TEST_DEVICE_ID` environment variable:
+  ```bash
+  export PHO_TEST_DEVICE_ID='<your-serial-number>'
+  ```
+- **GTest** installed (`sudo apt-get install libgtest-dev`).
+- ROS 2 workspace built and sourced.
 
 ---
 
-## How to Compile and Run Tests
+## Test Suites
 
-### 1. Build the Workspace
-First, build your workspace with testing enabled. `colcon` will automatically build the test executables.
+| Test binary | Suite | What it covers |
+|-------------|-------|----------------|
+| `phoxi_camera_hardware_integration_test` | `HardwareIntegrationTest` | Full lifecycle transitions, frame triggering, and combined `` `~/point_cloud` `` topic in `publish_combined` mode. |
+| `phoxi_camera_get_frame_test` | `FrameTest` | Frame acquisition in combined mode; verifies timestamp and frame ID synchronisation across all published topics. |
+| `phoxi_camera_get_frame_individual_test` | `IndividualTopicsFrameTest` | Frame acquisition in individual-topics mode; verifies each image and point-cloud topic is published correctly. |
+| `phoxi_camera_settings_test` | `DeviceRequiredTest`, `DirectInterfaceTest` | Device setting declaration, live parameter updates, and `PhoXiInterface::getSettings` / `getFrameOutputSettings` called directly on the device. |
+
+---
+
+## Building and Running
 
 ```bash
-cd /path/to/your/ros2_ws
+# Build
 colcon build --packages-select phoxi_camera
+source install/setup.bash
+
+# Run all tests
+export PHO_TEST_DEVICE_ID='<your-serial-number>'
+colcon test --packages-select phoxi_camera
+colcon test-result --verbose
 ```
 
-### 2. Run the Tests
-After building, source the workspace and run the tests using `colcon test`.
+### Running a single test
 
 ```bash
 source install/setup.bash
-colcon test --packages-select phoxi_camera
+colcon test --packages-select phoxi_camera --ctest-args "-R <test_name>"
 ```
 
-### 3. View the Results
-The primary command to see a summary of the test results is:
-
-```bash
-colcon test-result --verbose
-```
-This will show which tests passed, failed, or were skipped.
-
-### Running Specific Tests
-Running the hardware test can be slow. If you only want to run the fast unit/integration tests, you can do so with `ctest-args`.
-
-*   **Run only the mock-based tests:**
-    ```bash
-    colcon test --packages-select phoxi_camera --ctest-args "-R 'ros_interface_test|conversion_test'"
-    ```
-
-*   **Run only the integration test:**
-    ```bash
-    colcon test --packages-select phoxi_camera --ctest-args "-R hardware_integration_test"
-    ```
-
-### Accessing Detailed Logs
-For more detailed output from a failed test, you can look in the `log` directory of your workspace:
+### Accessing detailed logs
 
 ```bash
 ls -l log/latest_test/phoxi_camera/
 ```
-This will contain the full `stdout` and `stderr` from the test executables.
