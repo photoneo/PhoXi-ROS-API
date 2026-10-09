@@ -133,6 +133,9 @@ protected:
         mColorCameraInfoSub = mClientNode->create_subscription<CI>("/phoxi_camera/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) {
             mLatestColorCameraInfo = msg;
         });
+        ASSERT_TRUE(waitForSubscribers({"/phoxi_camera/points", "/phoxi_camera/depth", "/phoxi_camera/intensity", "/phoxi_camera/texture", "/phoxi_camera/color_camera_image",
+                "/phoxi_camera/frame_info", "/phoxi_camera/frame_info/current_camera", "/phoxi_camera/frame_info/current_color_camera"}))
+                << "Driver did not match the test subscriptions";
     }
 
     void TearDown() override {
