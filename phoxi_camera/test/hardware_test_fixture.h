@@ -1,9 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -122,6 +124,19 @@ protected:
             return nullptr;
         }
         return future.get();
+    }
+
+    // The driver skips topics without matched subscribers, so a frame triggered before discovery completes is lost.
+    bool waitForSubscribers(const std::vector<std::string>& topics, std::chrono::seconds timeout = std::chrono::seconds(10)) {
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (std::chrono::steady_clock::now() < deadline) {
+            const bool allMatched = std::all_of(topics.begin(), topics.end(), [this](const std::string& topic) { return mLcNode->count_subscribers(topic) > 0; });
+            if (allMatched) {
+                return true;
+            }
+            mExecutor.spin_some(std::chrono::milliseconds(10));
+        }
+        return false;
     }
 
     rclcpp::executors::SingleThreadedExecutor& mExecutor;
