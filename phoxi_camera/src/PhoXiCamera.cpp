@@ -943,8 +943,17 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             message.header.stamp = rosStamp;
         };
 
-        auto shouldPublish = [](const auto& pub) {
-            return pub->is_activated() && pub->get_subscription_count() > 0;
+        std::size_t publishedTopics = 0;
+        auto shouldPublish = [&](const auto& pub) {
+            if (!pub->is_activated()) {
+                return false;
+            }
+            if (pub->get_subscription_count() == 0) {
+                RCLCPP_DEBUG(get_logger(), "No subscribers on '%s', skipping publish.", pub->get_topic_name());
+                return false;
+            }
+            ++publishedTopics;
+            return true;
         };
 
         std::optional<ParsedFrameInfo> parsedFrameInfo;
@@ -1037,7 +1046,7 @@ void PhoXiCamera::onFrameCallback(const PhoXiFrame& frame) {
             }
         }
 
-        RCLCPP_INFO(get_logger(), "Frame published successfully.");
+        RCLCPP_INFO(get_logger(), "Frame published successfully (%zu topic(s) with subscribers).", publishedTopics);
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "Failed to publish frame: %s", e.what());
     }
