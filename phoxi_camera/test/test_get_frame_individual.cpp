@@ -311,8 +311,9 @@ TEST_F(IndividualTopicsFrameTest, FrameInfo_CameraInfoReceived) {
     setupSync2();
     triggerAndReceive();
 
+    // The primary and color CameraInfo are separate messages, so wait for both before checking them.
     auto deadline = std::chrono::steady_clock::now() + 5s;
-    while (!mLatestPrimaryCameraInfo && std::chrono::steady_clock::now() < deadline) {
+    while ((!mLatestPrimaryCameraInfo || (sIsColorDevice && !mLatestColorCameraInfo)) && std::chrono::steady_clock::now() < deadline) {
         mExecutor.spin_some(10ms);
     }
 
