@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PhoXi Control
-RUN curl -o /tmp/pxc.tar.gz ${PHOXI_CONTROL_URL} \
+RUN curl -fL -o /tmp/pxc.tar.gz ${PHOXI_CONTROL_URL} \
     && tar -C /tmp -xf /tmp/pxc.tar.gz \
     && chmod a+x /tmp/${PHOXI_CONTROL_INSTALLER} \
     && yes | /tmp/${PHOXI_CONTROL_INSTALLER} --accept \
