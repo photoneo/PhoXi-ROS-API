@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-joint-state-publisher-gui \
     ros-${ROS_DISTRO}-xacro \
     ros-${ROS_DISTRO}-ament-clang-format \
+    ros-${ROS_DISTRO}-ament-lint \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PhoXi Control
