@@ -133,6 +133,9 @@ protected:
         mColorCameraInfoSub = mClientNode->create_subscription<CI>("/phoxi_camera/frame_info/current_color_camera", qos, [this](CI::ConstSharedPtr msg) {
             mLatestColorCameraInfo = msg;
         });
+        ASSERT_TRUE(waitForSubscribers({"/phoxi_camera/points", "/phoxi_camera/depth", "/phoxi_camera/intensity", "/phoxi_camera/texture", "/phoxi_camera/color_camera_image",
+                "/phoxi_camera/frame_info", "/phoxi_camera/frame_info/current_camera", "/phoxi_camera/frame_info/current_color_camera"}))
+                << "Driver did not match the test subscriptions";
     }
 
     void TearDown() override {
@@ -308,8 +311,9 @@ TEST_F(IndividualTopicsFrameTest, FrameInfo_CameraInfoReceived) {
     setupSync2();
     triggerAndReceive();
 
+    // The primary and color CameraInfo are separate messages, so wait for both before checking them.
     auto deadline = std::chrono::steady_clock::now() + 5s;
-    while (!mLatestPrimaryCameraInfo && std::chrono::steady_clock::now() < deadline) {
+    while ((!mLatestPrimaryCameraInfo || (sIsColorDevice && !mLatestColorCameraInfo)) && std::chrono::steady_clock::now() < deadline) {
         mExecutor.spin_some(10ms);
     }
 
