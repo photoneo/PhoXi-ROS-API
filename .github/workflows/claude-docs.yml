@@ -84,8 +84,8 @@ jobs:
             --model ${{ inputs.model }}
             --max-turns ${{ inputs.max_turns }}
             --max-budget-usd 15
-            --allowedTools Read,Glob,Grep,LSP,Edit(**/CLAUDE.md)
-            --disallowedTools Bash,WebFetch,WebSearch,NotebookEdit
+            --allowedTools Read(./**),LSP,Edit(./**/CLAUDE.md)
+            --disallowedTools Bash,WebFetch,WebSearch,NotebookEdit,Read(./.git/**),Edit(./.git/**)
 
       - name: Commit and push
         if: steps.baseline.outputs.skip != 'true'
@@ -115,6 +115,10 @@ jobs:
           done
 
           g add -A -- $changed CLAUDE.md
+          if g diff --cached -U0 | grep -E '^\+' | grep -qE 'gh[opsur]_[A-Za-z0-9]{20,}|github_pat_|sk-ant-|x-access-token|-----BEGIN [A-Z ]*PRIVATE KEY'; then
+            echo "::error::The docs changes contain something that looks like a credential; nothing pushed."
+            exit 1
+          fi
           g -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "docs: update CLAUDE.md for $short"
           remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
