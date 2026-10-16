@@ -23,6 +23,7 @@ Data flows one way: PhoXi Control → `PhoXiInterface` (in `phoxi_camera`) → `
 - Requires an installed PhoXi Control with `PHOXI_CONTROL_PATH` set; build with `colcon build`, see [README.md](README.md#installation).
 - Supported distros: Humble, Jazzy, Kilted, Lyrical, Rolling (the CI matrix in `.github/workflows/build.yml`).
 - CI builds the image from `.github/docker/Dockerfile` (ROS desktop image plus PhoXi Control), runs the `phoxi_camera` linters (`ament_clang_format`, `ament_cppcheck`, `ament_cpplint` over `src/ include/ test/ test_mock/`), starts PhoXi Control headless, builds the workspace and runs only the mock tests (`colcon test --ctest-args -R "_mock_"`). Hardware tests need a real device.
+- `.github/workflows/claude-docs.yml` updates these `CLAUDE.md` files. It runs only when started by hand (Actions → Claude Docs → Run workflow), commits only `CLAUDE.md` changes to the chosen branch, and on the default branch opens a PR instead.
 - C++17. Style configs live in `phoxi_camera/` and `phoxi_camera_example/` (`.clang-format`, `CPPLINT.cfg`, `ament_code_style.cfg`).
 
 ## Index

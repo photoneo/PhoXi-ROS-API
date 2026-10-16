@@ -1,0 +1,122 @@
+name: Claude Docs
+
+# Manual only: Actions → Claude Docs → Run workflow, on the branch whose CLAUDE.md files should be updated.
+# On the default branch the update goes to a new branch with a PR.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Claude model
+        default: claude-opus-5-5
+      max_turns:
+        description: Turn limit
+        default: "50"
+
+permissions: {}
+
+concurrency:
+  group: claude-docs-${{ github.ref_name }}
+
+jobs:
+  docs:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Find the changes since the last docs update
+        id: baseline
+        run: |
+          stamp=$(sed -n '1s/^<!-- claude-docs-generated-from: \([0-9a-f]\{40\}\) @ .* -->$/\1/p' CLAUDE.md 2>/dev/null || true)
+          if [ -n "$stamp" ] && git cat-file -e "$stamp^{commit}" 2>/dev/null; then
+            echo "sha=$stamp" >> "$GITHUB_OUTPUT"
+            if [ -z "$(git diff --name-only "$stamp" HEAD -- . ':(exclude)*.md')" ]; then
+              echo "Nothing but markdown changed since $stamp; docs are up to date."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No usable stamp in CLAUDE.md; reviewing the whole repository."
+          fi
+
+      - name: Install clangd
+        if: steps.baseline.outputs.skip != 'true'
+        run: pip install -q clangd && clangd --version || echo "::warning::clangd not available; Claude falls back to grep"
+
+      - name: Update the docs
+        if: steps.baseline.outputs.skip != 'true'
+        uses: anthropics/claude-code-action@9171db3e57d6a3140a37ddc2ba92788584e0ead6 # v1.0.234
+        env:
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: https://github.com/anthropics/claude-plugins-official.git
+          plugins: clangd-lsp@claude-plugins-official
+          prompt: |
+            You maintain the CLAUDE.md files of this repository: the root CLAUDE.md and the per-directory ones.
+            They describe how the code is organised, for coding agents. User documentation stays in the READMEs;
+            link to it instead of repeating it.
+
+            ${{ steps.baseline.outputs.sha && format('The docs were last updated at {0}. Start from `git diff {0} HEAD` and `git log {0}..HEAD`, then read the changed code.', steps.baseline.outputs.sha) || 'There are no stamped docs yet. Review the whole repository and write the root CLAUDE.md plus one per package with substantial code; keep and correct any existing CLAUDE.md content.' }}
+
+            Make the CLAUDE.md files correct for the current code:
+            - fix statements the changes made wrong, add new structure, remove what no longer exists;
+            - keep everything that is still true, including human-written text, and keep the existing style;
+            - add a new per-directory CLAUDE.md only for a new package or directory with substantial code, and list it in the root index;
+            - verify every statement against the code; don't guess.
+
+            Rules:
+            - Edit only files named CLAUDE.md. Don't touch the first two lines of an existing CLAUDE.md (the stamp); they are updated after you finish.
+            - This repository is public. Use only information from its files and git history. Don't add hostnames, internal URLs,
+              credentials, or anything about systems outside this repository.
+            - If nothing needs to change, change nothing.
+          claude_args: |
+            --model ${{ inputs.model }}
+            --max-turns ${{ inputs.max_turns }}
+            --max-budget-usd 15
+            --allowedTools Edit,Read,Write,Glob,Grep,LSP,Bash(git diff:*),Bash(git log:*),Bash(git show:*)
+
+      - name: Commit and push
+        if: steps.baseline.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          all=$(git status --porcelain --untracked-files=all | cut -c4-)
+          outside=$(grep -vE '(^|/)CLAUDE\.md$' <<<"$all" || true)
+          [ -n "$outside" ] && { echo "::warning::Ignoring changes outside CLAUDE.md files:"; echo "$outside"; }
+          [ -f CLAUDE.md ] || git checkout HEAD -- CLAUDE.md 2>/dev/null || true
+          changed=$(git status --porcelain --untracked-files=all | cut -c4- | grep -E '(^|/)CLAUDE\.md$' || true)
+          if [ -z "$changed" ]; then echo "Docs are up to date; nothing to commit."; exit 0; fi
+
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          short=${HEAD_SHA:0:7}
+          for f in CLAUDE.md $changed; do
+            [ -f "$f" ] || continue
+            if head -1 "$f" | grep -q '^<!-- claude-docs-generated-from: '; then
+              sed -i "1s/.*/<!-- claude-docs-generated-from: $HEAD_SHA @ $now -->/; 2s/.*/_Last updated: ${now:0:10} ($short)_/" "$f"
+            else
+              printf '<!-- claude-docs-generated-from: %s @ %s -->\n_Last updated: %s (%s)_\n\n' "$HEAD_SHA" "$now" "${now:0:10}" "$short" | cat - "$f" > "$f.new" && mv "$f.new" "$f"
+            fi
+          done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- $changed CLAUDE.md
+          git commit -m "docs: update CLAUDE.md for $short"
+          if [ "$GITHUB_REF_NAME" != "$DEFAULT_BRANCH" ]; then
+            git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+            exit 0
+          fi
+          branch="claude-docs/update-$short-$GITHUB_RUN_NUMBER"
+          git push origin "HEAD:refs/heads/$branch"
+          gh pr create --base "$DEFAULT_BRANCH" --head "$branch" --title "docs: update CLAUDE.md for $short" \
+              --body "CLAUDE.md updates for \`$short\`, from a manual run of the Claude Docs workflow: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            || echo "::warning::Could not open the PR. Open it from $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$DEFAULT_BRANCH...$branch"
