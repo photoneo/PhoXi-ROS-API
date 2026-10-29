@@ -20,6 +20,7 @@ For hardware tests that exercise a real device see **[test/README.md](../test/RE
 |-------------|-------|----------------|
 | `phoxi_camera_mock_conversions_test` | `ConversionTest` | Pure unit tests for ROS ↔ PhoXi data-type conversions. |
 | `phoxi_camera_mock_ros_interface_test` | `RosInterfaceTest` | Core ROS lifecycle behaviour: configure, activate, deactivate, cleanup, and service availability at each state. |
+| `phoxi_camera_mock_multi_camera_test` | `MultiCameraTest` | Two camera instances publish on isolated topics with distinct frame IDs. |
 | `phoxi_camera_mock_frame_settings_test` | `FrameSettingsTest` | `frame_settings.*` parameter declaration, override detection, and `setFrameOutputSettings` call semantics. |
 | `phoxi_camera_mock_device_settings_params_test` | `DeviceSettingsParamsTest` | `device_settings.*` parameter declaration from the device schema, override application, and live `setSettings` call semantics. |
 | `phoxi_camera_mock_device_info_params_test` | `DeviceInfoParamsTest` | `device_info.*` read-only parameter declaration after configure. |
@@ -35,7 +36,7 @@ colcon build --packages-select phoxi_camera
 source install/setup.bash
 
 # Run all mock tests
-colcon test --packages-select phoxi_camera --ctest-args "-R mock"
+colcon test --packages-select phoxi_camera --ctest-args -R "_mock_"
 colcon test-result --verbose
 ```
 

@@ -19,8 +19,8 @@ A ROS 2 driver for [Photoneo](https://www.photoneo.com) PhoXi 3D sensors. Provid
 
 ## Prerequisites
 
-- **ROS 2** Humble, Jazzy, Kilted or newer, installed and sourced
-- **PhoXi Control** installed and running — download from [photoneo.com/downloads/phoxi-control](https://www.photoneo.com/downloads/phoxi-control)
+- **ROS 2** Humble, Jazzy, Kilted, Lyrical, Rolling or newer, installed and sourced
+- **PhoXi Control** 1.16.5 and above installed and running — download from [photoneo.com/downloads/phoxi-control](https://www.photoneo.com/downloads/phoxi-control)
 
 ```bash
 # Install PhoXi Control
@@ -170,7 +170,7 @@ ros2 service call /phoxi_camera/change_state lifecycle_msgs/srv/ChangeState \
 |-----------|------|---------|-------------|
 | `device_id` | string | `""` | Hardware serial number or network ID of the target device. Set before `configure`. |
 | `frame_id` | string | `"<node_name>_sensor"` | TF frame ID stamped on all published messages. Defaults to the node's own name with `_sensor` appended (e.g. `phoxi_camera_sensor`) — override explicitly for a custom frame or to avoid relying on the node name. |
-| `publish_combined` | bool | `false` | `true`: publish a single `` `~/point_cloud` `` with all fields. `false`: publish individual topics. |
+| `publish_combined` | bool | `false` | `true`: publish a single `~/point_cloud` with all fields. `false`: publish individual topics. |
 | `trigger_mode` | string | `"Software"` | Trigger mode applied at configure and on every write. Accepted values: `"Software"`, `"Freerun"`. Writes are rejected with an error for any other value. |
 | `logout_on_exit` | bool | `true` | Log out from the device on node shutdown or cleanup. Set to `false` to keep the device connected to PhoXi Control after the node exits (useful for quick restarts). |
 | `stop_acquisition_on_exit` | bool | `true` | Stop acquisition on node shutdown or cleanup. Set to `false` to leave acquisition running in PhoXi Control after the node exits. |

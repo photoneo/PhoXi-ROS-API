@@ -4,6 +4,8 @@ phoxi_camera:
     frame_id: "phoxi_camera_sensor" # coordinate frame ID for published point cloud
     publish_combined: false # true: publish only point_cloud (XYZ + all fields); false: publish individual topics
     trigger_mode: "Software" # trigger mode: "Software" or "Freerun"
+    # logout_on_exit: true # log out from the device on node shutdown or cleanup
+    # stop_acquisition_on_exit: true # stop acquisition on node shutdown or cleanup
     # frame_settings/* — override which components the device sends per frame.
     # Omit any entry to leave the device's current setting unchanged.
     frame_settings:

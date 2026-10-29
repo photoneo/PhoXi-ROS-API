@@ -5,7 +5,7 @@ The `phoxi_camera_example` package contains three self-contained examples with r
 ## Prerequisites
 
 - The `phoxi_camera` package and all its dependencies must be built in your workspace.
-- **PhoXi Control** must be installed and running.
+- **PhoXi Control** 1.16.5 and above must be installed and running.
 - Set `LD_LIBRARY_PATH` before running any example:
   ```bash
   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PHOXI_CONTROL_PATH/API/lib:/opt/ros/<distro>/lib
