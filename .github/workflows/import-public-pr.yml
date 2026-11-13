@@ -1,0 +1,147 @@
+name: Import public PR to private photoneo/PhoXi-ROS-API repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number in photoneo-3d/PhoXi-ROS-API"
+        required: true
+        type: string
+      private_branch_name:
+        description: "Private branch to create/update with the imported PR (e.g. jira-SCAN-2345). An existing branch is only overwritten if it is an open imported PR"
+        required: true
+        type: string
+      base_branch:
+        description: "Private branch to target"
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PUBLIC_REPO: photoneo-3d/PhoXi-ROS-API
+
+# One import per target branch at a time (the branch is force-pushed).
+concurrency:
+  group: import-public-pr-${{ inputs.private_branch_name }}
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Import PR as patches
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+          PRIVATE_BRANCH: ${{ inputs.private_branch_name }}
+          PUBLIC_TOKEN: ${{ secrets.DEPLOY_PUBLIC_PHOXI_ROS_API }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          case "$PR_NUMBER" in
+            ''|*[!0-9]*) echo "pr_number must be a number"; exit 1 ;;
+          esac
+
+          # The target branch is force-pushed, so it must be a valid name and
+          # must not clobber an unrelated branch.
+          if [ -z "${PRIVATE_BRANCH//[[:space:]]/}" ]; then
+            echo "private_branch_name must not be empty"; exit 1
+          fi
+          if ! git check-ref-format --branch "$PRIVATE_BRANCH" >/dev/null 2>&1; then
+            echo "private_branch_name is not a valid branch name"; exit 1
+          fi
+          case "$PRIVATE_BRANCH" in
+            "$BASE_BRANCH"|main|release/public)
+              echo "private_branch_name must not be ${PRIVATE_BRANCH}"; exit 1 ;;
+          esac
+          # An existing branch may only be updated if it is the head of an open
+          # PR created by this workflow (a re-run of the same import).
+          if git ls-remote --exit-code --heads origin "refs/heads/${PRIVATE_BRANCH}" >/dev/null 2>&1; then
+            existing_body=$(gh pr list --head "$PRIVATE_BRANCH" --state open --json body --jq '.[0].body // ""')
+            case "$existing_body" in
+              "Imported from ${PUBLIC_REPO}:"*) ;;
+              *)
+                echo "Branch ${PRIVATE_BRANCH} already exists and is not an open imported PR; refusing to overwrite it."
+                echo "Choose another name, or delete the branch first."; exit 1 ;;
+            esac
+          fi
+
+          # The checkout step persists the private-repository token for all of
+          # github.com; clear it so the public token in the URL is used.
+          git_public() { git -c "http.https://github.com/.extraheader=" "$@"; }
+
+          # PR metadata is treated as untrusted data: written to files, never
+          # interpolated into shell code.
+          GH_TOKEN="$PUBLIC_TOKEN" gh api "repos/${PUBLIC_REPO}/pulls/${PR_NUMBER}" > pr.json
+          state=$(jq -r .state pr.json)
+          if [ "$state" != "open" ]; then
+            echo "PR #${PR_NUMBER} is not open (state: ${state})"; exit 1
+          fi
+          jq -r .title pr.json > pr-title.txt
+          jq -r '.body // ""' pr.json > pr-body.txt
+          jq -r .html_url pr.json > pr-url.txt
+
+          url="https://x-access-token:${PUBLIC_TOKEN}@github.com/${PUBLIC_REPO}.git"
+          git_public fetch --no-tags "$url" "refs/heads/main"
+          public_main=$(git rev-parse FETCH_HEAD)
+          git_public fetch --no-tags "$url" "refs/pull/${PR_NUMBER}/head"
+          pr_head=$(git rev-parse FETCH_HEAD)
+
+          mb=$(git merge-base "$public_main" "$pr_head")
+
+          # Never import changes to CI/workflow files. Check the net diff and
+          # every individual commit (git am applies them one by one). -z keeps
+          # non-ASCII paths unquoted; --no-renames lists both sides of a rename.
+          touched=$(
+            {
+              git diff -z --name-only --no-renames "$mb" "$pr_head"
+              git log -z --no-merges --no-renames --name-only --pretty=format: "${mb}..${pr_head}"
+            } | tr '\0' '\n' | grep '^\.github/' | sort -u || true
+          )
+          if [ -n "$touched" ]; then
+            echo "PR touches .github/ - refusing to import:"; echo "$touched"; exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          branch="$PRIVATE_BRANCH"
+          git checkout -B "$branch"
+          if ! git format-patch --stdout "${mb}..${pr_head}" | git am --3way; then
+            git am --abort || true
+            echo "Patches do not apply cleanly on ${BASE_BRANCH}"; exit 1
+          fi
+
+          git push --force origin "$branch"
+
+          # The public body is untrusted: indent it as a code block (no mentions,
+          # no closing keywords like "Fixes #1", no markup) and cap its length.
+          {
+            echo "Imported from ${PUBLIC_REPO}: $(cat pr-url.txt)"
+            echo
+            echo "Original description (verbatim):"
+            echo
+            head -c 60000 pr-body.txt | sed 's/^/    /'
+          } > pr-new-body.txt
+          pr_title="[public PR #${PR_NUMBER}] $(cat pr-title.txt)"
+
+          existing=$(gh pr list --head "$branch" --base "$BASE_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$pr_title" --body-file pr-new-body.txt
+            echo "Updated existing PR #${existing}"
+          else
+            gh pr create --base "$BASE_BRANCH" --head "$branch" \
+              --title "$pr_title" \
+              --body-file pr-new-body.txt
+          fi

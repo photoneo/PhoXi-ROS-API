@@ -1,0 +1,60 @@
+name: Deploy to public photoneo-3d/PhoXi-ROS-API repository
+
+on:
+  push:
+    branches:
+      - release/public
+  workflow_dispatch:
+
+# Only one deploy run at a time; never cancel a push midway.
+concurrency:
+  group: deploy-to-public
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          ref: release/public
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Remove private-only files (.github, .private) from history
+        env:
+          FILTER_BRANCH_SQUELCH_WARNING: "1"
+        run: |
+          # Rewrites history without .github/ and .private/. Dates and authors
+          # are preserved, so the result is deterministic and hashes stay stable
+          # between runs. Commits that only touched those paths are dropped.
+          git filter-branch --prune-empty --index-filter \
+            'git rm -r --cached --ignore-unmatch -q .github .private' \
+            HEAD
+
+      - name: Verify nothing private is left
+        run: |
+          # Safety net before the force push: no private path may remain in the
+          # tip tree or in any commit of the history to be published.
+          leaked=$(
+            {
+              git ls-tree -r -z --name-only HEAD
+              git log -z --no-renames --name-only --pretty=format: HEAD
+            } | tr '\0' '\n' | grep -E '^\.(github|private)(/|$)' | sort -u || true
+          )
+          if [ -n "$leaked" ]; then
+            echo "Private paths survived the filter, refusing to push:"; echo "$leaked"; exit 1
+          fi
+
+      - name: Push to public main
+        env:
+          # Fine-grained PAT with "Contents: read and write" on the public repo only
+          PUBLIC_TOKEN: ${{ secrets.DEPLOY_PUBLIC_PHOXI_ROS_API }}
+        run: |
+          git push --force \
+            "https://x-access-token:${PUBLIC_TOKEN}@github.com/photoneo-3d/PhoXi-ROS-API.git" \
+            HEAD:refs/heads/main
